@@ -1,0 +1,7 @@
+httpx
+python-dotenv
+tenacity
+streamlit
+pandas
+openpyxl
+sqlite3
