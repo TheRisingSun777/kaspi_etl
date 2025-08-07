@@ -4,4 +4,3 @@ tenacity
 streamlit
 pandas
 openpyxl
-sqlite3
