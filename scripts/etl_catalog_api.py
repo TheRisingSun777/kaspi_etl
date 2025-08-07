@@ -77,12 +77,13 @@ def load_catalog_csv() -> pd.DataFrame:
         # Clean and standardize column names
         df.columns = [col.strip() for col in df.columns]
         
-        # Select and rename relevant columns
+        # Select and rename relevant columns for new catalog format
         catalog_df = df[[
-            'SKU_ID', 'sku_name_raw', 'Kaspi_name_edit', 'my_size', 'Size_kaspi',
-            'Stock_entered', 'Kaspi_art_1', 'SKU_ID_KSP', 'Kaspi_name_source',
-            'SKU_key', 'Kaspi_art_2', 'Kaspi_art_3', 'Product_Type', 'Brend',
-            'Model', 'Color', 'Our_Size', 'Gender', 'Season', 'BaseCost_CNY', 'Weight_kg'
+            'SKU_ID', 'Kaspi_name_core', 'MY_SIZE', 'Size_kaspi', 'Kaspi_art_1',
+            'SKU_ID_KSP', 'Kaspi_name_source', 'Initial_KSP_Price', 'Stock_entered',
+            'SKU_key', 'Secondary', 'Product_Type', 'Sub_Category', 'Brend',
+            'Model', 'Color', 'Our_Size', 'Gender', 'Season', 'BaseCost_CNY', 'Weight_kg',
+            'Store_name', 'Kaspi_art_2'
         ]].copy()
         
         # Clean data
@@ -104,18 +105,18 @@ def create_products_table():
     cur.execute("""
     CREATE TABLE IF NOT EXISTS products (
         sku_id              TEXT PRIMARY KEY,
-        sku_name_raw        TEXT,
-        kaspi_name_edit     TEXT,
+        kaspi_name_core     TEXT,
         my_size             TEXT,
         size_kaspi          TEXT,
-        stock_entered       INTEGER,
         kaspi_art_1         TEXT,
         sku_id_ksp          TEXT,
         kaspi_name_source   TEXT,
+        initial_ksp_price   TEXT,
+        stock_entered       INTEGER,
         sku_key             TEXT,
-        kaspi_art_2         TEXT,
-        kaspi_art_3         TEXT,
+        secondary           TEXT,
         product_type        TEXT,
+        sub_category        TEXT,
         brand               TEXT,
         model               TEXT,
         color               TEXT,
@@ -124,6 +125,8 @@ def create_products_table():
         season              TEXT,
         base_cost_cny       REAL,
         weight_kg           REAL,
+        store_name          TEXT,
+        kaspi_art_2         TEXT,
         kaspi_product_id    TEXT,
         last_updated        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -150,18 +153,18 @@ def save_to_database(catalog_df: pd.DataFrame, kaspi_products: List[Dict]):
     # Rename columns to match database schema
     catalog_df = catalog_df.rename(columns={
         'SKU_ID': 'sku_id',
-        'sku_name_raw': 'sku_name_raw',
-        'Kaspi_name_edit': 'kaspi_name_edit',
-        'my_size': 'my_size',
+        'Kaspi_name_core': 'kaspi_name_core',
+        'MY_SIZE': 'my_size',
         'Size_kaspi': 'size_kaspi',
-        'Stock_entered': 'stock_entered',
         'Kaspi_art_1': 'kaspi_art_1',
         'SKU_ID_KSP': 'sku_id_ksp',
         'Kaspi_name_source': 'kaspi_name_source',
+        'Initial_KSP_Price': 'initial_ksp_price',
+        'Stock_entered': 'stock_entered',
         'SKU_key': 'sku_key',
-        'Kaspi_art_2': 'kaspi_art_2',
-        'Kaspi_art_3': 'kaspi_art_3',
+        'Secondary': 'secondary',
         'Product_Type': 'product_type',
+        'Sub_Category': 'sub_category',
         'Brend': 'brand',
         'Model': 'model',
         'Color': 'color',
@@ -169,7 +172,9 @@ def save_to_database(catalog_df: pd.DataFrame, kaspi_products: List[Dict]):
         'Gender': 'gender',
         'Season': 'season',
         'BaseCost_CNY': 'base_cost_cny',
-        'Weight_kg': 'weight_kg'
+        'Weight_kg': 'weight_kg',
+        'Store_name': 'store_name',
+        'Kaspi_art_2': 'kaspi_art_2'
     })
     
     # Convert stock_entered to numeric
@@ -186,7 +191,7 @@ def prepare_product_for_api(row: pd.Series) -> Dict:
     """Prepare a catalog row for Kaspi API product creation"""
     # Basic product structure for Kaspi API
     product_data = {
-        "name": row['kaspi_name_edit'] if row['kaspi_name_edit'] else row['sku_name_raw'],
+        "name": row['kaspi_name_core'] if row['kaspi_name_core'] else row['sku_id'],
         "code": row['kaspi_art_1'],
         "description": f"{row['brand']} {row['model']} {row['color']} {row['our_size']}",
         "category": row['product_type'],

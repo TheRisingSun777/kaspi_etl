@@ -25,7 +25,7 @@ def test_catalog_loading():
         print(f"✅ Successfully loaded {len(df)} rows from catalog CSV")
         
         # Check required columns
-        required_cols = ['SKU_ID', 'sku_name_raw', 'Kaspi_art_1', 'Brend', 'Model', 'Color']
+        required_cols = ['SKU_ID', 'Kaspi_name_core', 'Kaspi_art_1', 'Brend', 'Model', 'Color']
         missing_cols = [col for col in required_cols if col not in df.columns]
         
         if missing_cols:
@@ -36,7 +36,7 @@ def test_catalog_loading():
         
         # Show sample data
         print("\n📋 Sample catalog data:")
-        sample = df[['SKU_ID', 'sku_name_raw', 'Kaspi_art_1', 'Brend', 'Model']].head(3)
+        sample = df[['SKU_ID', 'Kaspi_name_core', 'Kaspi_art_1', 'Brend', 'Model']].head(3)
         print(sample.to_string(index=False))
         
         return True
