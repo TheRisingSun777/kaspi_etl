@@ -8,6 +8,7 @@ export default function VariantCard({ variant }: { variant: VariantInfo }) {
         <div>
           <div className="text-sm text-gray-500">Variant</div>
           <div className="text-lg font-semibold flex items-center gap-2">
+            <span className="text-xs text-gray-500">{variant.productId}</span>
             <span>{variant.label}</span>
             {variant.variantColor && (
               <span className="text-xs rounded-full px-2 py-0.5 bg-border text-text-secondary border" title="Color">
