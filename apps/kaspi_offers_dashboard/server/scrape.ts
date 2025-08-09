@@ -157,6 +157,8 @@ async function parseSellersFromDom(page: Page): Promise<Seller[]> {
     '.sellers-list li',
     '.merchant-list li',
     '.merchant__root, .merchant-list__item, .sellers-list__item',
+    '.sellers-table__row',
+    '.sellers-table tr',
   ];
 
   for (const sel of selectors) {
@@ -169,12 +171,14 @@ async function parseSellersFromDom(page: Page): Promise<Seller[]> {
           const text = (root.innerText || '').trim();
 
           const name =
+            (root.querySelector('.sellers-table__merchant-name') as HTMLElement)?.textContent?.trim() ||
             (root.querySelector('[data-merchant-name]') as HTMLElement)?.textContent?.trim() ||
             (root.querySelector('a[href*="/shop/seller"]') as HTMLElement)?.textContent?.trim() ||
             (root.querySelector('[class*="merchant"][class*="name"]') as HTMLElement)?.textContent?.trim() ||
             (text.split('\n')[0] || '').trim();
 
           const priceTxt =
+            (root.querySelector('.sellers-table__price-cell-text') as HTMLElement)?.textContent ||
             (root.querySelector('[data-merchant-price]') as HTMLElement)?.textContent ||
             (root.querySelector('[class*="price"]') as HTMLElement)?.textContent ||
             text;
@@ -182,16 +186,11 @@ async function parseSellersFromDom(page: Page): Promise<Seller[]> {
           const num = (priceTxt.match(/[\d\s]+/g)?.join('') || '').replace(/\s/g, '');
           const price = Number(num);
 
-          const postamatLine =
-            (root.querySelector('[data-test*="postomat" i]') as HTMLElement)?.textContent?.trim() ||
-            (text.match(/Postomat[^\n]+/i)?.[0] || '').trim();
-
-          const deliveryLine =
-            (root.querySelector('[data-test*="delivery"]') as HTMLElement)?.textContent?.trim() ||
-            (root.querySelector('[class*="delivery"]') as HTMLElement)?.textContent?.trim() ||
-            (text.match(/Доставка[^\n]+/i)?.[0] || '').trim();
-
-          const delivery = [postamatLine, deliveryLine].filter(Boolean).join(' | ');
+          const delA = (root.querySelector('.sellers-table__delivery, .sellers-table__delivery-text') as HTMLElement)?.textContent?.trim() || ''
+          const delB = (root.querySelector('.sellers-table__delivery-price') as HTMLElement)?.textContent?.trim() || ''
+          const postamatLine = (root.querySelector('[data-test*="postomat" i]') as HTMLElement)?.textContent?.trim() || (text.match(/Постомат[^\n]+/i)?.[0] || '').trim() || ''
+          const deliveryLine = delA || (root.querySelector('[data-test*="delivery"]') as HTMLElement)?.textContent?.trim() || (root.querySelector('[class*="delivery"]') as HTMLElement)?.textContent?.trim() || (text.match(/Доставка[^\n]+/i)?.[0] || '').trim()
+          const delivery = [postamatLine, deliveryLine, delB].filter(Boolean).join(' | ')
 
           if (name && Number.isFinite(price) && price > 0) {
             out.push({ name, price, deliveryDate: delivery });
@@ -675,11 +674,20 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
           try {
             const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'))
             for (const s of scripts) {
-              const json = JSON.parse(s.textContent || '{}')
-              const agg = json.aggregateRating || json?.["@graph"]?.find((x:any)=>x.aggregateRating)?.aggregateRating
+              let json: any
+              try { json = JSON.parse(s.textContent || '{}') } catch { continue }
+              let agg = json && json.aggregateRating
+              if (!agg && Array.isArray(json?.['@graph'])) {
+                const node = json['@graph'].find((x:any)=> x && x.aggregateRating)
+                agg = node?.aggregateRating
+              }
               if (agg) {
-                result.rating = { avg: Number(agg.ratingValue) || undefined, count: Number(agg.reviewCount) || undefined }
-                break
+                const avg = Number(agg.ratingValue)
+                const count = Number(agg.reviewCount)
+                if (!Number.isNaN(avg) || !Number.isNaN(count)) {
+                  result.rating = { avg: Number.isNaN(avg) ? undefined : avg, count: Number.isNaN(count) ? undefined : count }
+                  break
+                }
               }
             }
           } catch {}
