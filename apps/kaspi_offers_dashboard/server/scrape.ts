@@ -9,6 +9,9 @@ export type AnalyzeResult = {
   productName: string;
   cityId: string;
   variants: Variant[];
+  ratingCount?: number;
+  productImageUrl?: string;
+  attributes?: { sizesAll?: string[]; colorsAll?: string[] };
   meta: { scrapedAt: string; source: 'kaspi.kz'; notes?: string };
 };
 
@@ -118,7 +121,9 @@ async function openVariantPage(context: BrowserContext, id: string, cityId: stri
   }
   await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
 
-  return { page, captured };
+  const details = await extractPageDetails(page);
+
+  return { page, captured, details };
 }
 
 async function parseSellersFromDom(page: Page): Promise<Seller[]> {
@@ -224,6 +229,122 @@ function parseSellersFromCaptured(captured: Array<{ url: string; json: any }>): 
   return out;
 }
 
+function normalizeRuDateToDotted(dateLike: string, twoDigitYear = false): string {
+  if (!dateLike) return '';
+  const months: Record<string, number> = {
+    'января': 1, 'февраля': 2, 'марта': 3, 'апреля': 4, 'мая': 5, 'июня': 6,
+    'июля': 7, 'августа': 8, 'сентября': 9, 'октября': 10, 'ноября': 11, 'декабря': 12,
+  };
+  const m = dateLike.toLowerCase().match(/(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/);
+  if (!m) return '';
+  const d = parseInt(m[1], 10);
+  const mo = months[m[2]];
+  const year = new Date().getFullYear();
+  const yy = String(year).slice(-2);
+  return twoDigitYear ? `${d}.${mo}.${yy}` : `${d}.${mo}.${year}`;
+}
+
+function normalizeDelivery(text: string): string {
+  if (!text) return '';
+  const t = text.replace(/\s+/g, ' ').trim();
+  const lines = text.split(/\n|\r|\.|;|\u2028|\u2029/).map((s) => s.trim()).filter(Boolean);
+  let postamat = '', delivery = '';
+  for (const ln of lines) {
+    if (!postamat && /postomat|постомат/i.test(ln)) postamat = ln;
+    if (!delivery && /доставка/i.test(ln)) delivery = ln;
+  }
+  if (!postamat && /postomat|постомат/i.test(t)) postamat = t;
+  if (!delivery && /доставка/i.test(t)) delivery = t;
+
+  const pDate = normalizeRuDateToDotted(postamat, false);
+  const dDate = normalizeRuDateToDotted(delivery, true);
+  if (pDate || dDate) {
+    return `${pDate ? `postamat - ${pDate}` : ''}${pDate && dDate ? ', ' : ''}${dDate ? `delivery - ${dDate}` : ''}`.trim();
+  }
+  return t;
+}
+
+async function extractPageDetails(page: Page): Promise<{ sizesAll?: string[]; colorsAll?: string[]; ratingCount?: number; imageUrl?: string }> {
+  try {
+    const details = await page.evaluate(() => {
+      const out: { sizesAll?: string[]; colorsAll?: string[]; ratingCount?: number; imageUrl?: string } = {};
+
+      // rating count near reviews link (e.g., "(85 отзывов)")
+      try {
+        const anchor = Array.from(document.querySelectorAll('a')).find((el) => /отзыв/i.test(el.textContent || ''));
+        if (anchor) {
+          const m = (anchor.textContent || '').match(/(\d+)/);
+          if (m) out.ratingCount = Number(m[1]);
+        }
+      } catch {}
+
+      // product main image
+      try {
+        const og = document.querySelector('meta[property="og:image"]') as HTMLMetaElement | null;
+        const ogUrl = og?.getAttribute('content') || '';
+        if (ogUrl) out.imageUrl = ogUrl;
+      } catch {}
+      if (!out.imageUrl) {
+        const img = document.querySelector('img[src*="/pictures/"]') as HTMLImageElement | null;
+        if (img?.src) out.imageUrl = img.src;
+      }
+
+      function uniq(values: string[]): string[] {
+        const set = new Set<string>();
+        for (const v of values) {
+          const t = v.trim();
+          if (t) set.add(t);
+        }
+        return Array.from(set);
+      }
+
+      // try to use embedded JSON variants
+      try {
+        const html = document.documentElement.innerHTML || '';
+        const match = html.match(/__KASPI__\s*=\s*(\{[\s\S]*?\});/);
+        if (match) {
+          const root = JSON.parse(match[1]);
+          const vlist = root?.pageData?.variants || root?.variants || [];
+          const labels: string[] = [];
+          for (const v of vlist) if (v?.label) labels.push(String(v.label));
+          if (labels.length) {
+            // crude size extraction
+            const sizes: string[] = [];
+            const colors: string[] = [];
+            for (const L of labels) {
+              const sm = L.match(/(\d{2}\/(?:XS|S|M|L|XL|XXL)\s*RUS|\d{2}\s*\/(?:XS|S|M|L|XL|XXL)|XS|S|M|L|XL|XXL|\d{2,3}[\/]?\w*)/i);
+              if (sm) sizes.push(sm[1]);
+              const cm = L.match(/(черный|белый|серый|серебристый|синий|красный|зеленый|фиолетовый|желтый|оранжевый|коричневый)/i);
+              if (cm) colors.push(cm[1]);
+            }
+            if (sizes.length) out.sizesAll = uniq(sizes);
+            if (colors.length) out.colorsAll = uniq(colors.map((s) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()));
+          }
+        }
+      } catch {}
+
+      // fallback from full page text for sizes/colors
+      if (!out.sizesAll) {
+        const text = (document.body.innerText || '');
+        const sizeCandidates = Array.from(text.matchAll(/\b(\d{2}\/(?:XS|S|M|L|XL|XXL)\s*RUS|\d{2}\s*\/(?:XS|S|M|L|XL|XXL)|XS|S|M|L|XL|XXL|\d{2,3}[\/]?\w*)\b/gi)).map(m => m[1]);
+        if (sizeCandidates.length) out.sizesAll = uniq(sizeCandidates);
+      }
+      if (!out.colorsAll) {
+        const colorLabels = ['черный','белый','серый','серебристый','синий','красный','зеленый','фиолетовый','желтый','оранжевый','коричневый'];
+        const text = (document.body.innerText || '').toLowerCase();
+        const found: string[] = [];
+        for (const c of colorLabels) if (text.includes(c)) found.push(c);
+        if (found.length) out.colorsAll = uniq(found.map(s => s.charAt(0).toUpperCase() + s.slice(1)));
+      }
+
+      return out;
+    });
+    return details;
+  } catch {
+    return {};
+  }
+}
+
 function dedupeSellers(sellers: Seller[]): Seller[] {
   const map = new Map<string, Seller>();
   for (const s of sellers) {
@@ -268,6 +389,8 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
   const productName =
     (await page.locator('h1').first().textContent().catch(() => ''))?.trim() || '';
 
+  const entryDetails = await extractPageDetails(page);
+
   // discover variant productIds from links on the page
   const hrefs: string[] = await page
     .locator('a[href*="/shop/p/"]')
@@ -297,11 +420,13 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
     let lastErr: any;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const { page: vPage, captured } = await openVariantPage(context, id, cityId);
+        const { page: vPage, captured, details } = await openVariantPage(context, id, cityId);
 
-        let sellers = dedupeSellers(parseSellersFromCaptured(captured));
+        let sellers = dedupeSellers(
+          parseSellersFromCaptured(captured).map((s) => ({ ...s, deliveryDate: normalizeDelivery(s.deliveryDate) }))
+        );
         if (sellers.length === 0) {
-          sellers = dedupeSellers(await parseSellersFromDom(vPage));
+          sellers = dedupeSellers((await parseSellersFromDom(vPage)).map((s) => ({ ...s, deliveryDate: normalizeDelivery(s.deliveryDate) })));
         }
 
         const label =
@@ -317,6 +442,12 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
         }
 
         await vPage.close();
+
+        // merge details
+        if (details?.sizesAll?.length) entryDetails.sizesAll = Array.from(new Set([...(entryDetails.sizesAll || []), ...details.sizesAll]));
+        if (details?.colorsAll?.length) entryDetails.colorsAll = Array.from(new Set([...(entryDetails.colorsAll || []), ...details.colorsAll]));
+        if (!entryDetails.ratingCount && details?.ratingCount) entryDetails.ratingCount = details.ratingCount;
+        if (!entryDetails.imageUrl && details?.imageUrl) entryDetails.imageUrl = details.imageUrl;
 
         setCached(cityId, id, sellers, label);
         variants.push({ productId: id, label, sellersCount: sellers.length, sellers });
@@ -345,6 +476,9 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
     productName,
     cityId,
     variants,
+    ratingCount: entryDetails.ratingCount,
+    productImageUrl: entryDetails.imageUrl,
+    attributes: { sizesAll: entryDetails.sizesAll, colorsAll: entryDetails.colorsAll },
     meta: { scrapedAt: new Date().toISOString(), source: 'kaspi.kz' },
   };
 }

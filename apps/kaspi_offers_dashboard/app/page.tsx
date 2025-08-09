@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import SearchBar from '@/components/SearchBar'
 import KpiCards from '@/components/KpiCards'
 import VariantCard from '@/components/VariantCard'
+import ModelInfo from '@/components/ModelInfo'
 import type { AnalyzeResult } from '@/lib/types'
 import { exportCSV, exportXLSX } from '@/lib/export'
 
@@ -88,6 +89,7 @@ export default function Page() {
 
       {data && data.variants && (
         <div className="space-y-4">
+          <ModelInfo data={data} />
           <KpiCards data={data} />
 
           <div className="flex flex-wrap gap-2">
