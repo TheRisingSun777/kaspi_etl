@@ -13,6 +13,7 @@ export default function Page() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<AnalyzeResult | null>(null)
+  const [includeOOS, setIncludeOOS] = useState(true)
 
   const totals = useMemo(() => {
     if (!data) return { variants: 0, sellers: 0 }
@@ -54,7 +55,8 @@ export default function Page() {
 
   const handleExportCSV = () => {
     if (!data) return
-    const csv = exportCSV(data)
+    const filtered = filterForExport(data, includeOOS)
+    const csv = exportCSV(filtered)
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -66,7 +68,8 @@ export default function Page() {
 
   const handleExportXLSX = () => {
     if (!data) return
-    const arrayBuffer = exportXLSX(data)
+    const filtered = filterForExport(data, includeOOS)
+    const arrayBuffer = exportXLSX(filtered)
     const blob = new Blob([arrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -88,7 +91,19 @@ export default function Page() {
         <div className="card p-4 text-red-600 dark:text-red-400">{error}</div>
       )}
 
-      {data && data.variants && (
+      {loading && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="card p-4 animate-pulse">
+              <div className="h-4 w-24 bg-border rounded mb-2" />
+              <div className="h-5 w-48 bg-border rounded mb-3" />
+              <div className="h-24 w-full bg-border rounded" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {data && data.variants && !loading && (
         <div className="space-y-4">
           <ModelInfo data={data} />
           <KpiCards data={data} />
@@ -98,6 +113,10 @@ export default function Page() {
             <button className="btn-outline" onClick={handleCopyJSON}>Copy JSON</button>
             <button className="btn-outline" onClick={handleExportCSV}>Export CSV</button>
             <button className="btn-outline" onClick={handleExportXLSX}>Export XLSX</button>
+            <label className="text-sm text-gray-500 inline-flex items-center gap-2 ml-2">
+              <input type="checkbox" checked={includeOOS} onChange={e=>setIncludeOOS(e.target.checked)} />
+              Include out-of-stock in export
+            </label>
           </div>
 
           {data.variants.length === 0 ? (
@@ -126,6 +145,18 @@ export default function Page() {
       )}
     </main>
   )
+}
+
+function filterForExport(data: AnalyzeResult, includeOOS: boolean): AnalyzeResult {
+  if (includeOOS) return data
+  const clone: AnalyzeResult = {
+    ...data,
+    variants: data.variants.map(v => ({
+      ...v,
+      sellers: v.sellers.filter(s => !(s.name === 'Out of stock' && s.price === 0))
+    }))
+  }
+  return clone
 }
 
 
