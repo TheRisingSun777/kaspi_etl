@@ -766,10 +766,14 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
 
         if (DEBUG) {
           try {
+            await fs.mkdir('data_raw/debug', { recursive: true });
             await fs.mkdir('data_raw/kaspi_debug', { recursive: true });
-            await fs.writeFile(`data_raw/kaspi_debug/variant_${id}.html`, await vPage.content(), 'utf8');
+            const html = await vPage.content();
+            await fs.writeFile(`data_raw/debug/variant_${id}.html`, html, 'utf8');
+            await fs.writeFile(`data_raw/kaspi_debug/variant_${id}.html`, html, 'utf8');
             console.log(`[kaspi][${id}] capturedJSON=${capturedJSON} parsedFromJSON=${parsedFromJSON} parsedFromDOM=${parsedFromDOM} sellers=${sellers.length}`);
             if (sellers.length === 0) {
+              await vPage.screenshot({ path: `data_raw/debug/variant_${id}_no_sellers.png`, fullPage: true }).catch(()=>{})
               await vPage.screenshot({ path: `data_raw/kaspi_debug/variant_${id}_no_sellers.png`, fullPage: true }).catch(()=>{})
             }
           } catch {}
