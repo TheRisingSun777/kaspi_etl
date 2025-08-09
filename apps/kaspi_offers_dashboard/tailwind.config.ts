@@ -9,19 +9,23 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        primary: {
-          50: '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
+        bg: {
+          DEFAULT: '#0A0A0C',
+          card: '#121214',
         },
+        text: {
+          primary: '#F5F5F7',
+          secondary: '#A1A1AA',
+        },
+        primary: {
+          DEFAULT: '#0A84FF',
+          muted: '#64D2FF',
+        },
+        border: 'rgba(255,255,255,.06)'
       },
+      boxShadow: {
+        soft: '0 1px 2px rgba(0,0,0,.1), 0 8px 24px rgba(0,0,0,.2)'
+      }
     },
   },
   plugins: [],
