@@ -21,10 +21,10 @@ export default function SearchBar({ onAnalyze, loading }: Props) {
     } catch {}
   }, [])
 
-  const recent = useMemo(() => history.slice(0, 5), [history])
+  const recent = useMemo(() => history.slice(0, 2), [history])
 
   const pushHistory = (id: string) => {
-    const next = [id, ...history.filter((x) => x !== id)].slice(0, 5)
+    const next = [id, ...history.filter((x) => x !== id)].slice(0, 2)
     setHistory(next)
     try {
       localStorage.setItem('recentProductIds', JSON.stringify(next))
