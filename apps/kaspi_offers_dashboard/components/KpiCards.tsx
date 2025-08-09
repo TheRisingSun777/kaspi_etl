@@ -29,11 +29,12 @@ export default function KpiCards({ data }: Props) {
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
       <Kpi label="Product Name" value={data?.productName || '—'} />
       <Kpi label="Total Variants" value={String(totalVariants)} />
       <Kpi label="Total Sellers" value={String(totalSellers)} />
       <Kpi label="Fastest Delivery" value={fastest} />
+      <Kpi label="Attractiveness" value={typeof data?.analytics?.attractivenessIndex === 'number' ? String(data.analytics.attractivenessIndex) : '—'} />
     </div>
   )
 }
