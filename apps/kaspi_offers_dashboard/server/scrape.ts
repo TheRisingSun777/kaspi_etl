@@ -691,6 +691,26 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
               }
             }
           } catch {}
+          if (!result.rating) {
+            try {
+              const rv = document.querySelector('[itemprop="ratingValue"], meta[itemprop="ratingValue"]') as any
+              const rc = document.querySelector('[itemprop="reviewCount"], meta[itemprop="reviewCount"]') as any
+              const avg = rv ? Number(rv.content || rv.getAttribute('content') || rv.textContent || '') : NaN
+              const count = rc ? Number(rc.content || rc.getAttribute('content') || rc.textContent || '') : NaN
+              if (!Number.isNaN(avg) || !Number.isNaN(count)) {
+                result.rating = { avg: Number.isNaN(avg)? undefined: avg, count: Number.isNaN(count)? undefined: count }
+              }
+            } catch {}
+          }
+          if (!result.rating) {
+            try {
+              const link = Array.from(document.querySelectorAll('a, span')).find(el => /отзыв/i.test(el.textContent||''))
+              if (link) {
+                const m = (link.textContent||'').match(/(\d{1,4})/)
+                if (m) result.rating = { avg: undefined, count: Number(m[1]) }
+              }
+            } catch {}
+          }
           return result
         })
 
