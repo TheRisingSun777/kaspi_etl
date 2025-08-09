@@ -5,6 +5,7 @@ import SearchBar from '@/components/SearchBar'
 import KpiCards from '@/components/KpiCards'
 import VariantCard from '@/components/VariantCard'
 import ModelInfo from '@/components/ModelInfo'
+import AnalyticsPanel from '@/components/AnalyticsPanel'
 import type { AnalyzeResult } from '@/lib/types'
 import { exportCSV, exportXLSX } from '@/lib/export'
 
@@ -91,6 +92,7 @@ export default function Page() {
         <div className="space-y-4">
           <ModelInfo data={data} />
           <KpiCards data={data} />
+          <AnalyticsPanel data={data} />
 
           <div className="flex flex-wrap gap-2">
             <button className="btn-outline" onClick={handleCopyJSON}>Copy JSON</button>
@@ -104,7 +106,14 @@ export default function Page() {
             </div>
           ) : (
             <section className="grid gap-4 sm:grid-cols-2">
-              {data.variants.map((v) => (
+              {[...data.variants]
+                .sort((a,b)=>{
+                  const ca = (a.variantColor||'').localeCompare(b.variantColor||'')
+                  if (ca !== 0) return ca
+                  const num = (s:string)=>{ const m = s.match(/(\d{2,3})/); return m? parseInt(m[1],10): 0 }
+                  return num(a.variantSize||a.label) - num(b.variantSize||b.label)
+                })
+                .map((v) => (
                 <VariantCard key={v.productId} variant={v} />
               ))}
             </section>
