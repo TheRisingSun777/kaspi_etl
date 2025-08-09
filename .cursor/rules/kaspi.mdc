@@ -1,0 +1,45 @@
+---
+description: kaspi etl
+alwaysApply: false
+---
+Repo: kaspi_etl  (Python 3.13)
+
+Coding conventions
+• Follow PEP‑8; use 4‑space indent.
+• All environment secrets live in .env, loaded with python‑dotenv.
+• Database is sqlite db/erp.db; table names lower‑case.
+
+File layout
+• Raw inputs in data_raw/  
+• ETL scripts in scripts/  
+• Docs & API notes in docs/  
+
+When creating code
+1. Provide the full path header (e.g. scripts/etl_catalog_api.py).  
+2. Include an `if __name__ == "__main__":` CLI that prints a short success message.  
+3. Add/modify pytest tests under tests/ if logic is non‑trivial.  
+4. Update docs/kaspi_api.md if a new Kaspi endpoint is used.
+
+When explaining
+• Show the exact httpx request snippet with headers for each Kaspi call.  
+• After code, write a one‑paragraph “Usage” section with terminal commands.Repo: kaspi_etl  (Python 3.13)
+
+Coding conventions
+• Follow PEP‑8; use 4‑space indent.
+• All environment secrets live in .env, loaded with python‑dotenv.
+• Database is sqlite db/erp.db; table names lower‑case.
+
+File layout
+• Raw inputs in data_raw/  
+• ETL scripts in scripts/  
+• Docs & API notes in docs/  
+
+When creating code
+1. Provide the full path header (e.g. scripts/etl_catalog_api.py).  
+2. Include an `if __name__ == "__main__":` CLI that prints a short success message.  
+3. Add/modify pytest tests under tests/ if logic is non‑trivial.  
+4. Update docs/kaspi_api.md if a new Kaspi endpoint is used.
+
+When explaining
+• Show the exact httpx request snippet with headers for each Kaspi call.  
+• After code, write a one‑paragraph “Usage” section with terminal commands.

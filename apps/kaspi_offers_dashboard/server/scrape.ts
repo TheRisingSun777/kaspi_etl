@@ -3,7 +3,7 @@ import { chromium, type BrowserContext, type Page } from 'playwright';
 import fs from 'node:fs/promises';
 
 export type Seller = { name: string; price: number; deliveryDate: string };
-export type Variant = { productId: string; label: string; sellersCount: number; sellers: Seller[] };
+export type Variant = { productId: string; label: string; color?: string; variantName?: string; ratingCount?: number; sellersCount: number; sellers: Seller[] };
 export type AnalyzeResult = {
   masterProductId: string;
   productName: string;
@@ -12,6 +12,8 @@ export type AnalyzeResult = {
   ratingCount?: number;
   productImageUrl?: string;
   attributes?: { sizesAll?: string[]; colorsAll?: string[] };
+  variantMap?: Record<string, string>;
+  variantMeta?: Record<string, { size: string; color?: string }>;
   meta: { scrapedAt: string; source: 'kaspi.kz'; notes?: string };
 };
 
@@ -107,6 +109,13 @@ async function openVariantPage(context: BrowserContext, id: string, cityId: stri
   const url = `https://kaspi.kz/shop/p/-${id}/?c=${cityId}`;
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: DEFAULT_TIMEOUT });
   await ensureCity(page, cityId);
+  // Wait for configurator object if present
+  await page
+    .waitForFunction(
+      'typeof window !== "undefined" && !!(window as any).BACKEND && !!(window as any).BACKEND.components && !!(window as any).BACKEND.components.configurator',
+      { timeout: 7000 }
+    )
+    .catch(() => {});
 
   // Click the “Продавцы” tab if present (usually default, but harmless anyway)
   const sellersTab = page.getByText(/продавцы/i, { exact: false }).first();
@@ -120,6 +129,12 @@ async function openVariantPage(context: BrowserContext, id: string, cityId: stri
     await page.waitForTimeout(350);
   }
   await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
+  await page
+    .waitForFunction(
+      'typeof window !== "undefined" && !!(window as any).BACKEND && !!(window as any).BACKEND.components && !!(window as any).BACKEND.components.configurator',
+      { timeout: 7000 }
+    )
+    .catch(() => {});
 
   const details = await extractPageDetails(page);
 
@@ -157,10 +172,16 @@ async function parseSellersFromDom(page: Page): Promise<Seller[]> {
           const num = (priceTxt.match(/[\d\s]+/g)?.join('') || '').replace(/\s/g, '');
           const price = Number(num);
 
-          const delivery =
+          const postamatLine =
+            (root.querySelector('[data-test*="postomat" i]') as HTMLElement)?.textContent?.trim() ||
+            (text.match(/Postomat[^\n]+/i)?.[0] || '').trim();
+
+          const deliveryLine =
             (root.querySelector('[data-test*="delivery"]') as HTMLElement)?.textContent?.trim() ||
             (root.querySelector('[class*="delivery"]') as HTMLElement)?.textContent?.trim() ||
             (text.match(/Доставка[^\n]+/i)?.[0] || '').trim();
+
+          const delivery = [postamatLine, deliveryLine].filter(Boolean).join(' | ');
 
           if (name && Number.isFinite(price) && price > 0) {
             out.push({ name, price, deliveryDate: delivery });
@@ -191,7 +212,9 @@ async function parseSellersFromDom(page: Page): Promise<Seller[]> {
         const priceMatch = text.replace(/\s+/g, ' ').match(/(\d[\d\s]{3,})/);
         const price = priceMatch ? Number((priceMatch[1] || '').replace(/\s/g, '')) : NaN;
 
-        const delivery = (text.match(/Доставка[^\n]+/i)?.[0] || '').trim();
+        const postamatLine = (text.match(/Postomat[^\n]+/i)?.[0] || '').trim();
+        const deliveryLine = (text.match(/Доставка[^\n]+/i)?.[0] || '').trim();
+        const delivery = [postamatLine, deliveryLine].filter(Boolean).join(' | ');
 
         if (name && Number.isFinite(price) && price > 0 && !seen.has(name)) {
           seen.add(name);
@@ -227,6 +250,156 @@ function parseSellersFromCaptured(captured: Array<{ url: string; json: any }>): 
     }
   }
   return out;
+}
+
+async function discoverVariantMap(page: Page): Promise<Record<string, string>> {
+  try {
+    const data = await page.evaluate(() => {
+      const out: Record<string, string> = {};
+
+      const html = document.documentElement.innerHTML || '';
+
+      // 0) Directly read global BACKEND object if available
+      try {
+        // @ts-ignore
+        const conf = (window as any)?.BACKEND?.components?.configurator;
+        if (conf && Array.isArray(conf.matrix)) {
+          function walk(node: any, ctx: { dim?: string }) {
+            const ch = node?.characteristic || {};
+            const title = String(ch.title || ch.id || '').toLowerCase();
+            const next: { dim?: string } = { ...ctx };
+            if (/размер|size/.test(title)) {
+              const sizeId = String(ch.id || '').trim();
+              const dim = String((ch.values?.[0]?.dimension || ch.dimension || '')).trim();
+              if (node.productCode && sizeId) {
+                const pid = String(node.productCode);
+                const label = `${sizeId}${dim ? ` ${dim}` : ''}`;
+                out[pid] = label;
+              }
+              if (dim) next.dim = dim;
+            }
+            if (Array.isArray(node?.matrix)) for (const c of node.matrix) walk(c, next);
+          }
+          for (const n of conf.matrix) walk(n, {});
+        }
+      } catch {}
+
+      // 1) Preferred: BACKEND.components.configurator matrix
+      try {
+        const m = html.match(/BACKEND\.components\.configurator\s*=\s*(\{[\s\S]*?\});/);
+        if (m) {
+          const conf = JSON.parse(m[1] as string);
+
+          function walk(node: any, ctx: { color?: string; size?: string; dim?: string }) {
+            if (!node) return;
+            const next = { ...ctx } as { color?: string; size?: string; dim?: string };
+            const ch = node.characteristic || {};
+            const title = String(ch.title || ch.id || '').toLowerCase();
+            if (/цвет|colour|color/.test(title)) {
+              next.color = String(ch.id || ch.value || '').trim();
+            }
+            if (/размер|size/.test(title)) {
+              const sizeId = String(ch.id || '').trim();
+              const dim = String((ch.values?.[0]?.dimension || ch.dimension || '')).trim();
+              next.size = sizeId;
+              next.dim = dim || next.dim;
+            }
+            if (node.productCode) {
+              const pid = String(node.productCode);
+              const dim = next.dim ? ` ${next.dim}` : '';
+              const label = `${next.size || ''}${dim}`.trim();
+              if (pid && label) out[pid] = label;
+            }
+            if (Array.isArray(node.matrix)) {
+              for (const child of node.matrix) walk(child, next);
+            }
+          }
+          if (Array.isArray(conf?.matrix)) for (const n of conf.matrix) walk(n, {});
+        }
+      } catch {}
+
+      // 2) Fallback: __KASPI__ variants
+      try {
+        const m2 = html.match(/__KASPI__\s*=\s*(\{[\s\S]*?\});/);
+        if (m2) {
+          const root = JSON.parse(m2[1] as string);
+          const vlist = root?.pageData?.variants || root?.variants || [];
+          for (const v of vlist) {
+            const id = String(v?.id ?? v?.productId ?? '');
+            const label = String(v?.label ?? v?.name ?? '').trim();
+            if (id && label && !out[id]) out[id] = label;
+          }
+        }
+      } catch {}
+
+      // 3) Fallback: anchors that look like product links
+      try {
+        const sizeRegex = /(\d{2}\/(?:XS|S|M|L|XL|XXL)\s*RUS|\d{2}\s*\/(?:XS|S|M|L|XL|XXL)|(?:XS|S|M|L|XL|XXL)\s*RUS|\d{2}\/(?:XS|S|M|L|XL|XXL))/i;
+        const anchors = Array.from(document.querySelectorAll('a[href*="/shop/p/"]')) as HTMLAnchorElement[];
+        for (const a of anchors) {
+          const href = a.href || '';
+          const m = href.match(/-(\d+)\/?$/);
+          const id = m ? m[1] : '';
+          const label = (a.textContent || '').trim();
+          if (id && label && (sizeRegex.test(label) || /(черн|бел|сер|красн|син|зел)/i.test(label))) {
+            if (!out[id]) out[id] = label;
+          }
+        }
+      } catch {}
+
+      return out;
+    });
+    return data || {};
+  } catch {
+    return {};
+  }
+}
+
+function discoverVariantMapFromHtml(html: string): Record<string, string> {
+  const out: Record<string, string> = {}
+  try {
+    const marker = 'BACKEND.components.configurator'
+    let idx = html.indexOf(marker)
+    if (idx >= 0) {
+      idx = html.indexOf('=', idx)
+      if (idx > 0) {
+        // Extract balanced JSON starting at first '{'
+        let start = html.indexOf('{', idx)
+        let depth = 0
+        let end = -1
+        for (let i = start; i < html.length; i++) {
+          const ch = html[i]
+          if (ch === '{') depth++
+          else if (ch === '}') {
+            depth--
+            if (depth === 0) { end = i; break }
+          }
+        }
+        if (start >= 0 && end > start) {
+          const jsonStr = html.slice(start, end + 1)
+          const conf = JSON.parse(jsonStr)
+          function walk(node: any, ctx: { dim?: string }) {
+            const ch = node?.characteristic || {}
+            const title = String(ch.title || ch.id || '').toLowerCase()
+            const next: { dim?: string } = { ...ctx }
+            if (/размер|size/.test(title)) {
+              const sizeId = String(ch.id || '').trim()
+              const dim = String((ch.values?.[0]?.dimension || ch.dimension || '')).trim()
+              if (node.productCode && sizeId) {
+                const pid = String(node.productCode)
+                const label = `${sizeId}${dim ? ` ${dim}` : ''}`
+                out[pid] = label
+              }
+              if (dim) next.dim = dim
+            }
+            if (Array.isArray(node?.matrix)) for (const c of node.matrix) walk(c, next)
+          }
+          if (Array.isArray(conf?.matrix)) for (const n of conf.matrix) walk(n, {})
+        }
+      }
+    }
+  } catch {}
+  return out
 }
 
 function normalizeRuDateToDotted(dateLike: string, twoDigitYear = false): string {
@@ -298,7 +471,35 @@ async function extractPageDetails(page: Page): Promise<{ sizesAll?: string[]; co
         return Array.from(set);
       }
 
-      // try to use embedded JSON variants
+      // try to use embedded configurator JSON first
+      try {
+        const html = document.documentElement.innerHTML || '';
+        const m = html.match(/BACKEND\.components\.configurator\s*=\s*(\{[\s\S]*?\});/);
+        if (m) {
+          const conf = JSON.parse(m[1] as string);
+          const sizes: string[] = [];
+          const colors: string[] = [];
+          function walk(node: any) {
+            const ch = node?.characteristic || {};
+            const title = String(ch.title || ch.id || '').toLowerCase();
+            if (/цвет|colour|color/.test(title)) {
+              const val = String(ch.id || ch.value || '').trim();
+              if (val) colors.push(val.charAt(0).toUpperCase() + val.slice(1));
+            }
+            if (/размер|size/.test(title)) {
+              const sizeId = String(ch.id || '').trim();
+              const dim = String((ch.values?.[0]?.dimension || ch.dimension || '')).trim();
+              if (sizeId) sizes.push(`${sizeId}${dim ? ` ${dim}` : ''}`);
+            }
+            if (Array.isArray(node?.matrix)) for (const c of node.matrix) walk(c);
+          }
+          if (Array.isArray(conf?.matrix)) for (const n of conf.matrix) walk(n);
+          if (sizes.length) out.sizesAll = Array.from(new Set(sizes));
+          if (colors.length) out.colorsAll = Array.from(new Set(colors));
+        }
+      } catch {}
+
+      // then __KASPI__ variants
       try {
         const html = document.documentElement.innerHTML || '';
         const match = html.match(/__KASPI__\s*=\s*(\{[\s\S]*?\});/);
@@ -390,19 +591,25 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
     (await page.locator('h1').first().textContent().catch(() => ''))?.trim() || '';
 
   const entryDetails = await extractPageDetails(page);
+  const entryHtml = await page.content();
+  let variantMap = discoverVariantMapFromHtml(entryHtml);
+  if (Object.keys(variantMap).length === 0) {
+    // fallback to in-page discovery
+    variantMap = await discoverVariantMap(page);
+  }
 
-  // discover variant productIds from links on the page
+  // Discover variants via embedded JSON first (ids + labels), fallback to link scan
   const hrefs: string[] = await page
     .locator('a[href*="/shop/p/"]')
     .evaluateAll((els) => els.map((a: any) => (a as HTMLAnchorElement).href));
 
-  const ids = new Set<string>();
+  const ids = new Set<string>(Object.keys(variantMap));
   for (const h of hrefs) {
     const id = idFromHref(h);
     if (id) ids.add(id);
   }
-  ids.add(masterProductId); // ensure the main one is included
-  const variantIds = Array.from(ids).slice(0, 24);
+  ids.add(masterProductId); // make sure the searched id is included
+  const variantIds = Array.from(ids).slice(0, 64);
 
   const variants: Variant[] = [];
 
@@ -429,9 +636,7 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
           sellers = dedupeSellers((await parseSellersFromDom(vPage)).map((s) => ({ ...s, deliveryDate: normalizeDelivery(s.deliveryDate) })));
         }
 
-        const label =
-          (await vPage.locator('h1').first().textContent().catch(() => ''))?.trim() ||
-          `Variant ${id}`;
+        const label = variantMap[id] || (await vPage.locator('h1').first().textContent().catch(() => ''))?.trim() || `Variant ${id}`;
 
         if (DEBUG) {
           try {
@@ -479,6 +684,7 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
     ratingCount: entryDetails.ratingCount,
     productImageUrl: entryDetails.imageUrl,
     attributes: { sizesAll: entryDetails.sizesAll, colorsAll: entryDetails.colorsAll },
+    variantMap: variantMap,
     meta: { scrapedAt: new Date().toISOString(), source: 'kaspi.kz' },
   };
 }
