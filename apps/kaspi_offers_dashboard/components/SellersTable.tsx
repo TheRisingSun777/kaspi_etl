@@ -27,7 +27,16 @@ export default function SellersTable({ sellers }: { sellers: SellerInfo[] }) {
                 <tr key={i} className={`border-t border-gray-200/70 dark:border-gray-700/60 ${isMin ? 'bg-white/40 dark:bg-white/5' : ''}`}>
                   <td className="p-2">{s.name}</td>
                   <td className="p-2">{new Intl.NumberFormat('en-US').format(s.price)}</td>
-                  <td className="p-2">{delta ? `+${delta}` : '—'}</td>
+                  <td className="p-2">
+                    {delta ? (
+                      <span>
+                        +{delta}
+                        <span className="text-xs text-gray-500 ml-1">
+                          ({min ? Math.round((delta / min) * 1000)/10 : 0}%)
+                        </span>
+                      </span>
+                    ) : '—'}
+                  </td>
                   <td className="p-2">{isBot}</td>
                   <td className="p-2">{s.deliveryDate || ''}</td>
                 </tr>

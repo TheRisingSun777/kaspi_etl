@@ -32,6 +32,8 @@ export default function VariantCard({ variant }: { variant: VariantInfo }) {
             <div>max: {variant.stats.max ?? '—'}</div>
             <div>spread: {variant.stats.spread ?? '—'}</div>
             <div>σ: {variant.stats.stddev ? variant.stats.stddev.toFixed(1) : '—'}</div>
+            {typeof variant.stats.predictedMin24h !== 'undefined' && <div>pred 24h: {variant.stats.predictedMin24h}</div>}
+            {typeof variant.stats.predictedMin7d !== 'undefined' && <div>pred 7d: {variant.stats.predictedMin7d}</div>}
           </div>
         )}
       </div>

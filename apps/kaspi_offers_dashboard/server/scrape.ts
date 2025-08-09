@@ -708,7 +708,33 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
         const stddev = variance!==undefined ? Math.sqrt(variance) : undefined
         const spread = (min!==undefined && max!==undefined) ? max-min : undefined
         if (min!==undefined) {
-          sellers = sellers.map(s => ({ ...s, isPriceBot: s.price <= (min + 1) }))
+          const medianDelta = median !== undefined ? median - min : 0
+          sellers = sellers.map(s => {
+            const delta = s.price - (min as number)
+            const pct = (min as number) > 0 ? delta / (min as number) : 0
+            // heuristic: bots tend to be within +0..+15 KZT of min OR within +0..0.25% of min
+            const nearMin = delta >= 0 && delta <= 15
+            const nearPct = pct >= 0 && pct <= 0.0025
+            // also consider when median is tight around min
+            const tightMarket = (medianDelta <= 30)
+            const isPriceBot = (nearMin || nearPct) && tightMarket
+            return { ...s, isPriceBot }
+          })
+        }
+
+        // short-term prediction (very simple heuristic): if >=2 bots present, expect further undercutting
+        let predictedMin24h: number | undefined = undefined
+        let predictedMin7d: number | undefined = undefined
+        if (min!==undefined) {
+          const botCount = sellers.filter(s=>s.isPriceBot).length
+          if (botCount >= 2) {
+            // assume 10–30 KZT further drop in 24h, 20–60 KZT in 7d (bounded by not going below 0)
+            predictedMin24h = Math.max(0, (min as number) - 20)
+            predictedMin7d = Math.max(0, (min as number) - 40)
+          } else {
+            predictedMin24h = min
+            predictedMin7d = min
+          }
         }
 
         if (DEBUG) {
@@ -738,7 +764,7 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
           rating: meta.rating,
           sellersCount: sellers.length,
           sellers,
-          stats: { min, median, max, spread, stddev }
+          stats: { min, median, max, spread, stddev, predictedMin24h, predictedMin7d }
         });
 
         break; // success
