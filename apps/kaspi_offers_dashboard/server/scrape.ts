@@ -757,6 +757,13 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
           }
         }
 
+        // stability score (0..100): lower stddev vs min = higher stability
+        let stabilityScore: number | undefined = undefined
+        if (min!==undefined && stddev!==undefined) {
+          const ratio = min > 0 ? Math.min(1, stddev / min) : 1
+          stabilityScore = Math.round((1 - ratio) * 100)
+        }
+
         if (DEBUG) {
           try {
             await fs.mkdir('data_raw/kaspi_debug', { recursive: true });
@@ -784,7 +791,7 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
           rating: meta.rating,
           sellersCount: sellers.length,
           sellers,
-          stats: { min, median, max, spread, stddev, predictedMin24h, predictedMin7d }
+          stats: { min, median, max, spread, stddev, stabilityScore, predictedMin24h, predictedMin7d }
         });
 
         break; // success

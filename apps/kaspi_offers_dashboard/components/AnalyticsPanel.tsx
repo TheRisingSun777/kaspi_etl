@@ -5,7 +5,7 @@ export default function AnalyticsPanel({ data }: { data: AnalyzeResult }) {
   return (
     <div className="card p-4">
       <div className="text-sm text-gray-500 mb-2">Analytics</div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+      <div className="grid grid-cols-2 md:grid-cols-7 gap-3 text-sm">
         <div>
           <div className="text-text-secondary text-xs">Avg Spread</div>
           <div className="font-medium">{a.avgSpread ?? '—'}</div>
@@ -25,6 +25,14 @@ export default function AnalyticsPanel({ data }: { data: AnalyzeResult }) {
         <div>
           <div className="text-text-secondary text-xs">Attractiveness</div>
           <div className="font-medium">{a.attractivenessIndex ?? '—'}</div>
+        </div>
+        <div>
+          <div className="text-text-secondary text-xs">Stability</div>
+          <div className="font-medium">{a.stabilityScore ?? '—'}</div>
+        </div>
+        <div>
+          <div className="text-text-secondary text-xs">Best Entry</div>
+          <div className="font-medium">{a.bestEntryPrice ?? '—'}</div>
         </div>
       </div>
     </div>

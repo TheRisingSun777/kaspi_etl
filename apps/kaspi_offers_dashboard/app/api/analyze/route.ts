@@ -61,10 +61,24 @@ export async function POST(req: NextRequest) {
         0.10 * (1 - botShare)
       )
     )
+    // stabilityScore: average of per-variant stability scores when available
+    const stabilities = result.variants.map(v=> v.stats?.stabilityScore).filter((x): x is number => typeof x==='number')
+    const stabilityScore = stabilities.length ? Math.round(stabilities.reduce((a,b)=>a+b,0)/stabilities.length) : undefined
+    // bestEntryPrice: choose min of predicted 24h mins when >=2 bots exist on any variant; else current global min
+    const predictedCandidates = result.variants
+      .filter(v=> (v.sellers.filter(s=>s.isPriceBot).length>=2))
+      .map(v=> v.stats?.predictedMin24h)
+      .filter((x): x is number => typeof x==='number')
+    let bestEntryPrice: number | undefined = undefined
+    if (predictedCandidates.length) bestEntryPrice = Math.min(...predictedCandidates)
+    else {
+      const mins = result.variants.map(v=> v.stats?.min).filter((x): x is number => typeof x==='number')
+      if (mins.length) bestEntryPrice = Math.min(...mins)
+    }
     const enriched: AnalyzeResult = {
       ...result,
       uniqueSellers: totalUniqueSellers,
-      analytics: { avgSpread, medianSpread, maxSpread, botShare, attractivenessIndex }
+      analytics: { avgSpread, medianSpread, maxSpread, botShare, attractivenessIndex, stabilityScore, bestEntryPrice }
     }
     return NextResponse.json(enriched, { status: 200 })
   } catch (e: any) {
