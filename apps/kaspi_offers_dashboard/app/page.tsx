@@ -4,19 +4,22 @@ import { useMemo, useState } from 'react'
 import SearchBar from '@/components/SearchBar'
 import KpiCards from '@/components/KpiCards'
 import VariantCard from '@/components/VariantCard'
-import type { AnalyzeResponse } from '@/lib/types'
+import type { AnalyzeResult } from '@/lib/types'
 import { exportCSV, exportXLSX } from '@/lib/export'
 
 export default function Page() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [data, setData] = useState<AnalyzeResponse | null>(null)
+  const [data, setData] = useState<AnalyzeResult | null>(null)
 
   const totals = useMemo(() => {
     if (!data) return { variants: 0, sellers: 0 }
     const variants = data.variants.length
-    const sellers = data.variants.reduce((acc, v) => acc + (v.sellers?.length || 0), 0)
-    return { variants, sellers }
+    const sellerNames = new Set<string>()
+    for (const v of data.variants) {
+      for (const s of v.sellers || []) sellerNames.add(s.name)
+    }
+    return { variants, sellers: sellerNames.size }
   }, [data])
 
   const onAnalyze = async (masterProductId: string, cityId: string) => {
@@ -33,7 +36,7 @@ export default function Page() {
         const text = await res.text()
         throw new Error(text || `HTTP ${res.status}`)
       }
-      const json = (await res.json()) as AnalyzeResponse
+      const json = (await res.json()) as AnalyzeResult
       setData(json)
     } catch (e: any) {
       setError(e?.message || 'Failed to analyze')
@@ -83,7 +86,7 @@ export default function Page() {
         <div className="card p-4 text-red-600 dark:text-red-400">{error}</div>
       )}
 
-      {data && (
+      {data && data.variants && (
         <div className="space-y-4">
           <KpiCards data={data} />
 
@@ -93,11 +96,17 @@ export default function Page() {
             <button className="btn-outline" onClick={handleExportXLSX}>Export XLSX</button>
           </div>
 
-          <section className="grid gap-4 sm:grid-cols-2">
-            {data.variants.map((v) => (
-              <VariantCard key={v.productId} variant={v} />
-            ))}
-          </section>
+          {data.variants.length === 0 ? (
+            <div className="card p-6 text-center text-gray-500">
+              No sellers were found. {process.env.NODE_ENV !== 'production' ? 'Check files under data_raw/kaspi_debug for captured HTML.' : ''}
+            </div>
+          ) : (
+            <section className="grid gap-4 sm:grid-cols-2">
+              {data.variants.map((v) => (
+                <VariantCard key={v.productId} variant={v} />
+              ))}
+            </section>
+          )}
         </div>
       )}
 

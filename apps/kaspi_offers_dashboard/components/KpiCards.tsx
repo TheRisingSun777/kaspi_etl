@@ -1,8 +1,6 @@
-import type { AnalyzeResponse } from '@/lib/types'
+import type { AnalyzeResult } from '@/lib/types'
 
-interface Props {
-  data: AnalyzeResponse | null
-}
+interface Props { data: AnalyzeResult | null }
 
 function Kpi({ label, value }: { label: string; value: string }) {
   return (
@@ -15,7 +13,11 @@ function Kpi({ label, value }: { label: string; value: string }) {
 
 export default function KpiCards({ data }: Props) {
   const totalVariants = data?.variants.length ?? 0
-  const totalSellers = data?.variants.reduce((acc, v) => acc + (v.sellers?.length || 0), 0) ?? 0
+  const uniqueSellerNames = new Set<string>()
+  if (data?.variants) {
+    for (const v of data.variants) for (const s of v.sellers) uniqueSellerNames.add(s.name)
+  }
+  const totalSellers = uniqueSellerNames.size
 
   // fastest delivery (min date)
   let fastest = '—'
