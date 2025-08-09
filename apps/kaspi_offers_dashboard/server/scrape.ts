@@ -2,19 +2,29 @@
 import { chromium, type BrowserContext, type Page } from 'playwright';
 import fs from 'node:fs/promises';
 
-export type Seller = { name: string; price: number; deliveryDate: string };
-export type Variant = { productId: string; label: string; color?: string; variantName?: string; ratingCount?: number; sellersCount: number; sellers: Seller[] };
+export type Seller = { name: string; price: number; deliveryDate?: string; isPriceBot?: boolean };
+export type Variant = {
+  productId: string;
+  label: string;
+  variantColor?: string;
+  variantSize?: string;
+  rating?: { avg?: number; count?: number };
+  sellersCount: number;
+  sellers: Seller[];
+  stats?: { min?: number; median?: number; max?: number; spread?: number; stddev?: number };
+};
 export type AnalyzeResult = {
   masterProductId: string;
   productName: string;
   cityId: string;
   variants: Variant[];
-  ratingCount?: number;
   productImageUrl?: string;
   attributes?: { sizesAll?: string[]; colorsAll?: string[] };
   variantMap?: Record<string, string>;
   variantMeta?: Record<string, { size: string; color?: string }>;
   meta: { scrapedAt: string; source: 'kaspi.kz'; notes?: string };
+  uniqueSellers?: number;
+  analytics?: { avgSpread?: number; medianSpread?: number; maxSpread?: number; botShare?: number; attractivenessIndex?: number };
 };
 
 const DEFAULT_TIMEOUT = 25_000;
@@ -577,6 +587,7 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
     userAgent:
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
     locale: 'ru-KZ',
+    timezoneId: 'Asia/Almaty',
   });
   await setCityCookie(context, cityId);
 
@@ -609,7 +620,7 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
     if (id) ids.add(id);
   }
   ids.add(masterProductId); // make sure the searched id is included
-  const variantIds = Array.from(ids).slice(0, 64);
+  const variantIds = Array.from(ids).slice(0, 24);
 
   const variants: Variant[] = [];
 
@@ -629,20 +640,77 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
       try {
         const { page: vPage, captured, details } = await openVariantPage(context, id, cityId);
 
-        let sellers = dedupeSellers(
-          parseSellersFromCaptured(captured).map((s) => ({ ...s, deliveryDate: normalizeDelivery(s.deliveryDate) }))
-        );
+        let capturedJSON = 0;
+        let parsedFromJSON = 0;
+        let parsedFromDOM = 0;
+
+        const fromCaptured = parseSellersFromCaptured(captured);
+        capturedJSON = captured.length;
+        parsedFromJSON = fromCaptured.length;
+
+        let sellers = dedupeSellers(fromCaptured.map((s) => ({ ...s, deliveryDate: normalizeDelivery(s.deliveryDate || '') })));
         if (sellers.length === 0) {
-          sellers = dedupeSellers((await parseSellersFromDom(vPage)).map((s) => ({ ...s, deliveryDate: normalizeDelivery(s.deliveryDate) })));
+          const dom = await parseSellersFromDom(vPage);
+          parsedFromDOM = dom.length;
+          sellers = dedupeSellers(dom.map((s) => ({ ...s, deliveryDate: normalizeDelivery(s.deliveryDate || '') })));
         }
 
+        // Extract variant meta: color/size/rating and title
+        const meta = await vPage.evaluate(() => {
+          const result: { color?: string; size?: string; rating?: { avg?: number; count?: number } } = {}
+          try {
+            const rows = Array.from(document.querySelectorAll('tr, li, div'))
+            for (const r of rows.slice(0, 500)) {
+              const t = (r as HTMLElement).innerText || ''
+              if (!result.color && /(^|\s)Цвет(\s|:)/i.test(t)) {
+                const m = t.match(/Цвет\s*[:\-]?\s*([A-Za-zА-Яа-яёЁ\- ]{3,})/)
+                if (m) result.color = m[1].trim().toLowerCase()
+              }
+              if (!result.size && /(^|\s)Размер(\s|:)/i.test(t)) {
+                const m = t.match(/Размер\s*[:\-]?\s*([0-9XLMS\/ ]+\w*)/i)
+                if (m) result.size = m[1].trim()
+              }
+            }
+          } catch {}
+          try {
+            const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'))
+            for (const s of scripts) {
+              const json = JSON.parse(s.textContent || '{}')
+              const agg = json.aggregateRating || json?.["@graph"]?.find((x:any)=>x.aggregateRating)?.aggregateRating
+              if (agg) {
+                result.rating = { avg: Number(agg.ratingValue) || undefined, count: Number(agg.reviewCount) || undefined }
+                break
+              }
+            }
+          } catch {}
+          return result
+        })
+
         const label = variantMap[id] || (await vPage.locator('h1').first().textContent().catch(() => ''))?.trim() || `Variant ${id}`;
+        const title = (await vPage.locator('h1').first().textContent().catch(() => ''))?.trim() || label
+
+        // Compute stats and price-bot flag
+        const prices = sellers.map(s => s.price).filter(n => Number.isFinite(n)) as number[]
+        const sorted = [...prices].sort((a,b)=>a-b)
+        const min = sorted.length ? sorted[0] : undefined
+        const max = sorted.length ? sorted[sorted.length-1] : undefined
+        const median = sorted.length ? (sorted.length%2? sorted[(sorted.length-1)/2] : (sorted[sorted.length/2-1]+sorted[sorted.length/2])/2) : undefined
+        const mean = sorted.length ? sorted.reduce((a,b)=>a+b,0)/sorted.length : undefined
+        const variance = (sorted.length && mean!==undefined) ? sorted.reduce((a,b)=>a+Math.pow(b-mean,2),0)/sorted.length : undefined
+        const stddev = variance!==undefined ? Math.sqrt(variance) : undefined
+        const spread = (min!==undefined && max!==undefined) ? max-min : undefined
+        if (min!==undefined) {
+          sellers = sellers.map(s => ({ ...s, isPriceBot: s.price <= (min + 1) }))
+        }
 
         if (DEBUG) {
           try {
             await fs.mkdir('data_raw/kaspi_debug', { recursive: true });
             await fs.writeFile(`data_raw/kaspi_debug/variant_${id}.html`, await vPage.content(), 'utf8');
-            console.log(`[kaspi][${id}] captured=${captured.length} sellers=${sellers.length}`);
+            console.log(`[kaspi][${id}] capturedJSON=${capturedJSON} parsedFromJSON=${parsedFromJSON} parsedFromDOM=${parsedFromDOM} sellers=${sellers.length}`);
+            if (sellers.length === 0) {
+              await vPage.screenshot({ path: `data_raw/kaspi_debug/variant_${id}_no_sellers.png`, fullPage: true }).catch(()=>{})
+            }
           } catch {}
         }
 
@@ -651,11 +719,19 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
         // merge details
         if (details?.sizesAll?.length) entryDetails.sizesAll = Array.from(new Set([...(entryDetails.sizesAll || []), ...details.sizesAll]));
         if (details?.colorsAll?.length) entryDetails.colorsAll = Array.from(new Set([...(entryDetails.colorsAll || []), ...details.colorsAll]));
-        if (!entryDetails.ratingCount && details?.ratingCount) entryDetails.ratingCount = details.ratingCount;
         if (!entryDetails.imageUrl && details?.imageUrl) entryDetails.imageUrl = details.imageUrl;
 
         setCached(cityId, id, sellers, label);
-        variants.push({ productId: id, label, sellersCount: sellers.length, sellers });
+        variants.push({
+          productId: id,
+          label: title || label,
+          variantColor: meta.color || (entryDetails.colorsAll?.[0]?.toLowerCase()),
+          variantSize: meta.size || variantMap[id],
+          rating: meta.rating,
+          sellersCount: sellers.length,
+          sellers,
+          stats: { min, median, max, spread, stddev }
+        });
 
         break; // success
       } catch (e: any) {
@@ -681,7 +757,6 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
     productName,
     cityId,
     variants,
-    ratingCount: entryDetails.ratingCount,
     productImageUrl: entryDetails.imageUrl,
     attributes: { sizesAll: entryDetails.sizesAll, colorsAll: entryDetails.colorsAll },
     variantMap: variantMap,
