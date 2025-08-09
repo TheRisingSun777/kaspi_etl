@@ -27,23 +27,45 @@ function ndjsonAppend(file: string, obj: unknown) {
 
 function median(nums: number[]): number { const s=[...nums].sort((a,b)=>a-b); const m=Math.floor(s.length/2); return s.length? (s.length%2? s[m] : (s[m-1]+s[m])/2) : 0 }
 
+// sliding window of bot signals per (variantId,seller)
+const botWindow: Map<string, Map<string, number[]>> = new Map()
+
 async function tick(ids: string[], city: string) {
   const ts = new Date().toISOString()
   for (const id of ids) {
     try {
       const data = await scrapeAnalyze(id, city)
+      const outFile = path.join(process.cwd(), 'data_raw', 'watch', `${id}.ndjson`)
       for (const v of data.variants) {
-        const prices = v.sellers.map(s=>s.price).filter(n=>Number.isFinite(n))
-        const min = prices.length? Math.min(...prices): 0
-        const med = median(prices)
-        const max = prices.length? Math.max(...prices): 0
-        const spread = max - min
-        const rec = { ts, masterProductId: id, variantId: v.productId, sellers: v.sellers, min, median: med, max, spread }
-        const outFile = path.join(process.cwd(), 'data_raw', 'watch', `${id}.ndjson`)
-        ndjsonAppend(outFile, rec)
+        const min = v.stats?.min ?? Math.min(...v.sellers.map(s=>s.price))
+        const key = v.productId
+        if (!botWindow.has(key)) botWindow.set(key, new Map())
+        const sellersWindow = botWindow.get(key)!
+        // emit one NDJSON per seller
+        for (const s of v.sellers) {
+          const undercut = Number.isFinite(min) ? (s.price <= (Number(min) + 50)) : false
+          const sw = sellersWindow.get(s.name) || []
+          sw.push(undercut ? 1 : 0)
+          while (sw.length > 5) sw.shift()
+          sellersWindow.set(s.name, sw)
+          const repeatedUndercut = sw.reduce((a,b)=>a+b,0) >= 3
+          const isPriceBot = s.isPriceBot || repeatedUndercut
+          ndjsonAppend(outFile, {
+            ts,
+            masterProductId: id,
+            variantId: v.productId,
+            variantColor: v.variantColor,
+            variantSize: v.variantSize || v.label,
+            seller: s.name,
+            price: s.price,
+            deliveryDate: s.deliveryDate,
+            isPriceBot,
+          })
+        }
       }
       const top = data.variants.flatMap(v=>v.sellers).sort((a,b)=>a.price-b.price).slice(0,3)
-      console.log(`[watch][${id}] ok variants=${data.variants.length} top3=${top.map(s=>`${s.name}:${s.price}`).join(', ')}`)
+      const suspected = data.variants.flatMap(v=>v.sellers.filter(s=>s.isPriceBot)).slice(0,5).map(s=>s.name)
+      console.log(`[watch][${id}] ok variants=${data.variants.length} top3=${top.map(s=>`${s.name}:${s.price}`).join(', ')} suspectedBots=${[...new Set(suspected)].join(', ')}`)
     } catch (e:any) {
       console.error(`[watch][${id}] error:`, e?.message || e)
     }
