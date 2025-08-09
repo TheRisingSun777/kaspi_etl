@@ -6,5 +6,15 @@ dist/
 .vercel/
 .DS_Store
 .env*
+/data_raw/
+/playwright-report/
+node_modules/
+.next/
+out/
+dist/
+.turbo/
+.vercel/
+.DS_Store
+.env*
 
 
