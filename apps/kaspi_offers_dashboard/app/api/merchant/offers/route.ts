@@ -90,16 +90,24 @@ export async function GET(request: Request) {
 }
 
 function pickStock(o: any): number {
-  const keys = ['stock','qty','quantity','availableAmount','freeBalance','available','stockTotal']
+  // Prefer nested precise counts first
+  const av = o?.availabilities?.[0]
+  const nested = ['stockCount','availableAmount','freeBalance','quantity','qty','available']
+  if (av) {
+    for (const k of nested) {
+      const v = av[k]
+      if (typeof v === 'number') return v
+      if (typeof v === 'string' && v.trim() !== '') { const n = Number(v); if (Number.isFinite(n)) return n }
+      if (typeof v === 'boolean') return v ? 1 : 0
+    }
+  }
+  const keys = ['stock','stockTotal','availableAmount','freeBalance','quantity','qty','available']
   for (const k of keys) {
     const v = o?.[k]
     if (typeof v === 'number') return v
-    if (typeof v === 'boolean') return v ? 1 : 0
     if (typeof v === 'string' && v.trim() !== '') { const n = Number(v); if (Number.isFinite(n)) return n }
+    if (typeof v === 'boolean') return v ? 1 : 0
   }
-  const av = o?.availabilities?.[0]
-  const nested = ['stockCount','available','qty','quantity','availableAmount','freeBalance']
-  if (av) for (const k of nested) { const v = av[k]; if (typeof v === 'number') return v }
   return 0
 }
 

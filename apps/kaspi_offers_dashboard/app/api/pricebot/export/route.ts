@@ -24,35 +24,45 @@ function toRows(items: any[]) {
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const format = (searchParams.get('format') || 'csv').toLowerCase()
-  const m = getMerchantId()
-  const res = await mcFetch(`/bff/offer-view/list?m=${m}&p=0&l=200&a=true&t=&c=&lowStock=false&notSpecifiedStock=false`)
-  const js = await res.json()
-  const arr: any[] = Array.isArray(js?.items) ? js.items : Array.isArray(js?.data) ? js.data : Array.isArray(js?.content) ? js.content : []
-  const items = arr.map((o:any)=>{
-    const sku = o.merchantSku || o.sku || o.offerSku || o.id || ''
-    return {
-      sku,
-      price: Number(o.price ?? o.currentPrice ?? o.offerPrice ?? o.value ?? 0),
-      productId: Number(o.variantProductId ?? o.productId ?? o.variantId ?? 0),
-      settings: sku ? getItemSettingsOrDefault(sku) : undefined,
+  try {
+    const m = getMerchantId()
+    const res = await mcFetch(`/bff/offer-view/list?m=${m}&p=0&l=200&a=true&t=&c=&lowStock=false&notSpecifiedStock=false`)
+    const js = await res.json()
+    const arr: any[] = Array.isArray(js?.items) ? js.items : Array.isArray(js?.data) ? js.data : Array.isArray(js?.content) ? js.content : []
+    const items = arr.map((o:any)=>{
+      const sku = o.merchantSku || o.sku || o.offerSku || o.id || ''
+      let productId = Number(o.variantProductId ?? o.productId ?? o.variantId ?? 0)
+      const shopLink: string | undefined = o.shopLink || o.productLink || o.link || undefined
+      if ((!productId || Number.isNaN(productId)) && typeof shopLink === 'string') {
+        const m = shopLink.match(/-(\d+)\/?$/)
+        if (m) productId = Number(m[1])
+      }
+      return {
+        sku,
+        price: Number(o.price ?? o.currentPrice ?? o.offerPrice ?? o.value ?? 0),
+        productId,
+        settings: sku ? getItemSettingsOrDefault(sku) : undefined,
+      }
+    })
+
+    const rows = toRows(items)
+
+    if (format === 'xlsx') {
+      const wb = new ExcelJS.Workbook()
+      const ws = wb.addWorksheet('pricebot')
+      const headers = ['SKU','model','brand','price','PP1','preorder','min_price','max_price','step','shop_link','pricebot_status']
+      ws.addRow(headers)
+      rows.forEach(r=>ws.addRow(headers.map(h=>(r as any)[h])))
+      const buf = await wb.xlsx.writeBuffer()
+      return new NextResponse(buf as any, { headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition': 'attachment; filename="pricebot.xlsx"' } })
     }
-  })
 
-  const rows = toRows(items)
-
-  if (format === 'xlsx') {
-    const wb = new ExcelJS.Workbook()
-    const ws = wb.addWorksheet('pricebot')
     const headers = ['SKU','model','brand','price','PP1','preorder','min_price','max_price','step','shop_link','pricebot_status']
-    ws.addRow(headers)
-    rows.forEach(r=>ws.addRow(headers.map(h=>(r as any)[h])))
-    const buf = await wb.xlsx.writeBuffer()
-    return new NextResponse(buf as any, { headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition': 'attachment; filename="pricebot.xlsx"' } })
+    const csv = [headers.join(','), ...rows.map(r=>headers.map(h=>String((r as any)[h] ?? '')).join(','))].join('\n')
+    return new NextResponse(csv, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="pricebot.csv"' } })
+  } catch (e:any) {
+    return NextResponse.json({ ok:false, error: String(e?.message||e) }, { status: 500 })
   }
-
-  const headers = ['SKU','model','brand','price','PP1','preorder','min_price','max_price','step','shop_link','pricebot_status']
-  const csv = [headers.join(','), ...rows.map(r=>headers.map(h=>String((r as any)[h] ?? '')).join(','))].join('\n')
-  return new NextResponse(csv, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="pricebot.csv"' } })
 }
 
 
