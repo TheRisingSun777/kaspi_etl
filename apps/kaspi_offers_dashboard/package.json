@@ -5,11 +5,11 @@
   "description": "Kaspi Offers Insight - Next.js + TypeScript + Tailwind dashboard",
   "license": "MIT",
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "next dev -p ${PORT:-3000}",
     "build": "next build",
-    "start": "next start -p 3000",
-    "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "start": "next start -p ${PORT:-3000}",
+    "lint": "next lint",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "watch:prices": "tsx scripts/price_watch.ts --ids=108382478 --city=710000000 --intervalSec=60"

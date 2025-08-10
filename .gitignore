@@ -206,14 +206,17 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Node / Next.js
+# Node / Next, added js
 node_modules/
 .next/
 apps/kaspi_offers_dashboard/.next/
 apps/kaspi_offers_dashboard/node_modules/
 apps/kaspi_offers_dashboard/.env*
+!apps/kaspi_offers_dashboard/.env.example
 apps/kaspi_offers_dashboard/.DS_Store
 .DS_Store
 apps/kaspi_offers_dashboard/tsconfig.tsbuildinfo
 apps/kaspi_offers_dashboard/playwright-report/
 apps/kaspi_offers_dashboard/data_raw/
+apps/kaspi_offers_dashboard/playwright/.cache
+apps/kaspi_offers_dashboard/server/db/*.json

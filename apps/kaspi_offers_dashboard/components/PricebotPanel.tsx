@@ -31,8 +31,14 @@ export default function PricebotPanel() {
       const res = await fetch('/api/pricebot/offers', { cache: 'no-store' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
-      setRows(Array.isArray(json.rows) ? json.rows : [])
-      if ((!json.rows || json.rows.length===0) && Array.isArray(json.debug)) {
+      setRows(Array.isArray(json.items) ? json.items.map((it:any)=>({
+        name: it.name,
+        variantProductId: String(it.productId || ''),
+        ourPrice: Number(it.price || 0),
+        rules: null,
+        opponentCount: Number(it.opponents || 0),
+      })) : [])
+      if ((!json.items || json.items.length===0) && json.debug) {
         console.log('[pricebot-debug]', ...json.debug)
       }
     } catch (e:any) { setError(e?.message||'Failed') }
@@ -76,7 +82,7 @@ export default function PricebotPanel() {
       {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
       <div className="overflow-x-auto min-h-[120px]">
         {(!rows || rows.length===0) && !loading && !error && (
-          <div className="text-sm text-gray-500 p-2">No offers found. Add credentials to .env.local or provide server/db/seed.offers.json.</div>
+          <div className="text-sm text-gray-500 p-2">No offers returned. Debug: see <a className="underline" href="/api/debug/merchant/list?raw=1" target="_blank">/api/debug/merchant/list?raw=1</a></div>
         )}
         <table className="min-w-full text-sm">
           <thead className="text-left text-gray-500">
