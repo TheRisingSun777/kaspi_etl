@@ -19,14 +19,7 @@ export default function KpiCards({ data }: Props) {
   }
   const totalSellers = uniqueSellerNames.size
 
-  // fastest delivery (min date)
-  let fastest: string = '—'
-  if (data?.variants) {
-    const dates = data.variants.flatMap((v) => v.sellers.map((s) => s.deliveryDate)).filter(Boolean) as string[]
-    if (dates.length) {
-      fastest = String(dates.sort()[0] || '—')
-    }
-  }
+  const fastest: string = data?.fastestDelivery || '—'
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">

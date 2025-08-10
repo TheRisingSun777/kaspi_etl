@@ -1,390 +1,171 @@
-You are a senior full‑stack engineer. Repository root is kaspi_etl, target app is apps/kaspi_offers_dashboard (Next.js App Router + TS + Tailwind + Playwright). Your job: repair, harden, and ship the offers dashboard and scraper; then implement analytics & exports; finalize with tests and docs. Stop only when everything in the plan is complete and validated.
+You are a senior full‑stack engineer. Repo root: kaspi_etl. App: apps/kaspi_offers_dashboard (Next.js App Router + TypeScript + Tailwind + Playwright).
+Goal: finalize the Offers dashboard, then add a Pricebot section that manages our store’s active offers and auto‑reprices within min/max guardrails.
+Do not stop until all acceptance criteria at the bottom are green.
 
-High‑level intent
-	•	One‑page dashboard that, given a Kaspi masterProductId + city, enumerates variants, pulls all sellers for each variant, computes stats, shows KPIs, and exports CSV/XLSX.
-	•	Scraper must be reliable: correct city, open sellers tab, capture JSON if available, fall back to HTML parse, and be fast/stable.
-	•	Analytics: per‑variant stats + global metrics, plus: attractivenessIndex, stabilityScore, bestEntryPrice (practical for repricing).
-	•	UX: clean cards/tables, loading/error states, history of last searches, include/exclude OOS toggle.
+0) Status audit (from current build)
+	•	✅ Dashboard renders with search by masterProductId + city; variants grid with sellers & Δ vs min; analytics (avg/median/max spread, bot share, attractiveness), CSV/XLSX export, “Include out‑of‑stock” toggle, and Copy JSON.  
+	•	⚠️ “Fastest Delivery” KPI shows “—” ⇒ delivery parsing not computed/propagated.  
+	•	⚠️ PriceBot labels appear, but the detection looks heuristic-only; keep but mark as heuristic.  
+	•	⛔ Unknown/likely missing: LRU cache for analyze responses; debug artifact dump; unit tests; secret hygiene enforced; scraper resiliency (sellers tab + city cookie) re‑verified.
 
-⸻
-
-0) Safety & project hygiene (must‑do first)
-	1.	Never commit secrets. Ensure .gitignore excludes all env files. Remove any committed .env.local from git history if present. Replace with .env.example.
-	•	Add comment: # KASPI_TOKEN is server-side only; never expose with NEXT_PUBLIC_.
-	•	Rotate KASPI token if it ever leaked.
-	2.	Add scripts:
-    // package.json (in apps/kaspi_offers_dashboard)
-{
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
-    "test": "vitest run",
-    "test:watch": "vitest"
-  }
-}
-	3.	Ensure next.config.js enables images from Kaspi if we display product images:
-    /** @type {import('next').NextConfig} */
-const nextConfig = {
-  reactStrictMode: true,
-  experimental: { typedRoutes: true },
-  images: { remotePatterns: [{ protocol: 'https', hostname: '**.kaspi.kz' }, { protocol:'https', hostname:'kaspi.kz' }] }
-};
-module.exports = nextConfig;
-1) Type model: clean, single source of truth
-
-Create/replace apps/kaspi_offers_dashboard/lib/types.ts with this complete version (no placeholders/ellipses):
-// lib/types.ts
-export type Seller = {
-  name: string;
-  price: number;               // in KZT
-  deliveryDate?: string;       // normalized human text
-  isPriceBot?: boolean;        // heuristic
-};
-
-export type Variant = {
-  productId: string;           // Kaspi product (variant) ID
-  label: string;               // size/variant label or fallback
-  variantColor?: string;
-  variantSize?: string;
-  rating?: { avg?: number; count?: number };
-  sellersCount: number;
-  sellers: Seller[];
-  stats?: {
-    min?: number;
-    median?: number;
-    max?: number;
-    spread?: number;           // max - min
-    stddev?: number;
-    predictedMin24h?: number;
-    predictedMin7d?: number;
-  };
-};
-
-export type AnalyzeResult = {
-  masterProductId: string;
-  productName?: string;
-  cityId: string;
-  productImageUrl?: string;
-  attributes?: { sizesAll?: string[]; colorsAll?: string[] };
-  variantMap?: Record<string, { color?: string; size?: string; name?: string }>;
-  ratingCount?: number;
-  variants: Variant[];
-
-  // derived
-  uniqueSellers?: number;
-  analytics?: {
-    avgSpread?: number;
-    medianSpread?: number;
-    maxSpread?: number;
-    botShare?: number;                // 0..1
-    attractivenessIndex?: number;     // 0..100
-    stabilityScore?: number;          // 0..100
-    bestEntryPrice?: number;          // suggested buy-box price
-  };
-};
-
-// Back-compat aliases used by components
-export type SellerInfo = Seller;
-export type VariantInfo = Variant;
-export type AnalyzeResponse = AnalyzeResult;
-2) Analytics implementation (new file)
-
-Add apps/kaspi_offers_dashboard/lib/analytics.ts:
-import type { AnalyzeResult, Variant } from './types';
-
-export function basicStats(nums: number[]) {
-  if (!nums.length) return { min: 0, median: 0, max: 0, spread: 0, stddev: 0 };
-  const sorted = [...nums].sort((a,b)=>a-b);
-  const min = sorted[0];
-  const max = sorted[sorted.length-1];
-  const spread = max - min;
-  const mid = Math.floor(sorted.length/2);
-  const median = sorted.length % 2 ? sorted[mid] : (sorted[mid-1] + sorted[mid]) / 2;
-  const mean = sorted.reduce((a,b)=>a+b,0)/sorted.length;
-  const variance = sorted.reduce((a,b)=>a + (b-mean)*(b-mean), 0) / sorted.length;
-  const stddev = Math.sqrt(variance);
-  return { min, median, max, spread, stddev };
-}
-
-export function computeVariantStats(v: Variant): Variant {
-  const prices = (v.sellers || []).map(s => s.price).filter(Boolean);
-  const stats = basicStats(prices);
-  return { ...v, sellersCount: v.sellers?.length || 0, stats };
-}
-
-export function computeGlobalAnalytics(result: AnalyzeResult): AnalyzeResult {
-  const variants = result.variants.map(computeVariantStats);
-  const spreads = variants.map(v => v.stats?.spread || 0).filter(n => n>0);
-  const unique = new Set<string>();
-  for (const v of variants) for (const s of v.sellers || []) unique.add(s.name);
-
-  const avg = spreads.length ? spreads.reduce((a,b)=>a+b,0)/spreads.length : 0;
-  const median = (() => {
-    if (!spreads.length) return 0;
-    const s = [...spreads].sort((a,b)=>a-b);
-    const m = Math.floor(s.length/2);
-    return s.length%2 ? s[m] : (s[m-1]+s[m])/2;
-  })();
-  const max = spreads.length ? Math.max(...spreads) : 0;
-
-  // Heuristics
-  let botCount = 0, sellerCount = 0;
-  for (const v of variants) {
-    sellerCount += v.sellers?.length || 0;
-    for (const s of v.sellers || []) if (s.isPriceBot) botCount++;
-  }
-  const botShare = sellerCount ? botCount / sellerCount : 0;
-
-  // Attractiveness: bigger spread, fewer sellers, more demand, faster delivery, less bot pressure
-  // Scores are 0..1, then combined to 0..100
-  const spreadScore = clamp01((avg / (median || avg || 1)));
-  const scarcityScore = clamp01(1 - (unique.size / 20)); // 20 sellers = 0
-  const demandScore = clamp01(Math.log10((result.ratingCount || 0) + 1) / 3); // ~0..1
-  const botPenalty = clamp01(botShare); // higher = worse
-  const attractivenessIndex = Math.round(
-    100 * clamp01(0.45*spreadScore + 0.25*scarcityScore + 0.20*demandScore - 0.20*botPenalty)
-  );
-
-  // Stability: low relative stddev across variants is more stable
-  const relStddevs = variants
-    .map(v => (v.stats && v.stats.min ? (v.stats.stddev || 0) / v.stats.min : 0))
-    .filter(x => Number.isFinite(x));
-  const relStdAvg = relStddevs.length ? relStddevs.reduce((a,b)=>a+b,0)/relStddevs.length : 0;
-  const stabilityScore = Math.round(100 * clamp01(1 - relStdAvg)); // 1-relStdAvg
-
-  // Best entry price: undercut min by a small step; dampen if bot pressure is high
-  const minAcross = Math.min(...variants.map(v => v.stats?.min || Infinity));
-  const step = priceStep(minAcross);
-  const botDampen = botShare > 0.35 ? step * 0.25 : step;
-  const bestEntryPrice = Number.isFinite(minAcross) ? Math.max(0, Math.round((minAcross - botDampen)/10)*10) : 0;
-
-  return {
-    ...result,
-    variants,
-    uniqueSellers: unique.size,
-    analytics: { avgSpread: round0(avg), medianSpread: round0(median), maxSpread: round0(max), botShare: round2(botShare), attractivenessIndex, stabilityScore, bestEntryPrice },
-  };
-}
-
-function priceStep(p:number){ 
-  if (!Number.isFinite(p)) return 50;
-  if (p < 5000) return 20;
-  if (p < 20000) return 50;
-  if (p < 100000) return 100;
-  return 200;
-}
-const clamp01 = (x:number)=> Math.max(0, Math.min(1, x));
-const round0 = (n:number)=> Math.round(n||0);
-const round2 = (n:number)=> Math.round((n||0)*100)/100;
-3) Export helpers (fix broken CSV/XLSX)
-
-Replace apps/kaspi_offers_dashboard/lib/export.ts with:
-// lib/export.ts
-import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
-import type { AnalyzeResult } from './types';
-
-function flattenRows(data: AnalyzeResult) {
-  const meta = data.variantMap || {};
-  const rows: Record<string, unknown>[] = [];
-  for (const v of data.variants) {
-    const sellers = v.sellers.length ? v.sellers : [{ name: 'Out of stock', price: 0, deliveryDate: '' }];
-    for (const s of sellers) {
-      rows.push({
-        masterProductId: data.masterProductId,
-        productName: (meta[v.productId]?.name || v.label || data.productName || '').trim(),
-        variantProductId: v.productId,
-        variantSize: v.variantSize || v.label || '',
-        variantColor: v.variantColor || meta[v.productId]?.color || '',
-        ratingAvg: v.rating?.avg ?? '',
-        ratingCount: v.rating?.count ?? '',
-        min: v.stats?.min ?? '',
-        median: v.stats?.median ?? '',
-        max: v.stats?.max ?? '',
-        spread: v.stats?.spread ?? '',
-        stddev: v.stats?.stddev ?? '',
-        seller: s.name,
-        price: s.price,
-        deliveryDate: s.deliveryDate || '',
-      });
-    }
-  }
-  return rows;
-}
-
-export function exportCSV(data: AnalyzeResult): string {
-  return Papa.unparse(flattenRows(data));
-}
-
-export function exportXLSX(data: AnalyzeResult): ArrayBuffer {
-  const ws = XLSX.utils.json_to_sheet(flattenRows(data));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Offers');
-  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-}
-4) API route: call scraper, then analytics
-
-Open apps/kaspi_offers_dashboard/app/api/analyze/route.ts and fully implement the middle section (currently elided) using the analytics helpers:
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import type { AnalyzeResult } from '@/lib/types';
-import { scrapeAnalyze } from '@/server/scrape';
-import { computeGlobalAnalytics } from '@/lib/analytics';
-
-const InputSchema = z.object({
-  masterProductId: z.string().min(1),
-  cityId: z.string().optional(),
-});
-
-export async function POST(req: NextRequest) {
-  try {
-    const json = await req.json();
-    const input = InputSchema.parse(json);
-    const cityId = input.cityId || process.env.DEFAULT_CITY_ID || '710000000';
-
-    const raw: AnalyzeResult = await scrapeAnalyze(input.masterProductId, cityId);
-    const enriched = computeGlobalAnalytics(raw);
-
-    return NextResponse.json(enriched, { status: 200 });
-  } catch (e:any) {
-    const msg = String(e?.message || '');
-    const status = /429/.test(msg) ? 429 : /timeout|503/i.test(msg) ? 503 : 400;
-    return NextResponse.json({ error: msg || 'Analyze failed', variants: [] }, { status });
-  }
-}
-5) Scraper overhaul (Playwright)
-
-Goal: robustly fetch variant seller lists for a masterProductId + cityId. Implement in apps/kaspi_offers_dashboard/server/scrape.ts. Replace any redacted code and remove .... Apply these rules:
-	•	Launch a single Chromium browser; one context with desktop UA; block heavy (image, media, font) but allow CSS + JS.
-	•	City control: always use URL https://kaspi.kz/shop/p/-${variantId}/?c=${cityId} and set cookie { name: 'city_id', value: cityId, domain: '.kaspi.kz', path: '/' } before navigation. After first load, verify via DOM or window config; if modal appears, set cookie again and reload.
-	•	Open sellers tab: click any of texts/selectors:
-	•	text: Продавцы, Все продавцы, Все предложения
-	•	selectors: .sellers-tab, .sellers-table, [data-test*="sellers"]
-	•	Capture network JSON: page.on('response', …) and harvest any JSON from URLs containing: api|offer|seller|price|catalog|stock|availability|listing|product.
-	•	Fallback: parse HTML for seller rows; tolerant selectors:
-	•	seller name: .sellers-table__merchant-name, [data-merchant-name], [class*="merchant"]
-	•	price: [data-merchant-price], .sellers-table__price-cell-text, [class*="price"]
-	•	delivery: .sellers-table__delivery-text, .sellers-table__delivery-price, [class*="delivery"], strings containing Постомат.
-	•	Heuristics:
-	•	isPriceBot: true if seller name matches /бот|bot|price bot/i OR its price equals current min price within ≤ 30 KZT and updates across ≥ 3 sellers (we have only snapshot; flag the first part; second part used once history exists).
-	•	Normalize numbers from strings (\d[\d\s]+), strip spaces.
-	•	Concurrency: scrape variants sequentially per masterProductId (Kaspi can be allergic to parallel hits). Limit to MAX_VARIANTS=20.
-	•	Return shape: fill AnalyzeResult exactly per types.ts (including variantMap colors/sizes when discoverable).
-	•	Debugging: respect DEBUG_SCRAPE=1 — save HTML (and captured JSON) under data_raw/kaspi_debug/variant_{id}.html/json for hard cases.
-	•	Time limits: DEFAULT_TIMEOUT = 15_000 per page; total scrape budget ≈ 2 minutes.
-	•	Close pages after each variant; close browser at the end.
-
-Also add a tiny in-memory LRU cache (5 minutes) keyed by {masterProductId}:{cityId} to avoid hammering the site when the user toggles settings. Add apps/kaspi_offers_dashboard/server/cache.ts:
-// server/cache.ts
-type Entry<T> = { v: T; t: number };
-const store = new Map<string, Entry<any>>();
-const TTL = 5 * 60 * 1000;
-
-export function getCached<T>(k:string): T | null {
-  const e = store.get(k);
-  if (!e) return null;
-  if (Date.now() - e.t > TTL) { store.delete(k); return null; }
-  return e.v as T;
-}
-export function setCached<T>(k:string, v:T){ store.set(k, { v, t: Date.now() }); }
-Use it in scrapeAnalyze (get → return; else fetch → set).
+Implement/verify everything below.
+{ "scripts": { "dev":"next dev","build":"next build","start":"next start","typecheck":"tsc --noEmit","lint":"eslint .","test":"vitest run","test:watch":"vitest" } }	
+3.	Next config: allow images from *.kaspi.kz. Keep reactStrictMode: true.
 
 ⸻
 
-6) UI fixes and polish
-	1.	SearchBar.tsx: fix Shymkent ID (was wrong).
-    const DEFAULT_CITY_ID = process.env.NEXT_PUBLIC_DEFAULT_CITY_ID || '710000000';
-// Shymkent is 620000000
-// Options:
-<option value="710000000">Astana / Nur-Sultan</option>
-<option value="750000000">Almaty</option>
-<option value="620000000">Shymkent</option>
-Keep a localStorage history (last 5 masterProductIds) — if already implemented, ensure it works.
-
-	2.	KpiCards.tsx: remove any ... remnants; show:
-	•	Product Name
-	•	Total Variants
-	•	Total Sellers (unique)
-	•	Fastest Delivery (min string across all sellers)
-	•	Attractiveness (from analytics.attractivenessIndex)
-	3.	VariantCard.tsx & SellersTable.tsx:
-	•	Ensure no ... placeholders remain.
-	•	For Δ vs Min, compute difference vs the variant min; color it green (min), gray otherwise.
-	•	Badge for isPriceBot.
-	4.	app/page.tsx:
-	•	Implement includeOOS toggle to hide variants with no sellers (or sellers with price=0) from the grid and from export.
-	•	Hook up export buttons:
-    import { exportCSV, exportXLSX } from '@/lib/export';
-// CSV
-const csv = exportCSV(filtered);
-const csvBlob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-// XLSX
-const xbuf = exportXLSX(filtered);
-const xblob = new Blob([xbuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-	•	Copy JSON button: stringify AnalyzeResult with 2-space indent.
-
-	5.	globals.css/tailwind.config.ts: remove ...; ensure classes used above exist. Keep dark mode.
+2) Types & analytics (tighten)
+	•	Ensure a single source of truth types file: lib/types.ts containing Seller, Variant, AnalyzeResult and analytics fields (avg/median/max spread, botShare, attractivenessIndex 0–100, stabilityScore 0–100, bestEntryPrice).
+	•	Keep lib/analytics.ts with: basicStats, computeVariantStats, computeGlobalAnalytics (already works as per UI numbers), and add fastestDelivery aggregator (min by normalized ETA string). Wire it into the KPI card (no more “—”).  
 
 ⸻
 
-7) API surface contract & validation
-	•	Input: { masterProductId: string; cityId?: string }
-	•	Output: AnalyzeResult per types.ts
-	•	Guardrail: return 400 on Zod validation errors, 429 for rate‑limited, 503 on timeouts; always include { variants: [] } on error so UI won’t crash.
+3) Scraper resiliency & caching
+	•	In server/scrape.ts:
+	•	Always set city cookie and use ?c=${cityId}.
+	•	Programmatically open sellers tab (Продавцы / Все предложения) and capture JSON responses; fall back to DOM parse for seller rows.
+	•	Normalize delivery text and include it on each seller; return a product‑level fastestDelivery (min ETA).
+	•	Sequential variant scraping (Kaspi rate‑limits); cap to 20 variants.
+	•	Add a tiny in‑memory LRU (server/cache.ts) with 5‑minute TTL keyed by {masterProductId}:{cityId} to avoid re‑scrapes when toggling UI.
+	•	Add DEBUG_SCRAPE=1 to dump HTML/JSON artifacts for one variant for regression tests.
 
 ⸻
 
-8) Tests (Vitest + fixtures)
-
-Create a small fixture‑based parser test that doesn’t hit the network:
-	•	Put 2–3 HTML files from data_raw/kaspi_debug/ into apps/kaspi_offers_dashboard/test/fixtures/.
-	•	Expose a pure function parseSellersFromHtml(html: string) from server/scrape.ts (or move it to server/parse.ts) and unit‑test:
-	•	Extract ≥ 1 seller with name + price
-	•	Prices parsed correctly from formatted strings
-	•	Delivery text found when present
-	•	Test lib/analytics.ts with synthetic variants.
+4) API contracts
+	•	POST /api/analyze → input { masterProductId, cityId? } → returns AnalyzeResult with analytics + fastestDelivery.
+	•	Error policy: 400 on validation, 429 on rate‑limit, 503 on timeouts; always return { variants: [] } so UI doesn’t crash.
 
 ⸻
 
-9) Documentation
-
-Update apps/kaspi_offers_dashboard/README.md:
-	•	Install (pnpm), run, env vars (DEFAULT_CITY_ID, NEXT_PUBLIC_DEFAULT_CITY_ID, KASPI_TOKEN, DEBUG_SCRAPE).
-	•	Example masterProductIds for smoke tests: 108382478, 121207970.
-	•	Explain metrics (attractiveness, stability, bestEntry) with formulas and caveats.
-	•	Security note: server‑side token only.
+5) Export helpers
+	•	lib/export.ts: fix CSV/XLSX to flatten (variant × sellers) rows with meta (variantId, size/color, rating, min/median/max/spread/stddev, seller, price, delivery). Ensure export respects the Include out‑of‑stock toggle.
 
 ⸻
 
-10) Acceptance criteria (do not stop until all pass)
-	•	pnpm typecheck passes, no ... left in TS files.
-	•	pnpm build succeeds.
-	•	pnpm test passes.
-	•	Manual run: enter 108382478 in Astana, see variants list with sellers, non‑zero spreads, exports working, and analytics populated.
-	•	Switching city changes sellers (URL ?c=cityId enforced) and data reflects city.
-	•	DEBUG_SCRAPE=1 saves artifacts for one variant on demand.
-	•	LRU cache reduces repeat latency noticeably within 5 minutes.
-	•	README updated.
+6) UI polish (first section)
+	•	KpiCards: render fastestDelivery, uniqueSellers, attractiveness.
+	•	SearchBar: correct Shymkent ID 620000000; keep recent‑search chips.
+	•	VariantCard/SellersTable: Δ vs min by variant, green highlight for min; show “PriceBot?” badge using simple regex heuristic (/bot|бот/i).
+	•	Ensure Include OOS affects both grid and export.
 
 ⸻
 
-Helpful tips for future DOM/API changes (keep in code comments)
-	•	Keep selectors plural and tolerant; always try multiple options.
-	•	Prefer captured JSON when present; otherwise DOM parse; keep both paths alive.
-	•	Avoid parallel hammering; Kaspi will throttle quickly.
-	•	Bots tend to mirror the min price; avoid undercutting by big steps — we use small priceStep() and round to tens to avoid churn.
-	•	If seller list collapses to 0, reload once with city cookie + ?c= param again, then bail with a helpful error.
+7) Pricebot Dashboard (new second section)
+
+7.1 Server: Merchant API client
+
+Create server/merchant/client.ts:
+	•	Config:
+	•	KASPI_MERCHANT_API_BASE (env; default to provided base when known).
+	•	KASPI_MERCHANT_ID = 30141222.
+	•	KASPI_MERCHANT_API_KEY (server‑only).
+	•	Implement helpers with proper headers (add both; the correct one will be used by the API you configure):
+	•	Authorization: Bearer <key> and X-Auth-Token: <key> (pick whichever works; expose via config).
+	•	Accept: application/json, User-Agent: KaspiOffersDashboard/1.0.
+	•	Endpoints (names are stable; the exact paths may differ per Kaspi deployment—auto‑discover if needed via the merchant panel or existing scripts):
+	•	listActiveOffers(merchantId) → returns our current offers list with variantProductId, name, price, stock, category.
+	•	updatePrice(offerId|variantProductId, newPrice) → updates price for a single variant.
+	•	updatePricesBulk([{ variantProductId, price }]) → bulk update with small batches (size 10–20) and backoff on 429.
+	•	Resilience: 429/503 backoff with jitter (start 1s → 8s, max 3 retries). Full error surface returned to caller.
+
+If the exact REST shape differs, inspect the merchant panel network calls and adapt client methods accordingly. Keep the method signatures above unchanged so the UI and bot logic don’t care about transport details.
+
+7.2 Data store: pricing rules + ignores
+
+Create SQLite (simple, local) via better-sqlite3 at server/db/pricing.sqlite. Add DAO server/db/rules.ts with tables:
+	•	pricing_rules(variant_id TEXT PRIMARY KEY, min_price INTEGER NOT NULL, max_price INTEGER NOT NULL, step INTEGER NOT NULL DEFAULT 1, interval_min INTEGER NOT NULL DEFAULT 5, active INTEGER NOT NULL DEFAULT 1, updated_at DATETIME)
+	•	ignored_sellers(variant_id TEXT, seller_name TEXT, PRIMARY KEY (variant_id, seller_name))
+
+Migrations: create tables if not exist on boot. All prices in KZT (integers).
+
+7.3 API for Pricebot
+
+Create routes:
+	•	GET /api/pricebot/offers → combine merchant offers with current rules; returns { name, variantProductId, ourPrice, rules: {min,max,step,interval,active}, opponentCount, opponents?: Seller[] }.
+	•	PUT /api/pricebot/rules/:variantId → upsert { minPrice, maxPrice, step, intervalMin, active }.
+	•	PUT /api/pricebot/ignore/:variantId → { sellerName, ignore: boolean }.
+	•	POST /api/pricebot/reprice/:variantId → runs reprice once for one variant (returns oldPrice, targetPrice, reason).
+	•	POST /api/pricebot/reprice-bulk → runs on all active=1 rules (rate‑limited, batched).
+
+For opponents, reuse the same sellers data we already know how to scrape: call our /api/analyze for the variant’s product page (same city). This keeps one source of truth for competitor prices.
+
+7.4 UI: “Pricebot” section (second section on the page)
+
+Under the existing analytics, render a new card “Pricebot (Store 30141222)” with a table:
+	•	Columns: Name, Variant ID, Our Price, Min Price (input), Max Price (input), Step (input), Interval min (1–10), Opponents (N) (clickable link opening modal), Active (toggle), Reprice (Run), Save.
+	•	“Opponents (N)” opens a modal with a sorted asc list: {sellerName, price} and a small ignore toggle next to each seller. Clicking saves via /api/pricebot/ignore/:variantId.
+	•	“Run” triggers one‑off reprice for that variant.
+	•	At top of the section: Run All (bulk), Dry‑run mode toggle (no price push), and Logs drawer that streams last 100 actions.
+
+7.5 Pricebot algorithm (deterministic, safe)
+
+Given {minPrice, maxPrice, step, intervalMin, active}, and competitor list C for the same variantId and city:
+	1.	Filter out ignored_sellers and our own store names (self).
+	2.	Compute competitorMin = min(price in C); if none: target = maxPrice (ceiling).
+	3.	If competitorMin < ourPrice: target = max(minPrice, competitorMin - step).
+	4.	Else: **target = clamp(competitorMin, minPrice, maxPrice)** (do not raise above maxPrice`).
+	5.	Round to nearest 1 KZT (integer).
+	6.	Only push update if abs(target - ourPrice) >= step and target changed since last run.
+	7.	Backoff on 429; skip a variant after 3 consecutive failures for 15 minutes (circuit breaker).
+
+Note: Treat bot‑heavy markets carefully: if the number of distinct sellers within ±10 KZT of competitorMin ≥ 3, do not undercut—match competitorMin but never go < minPrice. (This caps bot wars.)
+
+7.6 Scheduler
+	•	Use node-cron inside a server‑only module server/pricebot/scheduler.ts.
+	•	Every minute, pick variants with active=1, then run those whose intervalMin divides the current minute index (or use per‑variant next‑run timestamps).
+	•	Ensure only one job at a time (mutex). Batch updates (10–20 per batch) with short sleeps.
 
 ⸻
 
-Final deliverable
+8) Tests
+	•	Unit:
+	•	lib/analytics.test.ts → stats + attractiveness + stability + fastestDelivery aggregator.
+	•	server/pricebot/logic.test.ts → given (rules, ourPrice, competitors) assert targetPrice. Include cases: undercut, ceiling, min guard, bot‑dense “match not undercut”.
+	•	Integration (mocked):
+	•	Merchant client mocked (no live calls).
+	•	Scrape parser tests with stored HTML fixtures (dumped by DEBUG_SCRAPE=1).
 
-When complete, output:
-	1.	A short engineering report: what was broken, what you changed, and how you validated it.
-	2.	Commands to run locally.
-	3.	Any remaining limitations or TODOs.
+⸻
 
-Stop only when all steps above are finished and verified.
+9) Observability
+	•	Add a minimal logger (server/log.ts) with levels; write recent pricebot actions to a ring buffer exposed at /api/pricebot/logs.
+	•	UI “Logs” drawer polls this endpoint every ~5s when open.
+
+⸻
+
+10) Documentation
+	•	Update README.md with envs:
+	•	KASPI_MERCHANT_API_KEY (server‑only; never NEXT_PUBLIC_), KASPI_MERCHANT_ID=30141222, KASPI_MERCHANT_API_BASE, DEFAULT_CITY_ID, NEXT_PUBLIC_DEFAULT_CITY_ID.
+	•	Add a Security note: do not commit .env.local; rotate keys if leaked; mask secrets in logs.
+
+⸻
+
+Acceptance criteria (don’t stop until all pass)
+	1.	pnpm typecheck && pnpm build && pnpm test all green.
+	2.	Dashboard KPIs show Fastest Delivery (not “—”), unique sellers count, attractiveness; numbers sensible.  
+	3.	Export CSV/XLSX contain (variant × sellers) rows and respect the OOS toggle.
+	4.	LRU cache reduces repeat analyze latency within 5 minutes.
+	5.	Pricebot section shows our active offers with editable min/max/step/interval, an Opponents (N) link → modal with sorted list + per‑seller ignore toggles, Active switch, Run (single) and Run All (bulk).
+	6.	Price updates honor guards (never below min, never above max), respect step size, and throttle/backoff on 429.
+	7.	Scheduler drives periodic repricing; dry‑run mode produces logs without pushing prices.
+	8.	README updated; no secrets in git history.
+
+⸻
+
+Troubleshooting notes (future‑proof)
+	•	Merchant API shapes differ by cluster; if Authorization doesn’t work, try X-Auth-Token or X-Auth-ApiKey. Inspect the merchant portal network calls and adapt client.ts without changing UI/logic signatures.
+	•	If competitor scraping returns 0 sellers, reload once with city cookie + ?c= set; then skip with a helpful error.
+	•	Keep selectors tolerant; prefer captured JSON over DOM when available.
+	•	If bot wars detected (≥3 sellers within ±3 KZT of the min), match not undercut.
+	•	Always round prices to integer KZT and batch updates.
+
+⸻
+
+Done = ship report
+
+When everything is done, output:
+	1.	A brief engineering report of what changed and how validated.
+	2.	Commands to run the dashboard + pricebot locally.
+	3.	Known limitations + next bets.
+
+Stop only when all acceptance criteria above are met.

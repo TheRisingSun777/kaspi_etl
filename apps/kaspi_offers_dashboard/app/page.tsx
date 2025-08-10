@@ -6,6 +6,7 @@ import KpiCards from '@/components/KpiCards'
 import VariantCard from '@/components/VariantCard'
 import ModelInfo from '@/components/ModelInfo'
 import AnalyticsPanel from '@/components/AnalyticsPanel'
+import PricebotPanel from '@/components/PricebotPanel'
 import type { AnalyzeResult } from '@/lib/types'
 import { exportCSV, exportXLSX } from '@/lib/export'
 
@@ -108,6 +109,7 @@ export default function Page() {
           <ModelInfo data={data} />
           <KpiCards data={data} />
           <AnalyticsPanel data={data} />
+          <PricebotPanel />
 
           <div className="flex flex-wrap gap-2">
             <button className="btn-outline" onClick={handleCopyJSON}>Copy JSON</button>
