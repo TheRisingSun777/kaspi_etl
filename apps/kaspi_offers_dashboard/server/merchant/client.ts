@@ -13,6 +13,10 @@ const DEFAULT_BASE = process.env.KASPI_MERCHANT_API_BASE || 'https://kaspi.kz/sh
 const MERCHANT_ID = process.env.KASPI_MERCHANT_ID || '30141222'
 const API_KEY = process.env.KASPI_MERCHANT_API_KEY || process.env.KASPI_TOKEN || ''
 
+const DEBUG_LINES: string[] = []
+function dbg(line: string) { DEBUG_LINES.push(`[merchant] ${line}`) }
+export function flushMerchantDebug(): string[] { const out = [...DEBUG_LINES]; DEBUG_LINES.length = 0; return out }
+
 function buildHeaders() {
   const headers: Record<string,string> = {
     'Accept': 'application/vnd.api+json;charset=UTF-8',
@@ -52,7 +56,9 @@ export async function listActiveOffers(merchantId: string = MERCHANT_ID): Promis
   ]
   for (const url of candidates) {
     try {
+      dbg(`GET ${url}`)
       const res = await fetch(url, { headers: buildHeaders() })
+      dbg(`→ ${res.status}`)
       if (!res.ok) continue
       const json: any = await res.json().catch(()=>null)
       const data: any[] = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : []
@@ -64,6 +70,7 @@ export async function listActiveOffers(merchantId: string = MERCHANT_ID): Promis
         stock: Number(p?.attributes?.available || p?.attributes?.stock || 0),
         category: String(p?.attributes?.category || ''),
       })).filter(x=>x.variantProductId && x.name)
+      dbg(`parsed items: ${items.length}`)
       if (items.length) return items
     } catch { /* try next */ }
   }
@@ -74,7 +81,9 @@ export async function listActiveOffers(merchantId: string = MERCHANT_ID): Promis
     const toISO = now.toISOString()
     const fromISO = from.toISOString()
     const url = `${DEFAULT_BASE}/orders?filter[orders][creationDate][$ge]=${encodeURIComponent(fromISO)}&filter[orders][creationDate][$le]=${encodeURIComponent(toISO)}&page[number]=1&page[size]=50`
+    dbg(`GET ${url}`)
     const res = await fetch(url, { headers: buildHeaders() })
+    dbg(`→ ${res.status}`)
     if (res.ok) {
       const json: any = await res.json().catch(()=>null)
       const data: any[] = Array.isArray(json?.data) ? json.data : []
@@ -90,6 +99,7 @@ export async function listActiveOffers(merchantId: string = MERCHANT_ID): Promis
           if (!map.has(id)) map.set(id, { variantProductId: id, name, price, stock: undefined, category: undefined })
         }
       }
+      dbg(`orders-derived items: ${map.size}`)
       if (map.size) return Array.from(map.values())
     }
   } catch {}

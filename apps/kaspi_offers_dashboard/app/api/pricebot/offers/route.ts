@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { listActiveOffers } from '@/server/merchant/client'
+import { listActiveOffers, flushMerchantDebug } from '@/server/merchant/client'
 import { listRules, getRule } from '@/server/db/rules'
 
 export async function GET() {
@@ -14,7 +14,8 @@ export async function GET() {
       rules: ruleMap.get(o.variantProductId) || null,
       opponentCount: 0,
     }))
-    return NextResponse.json({ rows })
+    const debug = flushMerchantDebug()
+    return NextResponse.json({ rows, debug })
   } catch (e:any) {
     return NextResponse.json({ error: e?.message || 'internal' }, { status: 500 })
   }

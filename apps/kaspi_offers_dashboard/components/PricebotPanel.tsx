@@ -21,6 +21,9 @@ export default function PricebotPanel() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
       setRows(Array.isArray(json.rows) ? json.rows : [])
+      if ((!json.rows || json.rows.length===0) && Array.isArray(json.debug)) {
+        console.log('[pricebot-debug]', ...json.debug)
+      }
     } catch (e:any) { setError(e?.message||'Failed') }
     finally { setLoading(false) }
   }
