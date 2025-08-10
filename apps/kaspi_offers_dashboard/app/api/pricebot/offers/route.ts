@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getOffersPage } from '@/lib/merchant/client';
+import { getMerchantId, mcFetch } from '@/lib/kaspi/client';
+import { getSettings } from '@/lib/pricebot/storage';
 export const runtime = 'nodejs';
 
 export async function GET() {
@@ -9,26 +10,33 @@ export async function GET() {
     }
 
     // page through the list
-    let page = 0, limit = 100, all: any[] = [];
+    let page = 0; const limit = 100; let all: any[] = [];
     // cap to avoid infinite loops
     for (; page < 20; page++) {
-      const js = await getOffersPage(page, limit) as any
-      const items = Array.isArray(js?.items) ? js.items : []
-      all = all.concat(items)
-      if (!items.length || items.length < limit) break
+      const m = getMerchantId();
+      const url = `/bff/offer-view/list?m=${m}&p=${page}&l=${limit}&a=true&t=&c=&lowStock=false&notSpecifiedStock=false`;
+      const res = await mcFetch(url);
+      const js = await res.json() as any;
+      const items = Array.isArray(js?.items) ? js.items : [];
+      all = all.concat(items);
+      if (!items.length || items.length < limit) break;
     }
 
-    const offers = all.map((o:any) => ({
-      name: o.name || o.title || o.productName || '',
-      // prefer numeric if present, else use SKU `s`
-      variantProductId: String(o.variantProductId ?? o.productId ?? o.id ?? o.s ?? ''),
-      sku: o.s || null,
-      ourPrice: Number(o.price ?? o.currentPrice ?? o.offerPrice ?? 0),
-      stock: Number(o.stock ?? o.qty ?? o.available ?? 0),
-    }));
+    const offers = all.map((o:any) => {
+      const sku = o.merchantSku || o.sku || o.offerSku || o.id || ''
+      const settings = sku ? getSettings(sku) : undefined
+      return {
+        name: o.name || o.title || o.productName || '',
+        sku: sku || null,
+        productId: Number(o.variantProductId ?? o.productId ?? o.id ?? 0),
+        price: Number(o.price ?? o.currentPrice ?? o.offerPrice ?? 0),
+        opponents: Number(o.sellersCount || o.opponents || 0),
+        settings,
+      }
+    });
 
-    if (!offers.length) return NextResponse.json({ error:'NO_DATA', offers:[] }, { status:200 });
-    return NextResponse.json({ offers }, { status:200 });
+    if (!offers.length) return NextResponse.json({ ok:true, items:[] }, { status:200 });
+    return NextResponse.json({ ok:true, items: offers }, { status:200 });
 
   } catch (e:any) {
     const msg = String(e?.message || '');

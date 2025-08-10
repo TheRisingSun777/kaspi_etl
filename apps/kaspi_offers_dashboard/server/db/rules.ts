@@ -10,7 +10,8 @@ if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true })
 let db: any = null
 let mode: 'sqlite' | 'json' = 'json'
 try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // Using require here to avoid bundling native module in edge runtimes
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const Database = require('better-sqlite3')
   db = new Database(DB_PATH)
   db.exec(`

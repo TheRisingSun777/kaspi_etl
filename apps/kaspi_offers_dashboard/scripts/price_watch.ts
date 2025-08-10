@@ -25,7 +25,9 @@ function ndjsonAppend(file: string, obj: unknown) {
   fs.appendFileSync(file, JSON.stringify(obj) + '\n')
 }
 
-function median(nums: number[]): number { const s=[...nums].sort((a,b)=>a-b); const m=Math.floor(s.length/2); return s.length? (s.length%2? s[m] : (s[m-1]+s[m])/2) : 0 }
+// helper reserved for future stats output (unused)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _median = (_nums: number[]): number => 0
 
 // sliding window of bot signals per (variantId,seller)
 const botWindow: Map<string, Map<string, number[]>> = new Map()

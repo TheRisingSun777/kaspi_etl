@@ -16,7 +16,7 @@ export default function Page() {
   const [data, setData] = useState<AnalyzeResult | null>(null)
   const [includeOOS, setIncludeOOS] = useState(true)
 
-  const totals = useMemo(() => {
+  useMemo(() => {
     if (!data) return { variants: 0, sellers: 0 }
     const variants = data.variants.length
     const sellerNames = new Set<string>()

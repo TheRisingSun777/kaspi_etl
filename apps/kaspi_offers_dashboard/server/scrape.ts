@@ -252,7 +252,7 @@ async function discoverVariantMap(page: Page): Promise<Record<string, string>> {
 
       // 0) Directly read global BACKEND object if available
       try {
-        // @ts-ignore
+          // @ts-expect-error intentional access to BACKEND injected by page
         const conf = (window as any)?.BACKEND?.components?.configurator;
         if (conf && Array.isArray(conf.matrix)) {
           function walk(node: any, ctx: { dim?: string }) {
@@ -279,6 +279,7 @@ async function discoverVariantMap(page: Page): Promise<Record<string, string>> {
       try {
         const m = html.match(/BACKEND\.components\.configurator\s*=\s*(\{[\s\S]*?\});/);
         if (m) {
+          // @ts-expect-error dynamic JSON from page
           const conf = JSON.parse(m[1] as string);
 
           function walk(node: any, ctx: { color?: string; size?: string; dim?: string }) {
@@ -301,7 +302,7 @@ async function discoverVariantMap(page: Page): Promise<Record<string, string>> {
                const label = `${next.size || ''}${dim}`.trim();
                if (pid && label) out[pid] = label;
                // Attach color/size/name metadata when available for export
-               // @ts-ignore
+               // @ts-expect-error dynamic augmentation for export labels
                if (!out[pid] && next.color) out[pid] = label || String(next.color);
             }
             if (Array.isArray(node.matrix)) {
@@ -358,7 +359,7 @@ function discoverVariantMapFromHtml(html: string): Record<string, string> {
       idx = html.indexOf('=', idx)
       if (idx > 0) {
         // Extract balanced JSON starting at first '{'
-        let start = html.indexOf('{', idx)
+        const start = html.indexOf('{', idx)
         let depth = 0
         let end = -1
         for (let i = start; i < html.length; i++) {
@@ -623,7 +624,6 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
     }
 
     // Retry open & parse up to 3 times with backoff
-    let lastErr: any;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const { page: vPage, captured, details } = await openVariantPage(context, id, cityId);
@@ -788,8 +788,7 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
         });
 
         break; // success
-      } catch (e: any) {
-        lastErr = e;
+      } catch {
         // backoff 400ms, 900ms
         await sleep(400 + attempt * 500);
       }

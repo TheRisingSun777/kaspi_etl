@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 const DEFAULT_CITY_ID = process.env.NEXT_PUBLIC_DEFAULT_CITY_ID || '710000000'
 
 interface Props {
-  onAnalyze: (masterProductId: string, cityId: string) => void
+  onAnalyze: (_masterProductId: string, _cityId: string) => void
   loading?: boolean
 }
 

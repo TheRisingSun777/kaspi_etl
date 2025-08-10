@@ -212,6 +212,8 @@ node_modules/
 apps/kaspi_offers_dashboard/.next/
 apps/kaspi_offers_dashboard/node_modules/
 apps/kaspi_offers_dashboard/.env*
+apps/kaspi_offers_dashboard/.DS_Store
+.DS_Store
 apps/kaspi_offers_dashboard/tsconfig.tsbuildinfo
 apps/kaspi_offers_dashboard/playwright-report/
 apps/kaspi_offers_dashboard/data_raw/
