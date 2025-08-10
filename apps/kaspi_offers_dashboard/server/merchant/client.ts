@@ -60,7 +60,9 @@ export async function listActiveOffers(merchantId: string = MERCHANT_ID): Promis
       const res = await fetch(url, { headers: buildHeaders() })
       dbg(`→ ${res.status}`)
       if (!res.ok) continue
-      const json: any = await res.json().catch(()=>null)
+      const text = await res.text()
+      let json: any = null
+      try { json = JSON.parse(text) } catch { dbg(`body: ${text.slice(0,200)}`) }
       const data: any[] = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : []
       if (!data.length) continue
       const items: MerchantOffer[] = data.map((p:any) => ({
@@ -80,12 +82,14 @@ export async function listActiveOffers(merchantId: string = MERCHANT_ID): Promis
     const from = new Date(Date.now() - 14*24*3600*1000)
     const toISO = now.toISOString()
     const fromISO = from.toISOString()
-    const url = `${DEFAULT_BASE}/orders?filter[orders][creationDate][$ge]=${encodeURIComponent(fromISO)}&filter[orders][creationDate][$le]=${encodeURIComponent(toISO)}&page[number]=1&page[size]=50`
+    const url = `${DEFAULT_BASE}/orders?filter[orders][creationDate][$ge]=${encodeURIComponent(fromISO)}&filter[orders][creationDate][$le]=${encodeURIComponent(toISO)}&filter[orders][state]=COMPLETED&page[number]=1&page[size]=50`
     dbg(`GET ${url}`)
     const res = await fetch(url, { headers: buildHeaders() })
     dbg(`→ ${res.status}`)
     if (res.ok) {
-      const json: any = await res.json().catch(()=>null)
+      const text = await res.text()
+      let json: any = null
+      try { json = JSON.parse(text) } catch { dbg(`body: ${text.slice(0,200)}`) }
       const data: any[] = Array.isArray(json?.data) ? json.data : []
       const map = new Map<string, MerchantOffer>()
       for (const o of data) {
