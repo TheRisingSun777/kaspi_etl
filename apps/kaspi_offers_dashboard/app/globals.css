@@ -11,11 +11,11 @@ html, body, #__next {
 }
 
 body {
-  @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
+  @apply bg-bg text-text-primary;
 }
 
 .card {
-  @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200/70 dark:border-gray-700/60;
+  @apply bg-bg-card rounded-xl shadow-soft border border-border;
 }
 
 .btn {
@@ -27,11 +27,11 @@ body {
 }
 
 .btn-outline {
-  @apply btn border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800;
+  @apply btn border border-border hover:bg-white/5;
 }
 
 .input {
-  @apply w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50;
+  @apply w-full rounded-lg border border-border bg-bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50;
 }
 
 

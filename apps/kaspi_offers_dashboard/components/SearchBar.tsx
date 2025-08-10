@@ -21,10 +21,10 @@ export default function SearchBar({ onAnalyze, loading }: Props) {
     } catch {}
   }, [])
 
-  const recent = useMemo(() => history.slice(0, 2), [history])
+  const recent = useMemo(() => history.slice(0, 5), [history])
 
   const pushHistory = (id: string) => {
-    const next = [id, ...history.filter((x) => x !== id)].slice(0, 2)
+    const next = [id, ...history.filter((x) => x !== id)].slice(0, 5)
     setHistory(next)
     try {
       localStorage.setItem('recentProductIds', JSON.stringify(next))
@@ -55,7 +55,7 @@ export default function SearchBar({ onAnalyze, loading }: Props) {
           <select className="input" value={cityId} onChange={(e) => setCityId(e.target.value)}>
             <option value="710000000">Astana / Nur-Sultan</option>
             <option value="750000000">Almaty</option>
-            <option value="271000000">Shymkent</option>
+            <option value="620000000">Shymkent</option>
           </select>
         </div>
         <div className="sm:w-40 flex items-end">

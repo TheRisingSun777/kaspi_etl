@@ -33,3 +33,35 @@ Headers:
 Returned JSON is normalized to AnalyzeResponse shape.
 
 
+Input JSON
+
+```
+{ "masterProductId": "121207970", "cityId": "710000000" }
+```
+
+Output JSON (shape)
+
+```
+{
+  masterProductId: string,
+  productName?: string,
+  cityId: string,
+  productImageUrl?: string,
+  attributes?: { sizesAll?: string[], colorsAll?: string[] },
+  variantMap?: Record<string, { color?: string; size?: string; name?: string }>,
+  ratingCount?: number,
+  variants: Array<{
+    productId: string,
+    label: string,
+    variantColor?: string,
+    variantSize?: string,
+    rating?: { avg?: number; count?: number },
+    sellersCount: number,
+    sellers: Array<{ name: string; price: number; deliveryDate?: string; isPriceBot?: boolean }>,
+    stats?: { min?: number; median?: number; max?: number; spread?: number; stddev?: number; predictedMin24h?: number; predictedMin7d?: number; stabilityScore?: number }
+  }>,
+  uniqueSellers?: number,
+  analytics?: { avgSpread?: number; medianSpread?: number; maxSpread?: number; botShare?: number; attractivenessIndex?: number; stabilityScore?: number; bestEntryPrice?: number }
+}
+```
+

@@ -126,6 +126,7 @@ export default function Page() {
           ) : (
             <section className="grid gap-4 sm:grid-cols-2">
               {[...data.variants]
+                .filter(v => includeOOS ? true : v.sellers.some(s => s.price > 0))
                 .sort((a,b)=>{
                   const ca = (a.variantColor||'').localeCompare(b.variantColor||'')
                   if (ca !== 0) return ca

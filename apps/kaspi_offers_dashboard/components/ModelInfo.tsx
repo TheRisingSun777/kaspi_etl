@@ -24,9 +24,9 @@ export default function ModelInfo({ data }: { data: AnalyzeResult }) {
             <div className="overflow-x-auto">
               <span className="text-gray-500">Sizes: </span>
               <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
-                {Object.entries(variantMap).map(([pid, label]) => (
+                {Object.entries(variantMap).map(([pid, meta]) => (
                   <div key={pid} className="text-xs text-gray-300">
-                    <span className="text-gray-500">{label}</span>
+                    <span className="text-gray-500">{(meta as any)?.size || (meta as any)?.name || ''}</span>
                     <span className="ml-2 opacity-70">({pid})</span>
                   </div>
                 ))}

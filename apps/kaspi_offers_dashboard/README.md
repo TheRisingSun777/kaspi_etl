@@ -41,6 +41,16 @@ Open `http://localhost:3000`.
 - DEBUG_SCRAPE=0|1
 - PW_HEADLESS=0|1 (default 1), PW_SLOWMO=0|250
 
+Example `.env.local`:
+
+```
+DEFAULT_CITY_ID=710000000
+NEXT_PUBLIC_DEFAULT_CITY_ID=710000000
+DEBUG_SCRAPE=1
+PW_HEADLESS=0
+PW_SLOWMO=250
+```
+
 ## Watch prices
 ```bash
 pnpm watch:prices

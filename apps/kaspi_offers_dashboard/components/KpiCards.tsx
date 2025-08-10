@@ -20,11 +20,11 @@ export default function KpiCards({ data }: Props) {
   const totalSellers = uniqueSellerNames.size
 
   // fastest delivery (min date)
-  let fastest = '—'
+  let fastest: string = '—'
   if (data?.variants) {
-    const dates = data.variants.flatMap((v) => v.sellers.map((s) => s.deliveryDate)).filter(Boolean)
+    const dates = data.variants.flatMap((v) => v.sellers.map((s) => s.deliveryDate)).filter(Boolean) as string[]
     if (dates.length) {
-      fastest = dates.sort()[0]
+      fastest = String(dates.sort()[0] || '—')
     }
   }
 

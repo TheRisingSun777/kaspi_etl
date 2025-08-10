@@ -1,36 +1,15 @@
 // server/scrape.ts
 import { chromium, type BrowserContext, type Page } from 'playwright';
 import fs from 'node:fs/promises';
+import { getCached as getMasterCached, setCached as setMasterCached } from './cache';
 
-export type Seller = { name: string; price: number; deliveryDate?: string; isPriceBot?: boolean };
-export type Variant = {
-  productId: string;
-  label: string;
-  variantColor?: string;
-  variantSize?: string;
-  rating?: { avg?: number; count?: number };
-  sellersCount: number;
-  sellers: Seller[];
-  stats?: { min?: number; median?: number; max?: number; spread?: number; stddev?: number };
-};
-export type AnalyzeResult = {
-  masterProductId: string;
-  productName: string;
-  cityId: string;
-  variants: Variant[];
-  productImageUrl?: string;
-  attributes?: { sizesAll?: string[]; colorsAll?: string[] };
-  variantMap?: Record<string, string>;
-  variantMeta?: Record<string, { size: string; color?: string }>;
-  meta: { scrapedAt: string; source: 'kaspi.kz'; notes?: string };
-  uniqueSellers?: number;
-  analytics?: { avgSpread?: number; medianSpread?: number; maxSpread?: number; botShare?: number; attractivenessIndex?: number };
-};
+import type { AnalyzeResult, Variant, Seller } from '@/lib/types';
 
 const DEFAULT_TIMEOUT = 25_000;
 const CITY_NAMES: Record<string, string[]> = {
   '710000000': ['Астана', 'Нур-Султан', 'Astana'],
   '750000000': ['Алматы', 'Almaty'],
+  '620000000': ['Шымкент', 'Shymkent'],
 };
 
 const DEBUG = process.env.DEBUG_SCRAPE === '1';
@@ -67,6 +46,9 @@ async function setCityCookie(context: BrowserContext, cityId: string) {
   await context.addCookies([
     { name: 'kaspi_city_id', value: cityId, domain: 'kaspi.kz', path: '/', httpOnly: false, secure: true },
     { name: 'kaspi_city_id', value: cityId, domain: '.kaspi.kz', path: '/', httpOnly: false, secure: true },
+    // Some deployments use city_id as well
+    { name: 'city_id', value: cityId, domain: 'kaspi.kz', path: '/', httpOnly: false, secure: true },
+    { name: 'city_id', value: cityId, domain: '.kaspi.kz', path: '/', httpOnly: false, secure: true },
   ]);
 }
 
@@ -316,8 +298,11 @@ async function discoverVariantMap(page: Page): Promise<Record<string, string>> {
             if (node.productCode) {
               const pid = String(node.productCode);
               const dim = next.dim ? ` ${next.dim}` : '';
-              const label = `${next.size || ''}${dim}`.trim();
-              if (pid && label) out[pid] = label;
+               const label = `${next.size || ''}${dim}`.trim();
+               if (pid && label) out[pid] = label;
+               // Attach color/size/name metadata when available for export
+               // @ts-ignore
+               if (!out[pid] && next.color) out[pid] = label || String(next.color);
             }
             if (Array.isArray(node.matrix)) {
               for (const child of node.matrix) walk(child, next);
@@ -578,6 +563,10 @@ function dedupeSellers(sellers: Seller[]): Seller[] {
 }
 
 export async function scrapeAnalyze(masterProductId: string, cityId: string): Promise<AnalyzeResult> {
+  // Master-level LRU cache
+  const cacheKey = `${masterProductId}:${cityId}`
+  const cachedMaster = getMasterCached<AnalyzeResult>(cacheKey)
+  if (cachedMaster) return cachedMaster
   const headless = process.env.PW_HEADLESS !== '0';
   const slowMo = Number(process.env.PW_SLOWMO || '0');
 
@@ -817,14 +806,15 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
 
   await browser.close();
 
-  return {
+  const result: AnalyzeResult = {
     masterProductId,
     productName,
     cityId,
     variants,
     productImageUrl: entryDetails.imageUrl,
     attributes: { sizesAll: entryDetails.sizesAll, colorsAll: entryDetails.colorsAll },
-    variantMap: variantMap,
-    meta: { scrapedAt: new Date().toISOString(), source: 'kaspi.kz' },
-  };
+    variantMap: Object.fromEntries(Object.entries(variantMap).map(([k,v])=>[k,{ size: v }])),
+  }
+  setMasterCached(cacheKey, result)
+  return result
 }
