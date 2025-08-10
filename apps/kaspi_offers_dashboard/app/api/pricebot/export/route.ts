@@ -6,19 +6,24 @@ import { getItemSettingsOrDefault } from '@/server/db/pricebot.store'
 export const runtime = 'nodejs'
 
 function toRows(items: any[]) {
-  return items.map((it:any)=>({
-    SKU: it.sku,
-    model: '',
-    brand: '',
-    price: it.price ?? '',
-    PP1: '',
-    preorder: '',
-    min_price: it.settings?.min ?? '',
-    max_price: it.settings?.max ?? '',
-    step: it.settings?.step ?? '',
-    shop_link: it.productId ? `https://kaspi.kz/shop/p/-${it.productId}/?c=${process.env.DEFAULT_CITY_ID || '710000000'}` : `https://kaspi.kz/shop/search/?text=${encodeURIComponent(it.sku)}`,
-    pricebot_status: it.settings?.active ? 'on' : 'off',
-  }))
+  return items.map((it:any)=>{
+    const price = Number(it.price ?? 0)
+    const min = Number(it.settings?.min ?? 0)
+    const max = Number(it.settings?.max ?? 0)
+    return {
+      SKU: it.sku,
+      model: '',
+      brand: '',
+      price,
+      PP1: '',
+      preorder: '',
+      min_price: min || price || '',
+      max_price: max || price || '',
+      step: it.settings?.step ?? 1,
+      shop_link: it.productId ? `https://kaspi.kz/shop/p/-${it.productId}/?c=${process.env.DEFAULT_CITY_ID || '710000000'}` : `https://kaspi.kz/shop/search/?text=${encodeURIComponent(it.sku)}`,
+      pricebot_status: it.settings?.active ? 'on' : 'off',
+    }
+  })
 }
 
 export async function GET(req: Request) {

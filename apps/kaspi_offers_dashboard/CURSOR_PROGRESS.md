@@ -24,6 +24,8 @@
 - Implemented settings store `server/db/pricebot.store.ts` with atomic writes.
 2025-08-10T17:28Z
 - Export: mark route runtime as nodejs; harden source picking; include product page link.
+2025-08-10T20:22Z
+- Export rows now default min/max to current price when unset; import/export bar and global ignore mounted on page; `available=1` supported in offers API.
 - Opponents: unified response shape `{items}` and ensured sorting; modal reads it.
 - Offers: derive productId via `shopLink` regex; name prefers masterTitle/title/name; real stock mapping retained.
 - Defaults: min/max now default to current price when settings missing/zero.
