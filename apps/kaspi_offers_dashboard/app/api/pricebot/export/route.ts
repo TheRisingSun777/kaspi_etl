@@ -26,9 +26,15 @@ export async function GET(req: Request) {
   const format = (searchParams.get('format') || 'csv').toLowerCase()
   try {
     const m = getMerchantId()
-    const res = await mcFetch(`/bff/offer-view/list?m=${m}&p=0&l=200&a=true&t=&c=&lowStock=false&notSpecifiedStock=false`)
+    // Use the same list endpoint as the table. If 400/401 fallback to smaller page length.
+    let res = await mcFetch(`/bff/offer-view/list?m=${m}&p=0&l=100&a=true&t=&c=&lowStock=false&notSpecifiedStock=false`)
     const js = await res.json()
-    const arr: any[] = Array.isArray(js?.items) ? js.items : Array.isArray(js?.data) ? js.data : Array.isArray(js?.content) ? js.content : []
+    let arr: any[] = Array.isArray(js?.items) ? js.items : Array.isArray(js?.data) ? js.data : Array.isArray(js?.content) ? js.content : []
+    if (!arr.length) {
+      res = await mcFetch(`/bff/offer-view/list?m=${m}&p=0&l=20&available=true&t=&c=&lowStock=false&notSpecifiedStock=false`)
+      const js2 = await res.json()
+      arr = Array.isArray(js2?.items) ? js2.items : Array.isArray(js2?.data) ? js2.data : Array.isArray(js2?.content) ? js2.content : []
+    }
     const items = arr.map((o:any)=>{
       const sku = o.merchantSku || o.sku || o.offerSku || o.id || ''
       let productId = Number(o.variantProductId ?? o.productId ?? o.variantId ?? 0)
