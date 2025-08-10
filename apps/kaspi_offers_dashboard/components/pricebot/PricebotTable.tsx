@@ -98,6 +98,7 @@ export default function PricebotTable() {
   const table = useReactTable({ data: rows, columns, state: { globalFilter: filter }, onGlobalFilterChange: setFilter, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel() })
 
   return (
+    <>
     <div className="overflow-x-auto">
       <div className="flex items-center justify-between mb-2">
         <div className="text-sm text-gray-500">Pricebot (live offers)</div>
@@ -153,5 +154,6 @@ export default function PricebotTable() {
         onClose={()=>setShowOpp(null)}
       />
     )}
+  </>
   );
 }
