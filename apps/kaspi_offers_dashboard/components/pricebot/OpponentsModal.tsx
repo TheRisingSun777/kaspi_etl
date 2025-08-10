@@ -13,7 +13,9 @@ export default function OpponentsModal({ productId, cityId, onClose, sku, initia
       try {
         const res = await fetch(`/api/pricebot/opponents?productId=${productId}&cityId=${cityId}`)
         const js = await res.json();
-        setSellers(Array.isArray(js?.items)? js.items : Array.isArray(js?.sellers)? js.sellers : [])
+        const list = Array.isArray(js?.items)? js.items : Array.isArray(js?.sellers)? js.sellers : []
+        list.sort((a:any,b:any)=>Number(a.price||0)-Number(b.price||0))
+        setSellers(list)
       } catch (e:any) { setError(e?.message||'Failed') }
       finally { setLoading(false) }
     }

@@ -3,6 +3,8 @@ import { getMerchantId, mcFetch } from '@/lib/kaspi/client'
 import ExcelJS from 'exceljs'
 import { getItemSettingsOrDefault } from '@/server/db/pricebot.store'
 
+export const runtime = 'nodejs'
+
 function toRows(items: any[]) {
   return items.map((it:any)=>({
     SKU: it.sku,

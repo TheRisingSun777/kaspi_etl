@@ -94,6 +94,10 @@ export default function PricebotTable() {
       const n = Number(info.getValue()||0)
       return <button className="underline" onClick={()=>setShowOpp({ sku: r.sku, productId: (r.productId as any)||null })}>{n}</button>
     }}),
+    columnHelper.display({ id:'actions', header:'Run', cell: info => {
+      const r = info.row.original
+      return <button className="btn-outline" onClick={async()=>{ await fetch('/api/pricebot/reprice', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sku: r.sku, useSettings: true, cityId: String(process.env.NEXT_PUBLIC_DEFAULT_CITY_ID||'710000000') }) }); }}>Run</button>
+    }}),
   ],[])
   const table = useReactTable({ data: rows, columns, state: { globalFilter: filter }, onGlobalFilterChange: setFilter, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel() })
 

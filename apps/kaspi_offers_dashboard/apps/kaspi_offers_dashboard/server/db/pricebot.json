@@ -6,8 +6,8 @@
   "items": {
     "CL_OC_MEN_PRINT51_BLACK_116155651_54-56_(3XL)": {
       "active": true,
-      "min": 0,
-      "max": 0,
+      "min": 8900,
+      "max": 9000,
       "step": 1,
       "interval": 5,
       "ignoreSellers": []
@@ -29,5 +29,5 @@
       "ignoreSellers": []
     }
   },
-  "updatedAt": "2025-08-10T19:50:13.250Z"
+  "updatedAt": "2025-08-10T20:01:34.748Z"
 }

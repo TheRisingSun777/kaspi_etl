@@ -22,6 +22,12 @@
 
 2025-08-10T17:08Z
 - Implemented settings store `server/db/pricebot.store.ts` with atomic writes.
+2025-08-10T17:28Z
+- Export: mark route runtime as nodejs; harden source picking; include product page link.
+- Opponents: unified response shape `{items}` and ensured sorting; modal reads it.
+- Offers: derive productId via `shopLink` regex; name prefers masterTitle/title/name; real stock mapping retained.
+- Defaults: min/max now default to current price when settings missing/zero.
+- Reprice: endpoint can use stored settings (min) when `useSettings` is true; added Run button per row.
 - Added settings endpoints: GET/POST /api/pricebot/settings.
 - Enhanced /api/pricebot/offers to merge settings and real stock mapping.
 - Added /api/pricebot/opponents with JSON first, Playwright fallback behind ENABLE_SCRAPE.
