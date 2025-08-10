@@ -23,7 +23,7 @@ export async function GET(req: Request) {
             isOurStore: String(r.merchantId || r.merchantUID || '') === String(process.env.KASPI_MERCHANT_ID || ''),
           })).filter(s=>s.price>0)
           sellers.sort((a,b)=>a.price-b.price)
-          return NextResponse.json({ ok: true, sellers })
+          return NextResponse.json({ ok: true, items: sellers })
         }
       }
     } catch {}
@@ -51,9 +51,9 @@ export async function GET(req: Request) {
     await browser.close()
     sellers.sort((a:any,b:any)=>a.price-b.price)
     for (const s of sellers) s.isOurStore = String(s.merchantUID) === String(process.env.KASPI_MERCHANT_ID || '')
-    return NextResponse.json({ ok: true, sellers })
+    return NextResponse.json({ ok: true, items: sellers })
   } catch (e:any) {
-    return NextResponse.json({ ok: true, sellers: [] })
+    return NextResponse.json({ ok: true, items: [] })
   }
 }
 

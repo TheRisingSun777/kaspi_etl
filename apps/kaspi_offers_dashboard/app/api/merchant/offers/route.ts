@@ -8,6 +8,7 @@ type OfferRow = {
   price: number
   stock: number
   opponents?: number
+  shopLink?: string
 }
 
 function pickArrayKey(obj: any): { key: string | null; arr: any[] } {
@@ -65,12 +66,17 @@ export async function GET(request: Request) {
     const rows: OfferRow[] = picked.arr
       .map((it: any) => {
         const sku = it.merchantSku || it.sku || it.offerSku || it.s || it.id || ''
-        const productId = Number(it.variantProductId ?? it.productId ?? it.variantId ?? 0)
-        const name = it.name || it.title || it.productName || ''
+        let productId = Number(it.variantProductId ?? it.productId ?? it.variantId ?? 0)
+        const shopLink: string | undefined = it.shopLink || it.productLink || it.link || undefined
+        if ((!productId || Number.isNaN(productId)) && typeof shopLink === 'string') {
+          const m = shopLink.match(/-(\d+)\/?$/)
+          if (m) productId = Number(m[1])
+        }
+        const name = it.masterTitle || it.title || it.name || it.productName || ''
         const price = Number(it.price ?? it.currentPrice ?? it.offerPrice ?? it.value ?? 0)
         const stock = pickStock(it)
         const opponents = Number(it.sellersCount || it.opponents || 0)
-        return sku ? { sku, productId, name, price, stock, opponents } : null
+        return sku ? { sku, productId, name, price, stock, opponents, shopLink } : null
       })
       .filter(Boolean) as OfferRow[]
 

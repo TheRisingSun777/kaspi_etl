@@ -74,14 +74,25 @@ export async function GET() {
         }
         return 0
       })()
+      let productId = Number(o.variantProductId ?? o.productId ?? o.variantId ?? o.id ?? 0)
+      const shopLink: string | undefined = o.shopLink || o.productLink || o.link || undefined
+      if ((!productId || Number.isNaN(productId)) && typeof shopLink === 'string') {
+        const m = shopLink.match(/-(\d+)\/?$/)
+        if (m) productId = Number(m[1])
+      }
+      const offerName = o.masterTitle || o.title || o.name || o.productName || ''
+      // default min/max to current price if settings are zeros
+      const minDefault = settings && (!settings.min || settings.min===0) ? Number(o.price ?? o.currentPrice ?? o.offerPrice ?? o.value ?? 0) : settings?.min
+      const maxDefault = settings && (!settings.max || settings.max===0) ? Number(o.price ?? o.currentPrice ?? o.offerPrice ?? o.value ?? 0) : settings?.max
+      const fixedSettings = settings ? { ...settings, min: Number(minDefault||0), max: Number(maxDefault||0) } : undefined
       return {
-        name: o.name || o.title || o.productName || '',
+        name: offerName,
         sku: sku || null,
-        productId: Number(o.variantProductId ?? o.productId ?? o.variantId ?? o.id ?? 0),
+        productId,
         price: Number(o.price ?? o.currentPrice ?? o.offerPrice ?? o.value ?? 0),
         stock,
         opponents: Number(o.sellersCount || o.opponents || 0),
-        settings,
+        settings: fixedSettings,
       }
     })
 

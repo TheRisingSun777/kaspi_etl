@@ -25,7 +25,7 @@ export async function GET(req: Request) {
   const m = getMerchantId()
   const res = await mcFetch(`/bff/offer-view/list?m=${m}&p=0&l=200&a=true&t=&c=&lowStock=false&notSpecifiedStock=false`)
   const js = await res.json()
-  const arr: any[] = Array.isArray(js?.items) ? js.items : Array.isArray(js?.data) ? js.data : []
+  const arr: any[] = Array.isArray(js?.items) ? js.items : Array.isArray(js?.data) ? js.data : Array.isArray(js?.content) ? js.content : []
   const items = arr.map((o:any)=>{
     const sku = o.merchantSku || o.sku || o.offerSku || o.id || ''
     return {

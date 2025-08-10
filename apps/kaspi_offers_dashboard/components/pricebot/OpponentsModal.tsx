@@ -13,7 +13,7 @@ export default function OpponentsModal({ productId, cityId, onClose, sku, initia
       try {
         const res = await fetch(`/api/pricebot/opponents?productId=${productId}&cityId=${cityId}`)
         const js = await res.json();
-        setSellers(Array.isArray(js?.sellers||js?.items)? (js.sellers||js.items) : [])
+        setSellers(Array.isArray(js?.items)? js.items : Array.isArray(js?.sellers)? js.sellers : [])
       } catch (e:any) { setError(e?.message||'Failed') }
       finally { setLoading(false) }
     }

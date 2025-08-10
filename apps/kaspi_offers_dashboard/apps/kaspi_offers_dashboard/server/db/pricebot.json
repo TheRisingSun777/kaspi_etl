@@ -1,0 +1,33 @@
+{
+  "global": {
+    "cityId": "710000000",
+    "ignoreSellers": []
+  },
+  "items": {
+    "CL_OC_MEN_PRINT51_BLACK_116155651_54-56_(3XL)": {
+      "active": true,
+      "min": 0,
+      "max": 0,
+      "step": 1,
+      "interval": 5,
+      "ignoreSellers": []
+    },
+    "CL_OC_MEN_PRINT51_BLACK_105133574_54-56_(3XL)": {
+      "active": false,
+      "min": 8000,
+      "max": 9000,
+      "step": 1,
+      "interval": 5,
+      "ignoreSellers": []
+    },
+    "CL_OC_MEN_PRINT51_BLACK_108382478_46_(L)": {
+      "active": false,
+      "min": 8800,
+      "max": 0,
+      "step": 1,
+      "interval": 5,
+      "ignoreSellers": []
+    }
+  },
+  "updatedAt": "2025-08-10T19:50:13.250Z"
+}
