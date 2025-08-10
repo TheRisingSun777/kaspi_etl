@@ -1,0 +1,41 @@
+{
+  "name": "kaspi_offers_dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Kaspi Offers Insight - Next.js + TypeScript + Tailwind dashboard",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "watch:prices": "tsx scripts/price_watch.ts --ids=108382478 --city=710000000 --intervalSec=60"
+  },
+  "dependencies": {
+    "next": "14.2.15",
+    "papaparse": "5.4.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "xlsx": "0.18.5",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.2",
+    "@types/node": "20.11.30",
+    "@types/papaparse": "^5.3.16",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "autoprefixer": "10.4.19",
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.15",
+    "playwright": "^1.54.2",
+    "postcss": "8.4.38",
+    "tailwindcss": "3.4.7",
+    "vitest": "1.6.0",
+    "tsx": "4.19.2",
+    "typescript": "5.5.4"
+  }
+}
