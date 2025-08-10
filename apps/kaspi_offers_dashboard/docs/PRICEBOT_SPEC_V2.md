@@ -1,3 +1,7 @@
+# Pricebot Spec (v2)
+- Data model v2 persisted in `server/db/pricebot.json` keyed by `storeId`.
+- Endpoints: `/api/pricebot/offers`, `/api/pricebot/opponents`, `/api/pricebot/settings`, `/api/pricebot/export`, `/api/pricebot/import`, `/api/pricebot/run`.
+- UI: store selector, global ignore, searchable/sortable table, opponents modal with ignore toggles, import/export, per-row run.
 0) Non‑negotiables
 	•	Auth split
 	•	Use MC (merchant cabinet) cookie for listing offers, stock and price updates.
@@ -81,3 +85,37 @@ Notes based on your current UI: the header already has Export/Upload and “Glob
 
 Columns (exact order):
 SKU, model, brand, price, PP1, preorder, min_price, max_price, step, interval_min, shop_link, pricebot_status
+	•	pricebot_status: on|off → maps to active: true|false.
+	•	On import: validate with zod, show preview, then merge into items[] by SKU.
+	•	On export: include current settings + derived shop_link (you already make SKU a link to kaspi.kz in the table).  ￼
+
+8) Repricing engine (server)
+	•	For each active SKU on a timer:
+	1.	Fetch opponents list for that productId & city.
+	2.	Remove globalIgnore and the SKU’s opponentsIgnore.
+	3.	Compute target price:
+	•	If no competitors → clamp to [min,max]; else min(max( (lowestCompetitor - step), min ), max).
+	•	Don’t change if within step of current price (hysteresis).
+	4.	If changed → update via MC endpoint; log to server/db/pricebot.log.jsonl.
+	•	Manual Run button triggers (3) for a single row.
+
+9) Metrics (top bar)
+	•	“Active SKUs”, “Price changes (24h)”, “Median competitor gap”, “% at floor/ceiling”, “Est. margin @ target” (if COGS provided).
+	•	Later: Buy‑box share proxy, time‑to‑sell forecasts.
+
+10) Styling & micro‑interactions
+	•	Tailwind + shadcn/ui + Radix primitives.
+	•	Micro‑anims via framer-motion:
+	•	Smooth toggle animation on “Active”.
+	•	Modal scale/fade for Opponents.
+	•	Subtle row highlight on autosave.
+	•	“Premium” surface: soft gradient header, subtle glass card for the table header, San‑serif font pairing, consistent 12/16pt spacing. The current table layout is close—just needs the skinning + motion.  ￼
+
+11) Acceptance Criteria
+	•	Stock shows real numbers from MC for each SKU (no more all “1”).  ￼
+	•	Clicking an Opponents count opens the modal with real sellers and working exclude toggles.
+	•	Per‑row Active/Min/Max/Step/Interval persist and are respected by both Run and the scheduler.
+	•	Import/Export round‑trips with the exact schema above.
+	•	Top segmented control switches between 5 stores, each with its own auth and cityId.
+	•	Basic metrics render and react to filters.
+	•	No manual cookie pasting needed after first headful login; cookies auto‑refresh.
