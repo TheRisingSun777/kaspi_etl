@@ -13,10 +13,21 @@ export default function PricebotPanel() {
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [base, setBase] = useState('')
+  const [merchantId, setMerchantId] = useState('')
 
   const load = async () => {
     setLoading(true); setError(null)
     try {
+      // load settings first
+      try {
+        const sres = await fetch('/api/pricebot/settings')
+        if (sres.ok) {
+          const js = await sres.json()
+          if (js?.settings?.base) setBase(js.settings.base)
+          if (js?.settings?.merchantId) setMerchantId(js.settings.merchantId)
+        }
+      } catch {}
       const res = await fetch('/api/pricebot/offers', { cache: 'no-store' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
@@ -44,7 +55,18 @@ export default function PricebotPanel() {
     <div className="card p-4">
       <div className="flex items-center justify-between mb-2">
         <div className="text-sm text-gray-500">Pricebot (Store {process.env.NEXT_PUBLIC_KASPI_MERCHANT_ID || '30141222'})</div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-end">
+          <div>
+            <label className="block text-xs text-gray-500">API Base</label>
+            <input className="input w-[280px]" value={base} onChange={e=>setBase(e.target.value)} placeholder="https://kaspi.kz/shop/api/v2" />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500">Merchant ID</label>
+            <input className="input w-[160px]" value={merchantId} onChange={e=>setMerchantId(e.target.value)} placeholder="30141222" />
+          </div>
+          <button className="btn-outline" onClick={async()=>{ await fetch('/api/pricebot/settings', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ base, merchantId }) }); await load() }}>
+            Save Settings
+          </button>
           <button className="btn-outline" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Reload'}</button>
           <button className="btn-outline" onClick={async ()=>{ await fetch('/api/pricebot/reprice-bulk', { method:'POST' }); }}>
             Run All (bulk)

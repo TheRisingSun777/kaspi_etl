@@ -9,8 +9,8 @@ export type MerchantOffer = {
   category?: string
 }
 
-const DEFAULT_BASE = process.env.KASPI_MERCHANT_API_BASE || 'https://kaspi.kz/shop/api/v2'
-const MERCHANT_ID = process.env.KASPI_MERCHANT_ID || '30141222'
+const DEFAULT_BASE = process.env.KASPI_MERCHANT_API_BASE || readSettings().base || 'https://kaspi.kz/shop/api/v2'
+const MERCHANT_ID = process.env.KASPI_MERCHANT_ID || readSettings().merchantId || '30141222'
 const API_KEY = process.env.KASPI_MERCHANT_API_KEY || process.env.KASPI_TOKEN || ''
 
 const DEBUG_LINES: string[] = []
@@ -108,6 +108,16 @@ export async function listActiveOffers(merchantId: string = MERCHANT_ID): Promis
     }
   } catch {}
   return []
+}
+
+function readSettings(): any {
+  try {
+    const fs = require('node:fs')
+    const path = require('node:path')
+    const p = path.join(process.cwd(), 'server', 'db', 'pricebot.settings.json')
+    if (!fs.existsSync(p)) return {}
+    return JSON.parse(fs.readFileSync(p, 'utf8'))
+  } catch { return {} }
 }
 
 export async function updatePrice(variantProductId: string, newPrice: number): Promise<{ ok: boolean; status: number }>{
