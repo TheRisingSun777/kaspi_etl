@@ -14,7 +14,7 @@ function toRows(items: any[]) {
     min_price: it.settings?.min ?? '',
     max_price: it.settings?.max ?? '',
     step: it.settings?.step ?? '',
-    shop_link: '',
+    shop_link: it.productId ? `https://kaspi.kz/shop/p/-${it.productId}/?c=${process.env.DEFAULT_CITY_ID || '710000000'}` : `https://kaspi.kz/shop/search/?text=${encodeURIComponent(it.sku)}`,
     pricebot_status: it.settings?.active ? 'on' : 'off',
   }))
 }

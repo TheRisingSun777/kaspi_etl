@@ -11,7 +11,7 @@ type OfferRow = {
   price: number | null;
   stock?: number | null;
   opponents?: number | null;
-  settings?: { active: boolean; min: number; max: number; step: number; intervalMinutes: number; ignoreSellers: string[] }
+  settings?: { active: boolean; min: number; max: number; step: number; interval: number; ignoreSellers: string[] }
 };
 
 function pickItems(json: any): OfferRow[] {

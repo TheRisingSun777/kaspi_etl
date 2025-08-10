@@ -6,6 +6,8 @@ type OfferRow = {
   productId: number
   name: string
   price: number
+  stock: number
+  opponents?: number
 }
 
 function pickArrayKey(obj: any): { key: string | null; arr: any[] } {
@@ -66,7 +68,9 @@ export async function GET(request: Request) {
         const productId = Number(it.variantProductId ?? it.productId ?? it.variantId ?? 0)
         const name = it.name || it.title || it.productName || ''
         const price = Number(it.price ?? it.currentPrice ?? it.offerPrice ?? it.value ?? 0)
-        return sku ? { sku, productId, name, price } : null
+        const stock = pickStock(it)
+        const opponents = Number(it.sellersCount || it.opponents || 0)
+        return sku ? { sku, productId, name, price, stock, opponents } : null
       })
       .filter(Boolean) as OfferRow[]
 
@@ -77,6 +81,20 @@ export async function GET(request: Request) {
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 })
   }
+}
+
+function pickStock(o: any): number {
+  const keys = ['stock','qty','quantity','availableAmount','freeBalance','available','stockTotal']
+  for (const k of keys) {
+    const v = o?.[k]
+    if (typeof v === 'number') return v
+    if (typeof v === 'boolean') return v ? 1 : 0
+    if (typeof v === 'string' && v.trim() !== '') { const n = Number(v); if (Number.isFinite(n)) return n }
+  }
+  const av = o?.availabilities?.[0]
+  const nested = ['stockCount','available','qty','quantity','availableAmount','freeBalance']
+  if (av) for (const k of nested) { const v = av[k]; if (typeof v === 'number') return v }
+  return 0
 }
 
 
