@@ -10,8 +10,12 @@ export type ItemSettings = {
   ignoreSellers: string[]
 }
 
+export type PricebotProfile = { id: string; name: string; cityId: string }
+
 export type PricebotStore = {
   global: { cityId: string; ignoreSellers: string[] }
+  profiles?: PricebotProfile[]
+  activeProfileId?: string
   items: Record<string, ItemSettings>
   updatedAt: string
 }
@@ -29,10 +33,13 @@ export function readStore(): PricebotStore {
     const json = JSON.parse(raw)
     const global = json.global || { cityId: process.env.DEFAULT_CITY_ID || '710000000', ignoreSellers: [] }
     const items = json.items || {}
+    const profiles = Array.isArray(json.profiles) ? json.profiles : defaultProfiles(global.cityId)
+    const activeProfileId = typeof json.activeProfileId === 'string' ? json.activeProfileId : profiles?.[0]?.id
     const updatedAt = json.updatedAt || new Date().toISOString()
-    return { global, items, updatedAt }
+    return { global, profiles, activeProfileId, items, updatedAt }
   } catch {
-    return { global: { cityId: String(process.env.DEFAULT_CITY_ID || '710000000'), ignoreSellers: [] }, items: {}, updatedAt: new Date().toISOString() }
+    const global = { cityId: String(process.env.DEFAULT_CITY_ID || '710000000'), ignoreSellers: [] }
+    return { global, profiles: defaultProfiles(global.cityId), activeProfileId: 'store-1', items: {}, updatedAt: new Date().toISOString() }
   }
 }
 
@@ -79,6 +86,34 @@ export function updateGlobal(patch: Partial<{ cityId: string; ignoreSellers: str
 export function getItemSettingsOrDefault(sku: string): ItemSettings {
   const st = readStore()
   return st.items[sku] || { active: false, min: 0, max: 0, step: 1, interval: 5, ignoreSellers: [] }
+}
+
+export function upsertItemIgnoreSeller(sku: string, merchantId: string, ignore: boolean) {
+  const cur = readStore()
+  const base: ItemSettings = cur.items[sku] || { active: false, min: 0, max: 0, step: 1, interval: 5, ignoreSellers: [] }
+  const set = new Set(base.ignoreSellers)
+  if (ignore) set.add(merchantId); else set.delete(merchantId)
+  const next: PricebotStore = { ...cur, items: { ...cur.items, [sku]: { ...base, ignoreSellers: Array.from(set) } }, updatedAt: new Date().toISOString() }
+  writeStore(next)
+  return next.items[sku]
+}
+
+export function getMergedIgnoreForSku(sku: string): string[] {
+  const st = readStore()
+  const item = st.items[sku]
+  const set = new Set([ ...(st.global.ignoreSellers || []), ...((item?.ignoreSellers) || []) ])
+  return Array.from(set)
+}
+
+export function getActiveCityId(): string {
+  const st = readStore()
+  const id = st.activeProfileId
+  const p = (st.profiles || []).find(x=>x.id===id)
+  return p?.cityId || st.global.cityId
+}
+
+function defaultProfiles(cityId: string): PricebotProfile[] {
+  return [1,2,3,4,5].map(i=>({ id: `store-${i}`, name: `Store ${i}`, cityId }))
 }
 
 function pickNum(v: any, fallback: number) { const n = Number(v); return Number.isFinite(n) ? n : fallback }

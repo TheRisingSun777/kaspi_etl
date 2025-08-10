@@ -154,7 +154,7 @@ export default function PricebotTable() {
         productId={showOpp.productId}
         cityId={String(process.env.NEXT_PUBLIC_DEFAULT_CITY_ID||'710000000')}
         initialIgnores={[]}
-        onToggle={(id,ignore)=>{ debouncedSave(showOpp.sku, { ignoreSellers: [] }); }}
+        onToggle={async (id,ignore)=>{ await fetch('/api/pricebot/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ toggleIgnore: true, sku: showOpp.sku, merchantId: id, ignore }) }); await load() }}
         onClose={()=>setShowOpp(null)}
       />
     )}

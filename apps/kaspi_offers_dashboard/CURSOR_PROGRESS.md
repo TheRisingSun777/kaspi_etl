@@ -31,6 +31,9 @@
 - Added SKU parser `extractProductIdAndVariantFromSku` and `buildShopLink`.
 - New endpoints: `/api/merchant/offer/stock?sku`, enhanced `/api/pricebot/opponents` (sku→productId, 3m cache) and `/api/pricebot/offers` (derive productId + shop_link).
 - Opponents modal now queries with sku; cache applied server-side.
+
+2025-08-10T20:40Z
+- Settings API: added toggle per-seller ignore for a SKU. Store now supports 5 store profiles scaffold and active city helper (future use for top knobs).
 - Opponents: unified response shape `{items}` and ensured sorting; modal reads it.
 - Offers: derive productId via `shopLink` regex; name prefers masterTitle/title/name; real stock mapping retained.
 - Defaults: min/max now default to current price when settings missing/zero.

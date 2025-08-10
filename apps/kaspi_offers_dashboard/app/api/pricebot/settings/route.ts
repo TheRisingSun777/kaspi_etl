@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { readStore, upsertItemsBatch, updateGlobal } from '@/server/db/pricebot.store'
+import { readStore, upsertItemsBatch, updateGlobal, upsertItemIgnoreSeller } from '@/server/db/pricebot.store'
 
 export async function GET() {
   const st = readStore()
@@ -16,6 +16,10 @@ export async function POST(req: Request) {
     if (body?.items && typeof body.items === 'object') {
       const st = upsertItemsBatch(body.items)
       return NextResponse.json({ ok: true, settings: st })
+    }
+    if (body?.toggleIgnore && body?.sku && body?.merchantId) {
+      const s = upsertItemIgnoreSeller(String(body.sku), String(body.merchantId), !!body.ignore)
+      return NextResponse.json({ ok: true, sku: body.sku, settings: s })
     }
     return NextResponse.json({ ok: false, error: 'BAD_BODY' }, { status: 400 })
   } catch (e: any) {
