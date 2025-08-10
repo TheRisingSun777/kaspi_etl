@@ -1,11 +1,25 @@
 import { NextResponse } from 'next/server'
 import { chromium } from 'playwright'
+import { extractProductIdAndVariantFromSku } from '@/server/pricebot/sku'
+
+const cache = new Map<string, { expires: number; data: any[] }>()
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
-    const productId = String(searchParams.get('productId') || '')
+    let productId = String(searchParams.get('productId') || '')
+    const sku = searchParams.get('sku') || ''
     const cityId = String(searchParams.get('cityId') || process.env.DEFAULT_CITY_ID || '710000000')
+    if (!productId && sku) {
+      const e = extractProductIdAndVariantFromSku(sku)
+      if (e.productId) productId = String(e.productId)
+    }
+    if (!productId) return NextResponse.json({ ok: true, items: [] })
+
+    const ck = `${productId}:${cityId}`
+    const now = Date.now()
+    const hit = cache.get(ck)
+    if (hit && hit.expires > now) return NextResponse.json({ ok: true, items: hit.data })
     if (!productId) return NextResponse.json({ ok: true, sellers: [] })
 
     // First attempt: Kaspi JSON endpoint
@@ -23,6 +37,7 @@ export async function GET(req: Request) {
             isOurStore: String(r.merchantId || r.merchantUID || '') === String(process.env.KASPI_MERCHANT_ID || ''),
           })).filter(s=>s.price>0)
           sellers.sort((a,b)=>a.price-b.price)
+          cache.set(ck, { expires: now + 3*60*1000, data: sellers })
           return NextResponse.json({ ok: true, items: sellers })
         }
       }
@@ -51,6 +66,7 @@ export async function GET(req: Request) {
     await browser.close()
     sellers.sort((a:any,b:any)=>a.price-b.price)
     for (const s of sellers) s.isOurStore = String(s.merchantUID) === String(process.env.KASPI_MERCHANT_ID || '')
+    cache.set(ck, { expires: now + 3*60*1000, data: sellers })
     return NextResponse.json({ ok: true, items: sellers })
   } catch (e:any) {
     return NextResponse.json({ ok: true, items: [] })

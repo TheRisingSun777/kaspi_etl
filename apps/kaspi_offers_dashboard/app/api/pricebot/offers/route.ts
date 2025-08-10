@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getMerchantId, mcFetch } from '@/lib/kaspi/client'
 import { getItemSettingsOrDefault, readStore } from '@/server/db/pricebot.store'
+import { extractProductIdAndVariantFromSku, buildShopLink } from '@/server/pricebot/sku'
 export const runtime = 'nodejs'
 
 function pickArrayKey(obj: any): { key: string | null; arr: any[] } {
@@ -79,6 +80,10 @@ export async function GET() {
       if ((!productId || Number.isNaN(productId)) && typeof shopLink === 'string') {
         const m = shopLink.match(/-(\d+)\/?$/)
         if (m) productId = Number(m[1])
+      }
+      if (!productId) {
+        const e = extractProductIdAndVariantFromSku(sku)
+        if (e.productId) productId = e.productId
       }
       const offerName = o.masterTitle || o.title || o.name || o.productName || ''
       // default min/max to current price if settings are zeros

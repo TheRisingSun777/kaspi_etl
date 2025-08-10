@@ -26,6 +26,11 @@
 - Export: mark route runtime as nodejs; harden source picking; include product page link.
 2025-08-10T20:22Z
 - Export rows now default min/max to current price when unset; import/export bar and global ignore mounted on page; `available=1` supported in offers API.
+
+2025-08-10T20:30Z
+- Added SKU parser `extractProductIdAndVariantFromSku` and `buildShopLink`.
+- New endpoints: `/api/merchant/offer/stock?sku`, enhanced `/api/pricebot/opponents` (sku→productId, 3m cache) and `/api/pricebot/offers` (derive productId + shop_link).
+- Opponents modal now queries with sku; cache applied server-side.
 - Opponents: unified response shape `{items}` and ensured sorting; modal reads it.
 - Offers: derive productId via `shopLink` regex; name prefers masterTitle/title/name; real stock mapping retained.
 - Defaults: min/max now default to current price when settings missing/zero.
