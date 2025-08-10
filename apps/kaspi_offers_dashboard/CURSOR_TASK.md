@@ -1,171 +1,360 @@
 You are a senior full‑stack engineer. Repo root: kaspi_etl. App: apps/kaspi_offers_dashboard (Next.js App Router + TypeScript + Tailwind + Playwright).
 Goal: finalize the Offers dashboard, then add a Pricebot section that manages our store’s active offers and auto‑reprices within min/max guardrails.
 Do not stop until all acceptance criteria at the bottom are green.
+Environment (local only):
+KASPI_MERCHANT_ID=30141222
+KASPI_MERCHANT_API_BASE=https://mc.shop.kaspi.kz
+KASPI_MERCHANT_API_KEY=<keep in .env.local, never commit>
+# optional cookie fallback if API key flow is limited; paste mc-session and mc-sid from your browser
+KASPI_MERCHANT_COOKIES=mc-session=...; mc-sid=...
+# local admin token to guard write endpoints
+LOCAL_ADMIN_TOKEN=dev-only-strong-random
+# feature flags
+PW_HEADLESS=1
+PW_SLOWMO=0
+DEBUG_SCRAPE=0
+SCRAPE_MAX_TABS=1
+SCRAPE_CONCURRENCY=1
+SCRAPE_TTL_SEC=180
+Ground rules stay the same as before: TypeScript‑strict, small commits, never log credentials, close Playwright contexts/tabs, and work only in apps/kaspi_offers_dashboard (plus minimal root config if required).
 
-0) Status audit (from current build)
-	•	✅ Dashboard renders with search by masterProductId + city; variants grid with sellers & Δ vs min; analytics (avg/median/max spread, bot share, attractiveness), CSV/XLSX export, “Include out‑of‑stock” toggle, and Copy JSON.  
-	•	⚠️ “Fastest Delivery” KPI shows “—” ⇒ delivery parsing not computed/propagated.  
-	•	⚠️ PriceBot labels appear, but the detection looks heuristic-only; keep but mark as heuristic.  
-	•	⛔ Unknown/likely missing: LRU cache for analyze responses; debug artifact dump; unit tests; secret hygiene enforced; scraper resiliency (sellers tab + city cookie) re‑verified.
+3) Pricebot engine + scheduler + APIs (server only)
 
-Implement/verify everything below.
-{ "scripts": { "dev":"next dev","build":"next build","start":"next start","typecheck":"tsc --noEmit","lint":"eslint .","test":"vitest run","test:watch":"vitest" } }	
-3.	Next config: allow images from *.kaspi.kz. Keep reactStrictMode: true.
+Goal: make the “Pricebot (Store 30141222)” section show real offers and let me set min/max/step/interval, view opponents, ignore sellers, and reprice via Merchant endpoints.
 
-⸻
+3.1 Project structure (create these)
+apps/kaspi_offers_dashboard/
+  lib/merchant/
+    client.ts
+    auth.ts
+  lib/pricebot/
+    settings.ts
+    engine.ts
+    opponents.ts
+    runner.ts
+  app/api/pricebot/
+    offers/route.ts
+    opponents/route.ts
+    settings/route.ts
+    reprice/route.ts
+  app/api/debug/
+    merchant/route.ts
+    If a folder doesn’t exist, create it. All routes are server code only (export const dynamic='force-dynamic'), guarded by LOCAL_ADMIN_TOKEN for writes.
 
-2) Types & analytics (tighten)
-	•	Ensure a single source of truth types file: lib/types.ts containing Seller, Variant, AnalyzeResult and analytics fields (avg/median/max spread, botShare, attractivenessIndex 0–100, stabilityScore 0–100, bestEntryPrice).
-	•	Keep lib/analytics.ts with: basicStats, computeVariantStats, computeGlobalAnalytics (already works as per UI numbers), and add fastestDelivery aggregator (min by normalized ETA string). Wire it into the KPI card (no more “—”).  
+3.2 Merchant auth + HTTP (server)
 
-⸻
+lib/merchant/auth.ts
+	•	Export buildAuthHeaders(): Record<string,string>:
+	•	If KASPI_MERCHANT_API_KEY set → return { 'x-auth-version': '3', 'Authorization': 'Bearer ' + apiKey } (or just pass through API key header variant you already used in /api/pricebot/reprice that returned 200 OK).
+	•	Else if KASPI_MERCHANT_COOKIES set → return { cookie: process.env.KASPI_MERCHANT_COOKIES }.
+	•	Never log the key/cookies.
 
-3) Scraper resiliency & caching
-	•	In server/scrape.ts:
-	•	Always set city cookie and use ?c=${cityId}.
-	•	Programmatically open sellers tab (Продавцы / Все предложения) and capture JSON responses; fall back to DOM parse for seller rows.
-	•	Normalize delivery text and include it on each seller; return a product‑level fastestDelivery (min ETA).
-	•	Sequential variant scraping (Kaspi rate‑limits); cap to 20 variants.
-	•	Add a tiny in‑memory LRU (server/cache.ts) with 5‑minute TTL keyed by {masterProductId}:{cityId} to avoid re‑scrapes when toggling UI.
-	•	Add DEBUG_SCRAPE=1 to dump HTML/JSON artifacts for one variant for regression tests.
+lib/merchant/client.ts
+	•	Export:
+	•	async function fetchJSON(path: string, init?: RequestInit)
+	•	async function getOffersPage(page=0, limit=100)
+	•	GET ${base}/bff/offer-view/list?m=${merchantId}&p=${page}&l=${limit}&a=true&lowStock=false&notSpecifiedStock=false
+	•	async function getOfferDetailsBySku(sku: string)
+	•	GET ${base}/bff/offer-view/details?m=${merchantId}&s=${encodeURIComponent(sku)}
+	•	async function postDiscount(body: { merchantUID: string; merchantSKU: string; entries: { city: string; price: number }[] })
+	•	POST ${base}/price/trends/api/v1/mc/discount with JSON body (this is the one you captured; payload shape matches your DevTools payload).
+	•	fetchJSON should:
+	•	Merge buildAuthHeaders()
+	•	Set Accept: application/json
+	•	Throw rich errors on 401/403 (tell the UI “Missing Merchant credentials”).
+	•	Notes:
+	•	If API key returns 401 for listing endpoints, automatically fallback to cookie mode.
+	•	Add tiny jitter delays to avoid anti‑bot.
 
-⸻
+3.3 Settings store (min/max/step/interval/ignore)
 
-4) API contracts
-	•	POST /api/analyze → input { masterProductId, cityId? } → returns AnalyzeResult with analytics + fastestDelivery.
-	•	Error policy: 400 on validation, 429 on rate‑limit, 503 on timeouts; always return { variants: [] } so UI doesn’t crash.
+lib/pricebot/settings.ts
+	•	Keep it simple: local JSON file at data/pricebot/settings.json (create folder data/pricebot under the app root). No DB yet.
+	•	Types:
+    export type PricebotSetting = {
+  sku: string;               // merchant SKU (e.g., CL_OC_MEN_…)
+  productId?: string;        // resolved from details
+  minPrice?: number;
+  maxPrice?: number;
+  stepKzt?: number;          // default 1
+  scanIntervalMin?: number;  // 1..10, default 3
+  active?: boolean;          // default false
+  ignoreSellers?: string[];  // exact names to skip
+  lastSeenPrice?: number;    // telemetry
+  updatedAt: string;
+}
+	•	Export CRUD:
+	•	getSettings(): Promise<PricebotSetting[]>
+	•	getSetting(sku: string)
+	•	upsertSetting(partial: PricebotSetting)
+	•	removeSellerIgnore(sku, seller)
+	•	Ensure atomic writes (write temp file then rename).
 
-⸻
+3.4 Opponents service (uses your scraper or BFF details → productId)
 
-5) Export helpers
-	•	lib/export.ts: fix CSV/XLSX to flatten (variant × sellers) rows with meta (variantId, size/color, rating, min/median/max/spread/stddev, seller, price, delivery). Ensure export respects the Include out‑of‑stock toggle.
+lib/pricebot/opponents.ts
+	•	Export:
+	•	async function resolveProductIdForSku(sku: string): Promise<string> → via getOfferDetailsBySku(sku) (you already captured a working GET that returned 200 OK in DevTools), pick the productId from JSON.
+	•	async function listOpponentsByProduct(productId: string, cityId: string):
+	•	Call existing scraper/analyzer (scrapeAnalyze(productId, cityId)) and flatten sellers for the selected variant (one productId each). Return { seller, price }[] sorted ASC.
+	•	Respect ignoreSellers by filtering.
 
-⸻
+3.5 Engine (decide a new price that respects min/max/step)
 
-6) UI polish (first section)
-	•	KpiCards: render fastestDelivery, uniqueSellers, attractiveness.
-	•	SearchBar: correct Shymkent ID 620000000; keep recent‑search chips.
-	•	VariantCard/SellersTable: Δ vs min by variant, green highlight for min; show “PriceBot?” badge using simple regex heuristic (/bot|бот/i).
-	•	Ensure Include OOS affects both grid and export.
+lib/pricebot/engine.ts
+	•	Export:
+	•	computeNextPrice({ ourPrice, opponents, minPrice, maxPrice, stepKzt }): number
+	•	If opponents empty → clamp to maxPrice (or keep ourPrice if inside range).
+	•	Otherwise target min(opponents.price) - stepKzt. Clamp to [minPrice, maxPrice].
+	•	Round to integer KZT.
+	•	async function repriceOnce({ sku, cityId }): Promise<{ newPrice:number, applied:boolean, reason?:string }>
+	•	Load setting; resolve productId; list opponents; compute next; if next == ourPrice → return applied:false, reason:'no-change'.
+	•	Call postDiscount with:
+    {
+  "merchantUID": "30141222",
+  "merchantSKU": "<sku>",
+  "entries": [{ "city": "<cityId>", "price": <newPrice> }]
+}
+(This mirrors the /price/trends/api/v1/mc/discount request you captured and successfully replayed.)
 
-⸻
+	•	If API responds “NOT_ENOUGH_HISTORY” → return applied:false, reason:'NOT_ENOUGH_HISTORY' (bubble to UI).
 
-7) Pricebot Dashboard (new second section)
+3.6 API routes
 
-7.1 Server: Merchant API client
+All routes live under app/api/pricebot/* and return JSON; protect POST with Authorization: Bearer ${LOCAL_ADMIN_TOKEN}.
+	•	GET /api/pricebot/offers
+	•	Merge: getOffersPage() (loop pages until empty), each item ⇒ { name, sku, productId, price, city:'710000000' }.
+	•	Join with settings; include opponentsCount by calling listOpponentsByProduct(productId, city) only when ?withOpponents=true to keep it fast.
+	•	If 401 from Merchant, return { ok:false, error:'UNAUTHORIZED' }.
+	•	GET /api/pricebot/opponents?sku=...&cityId=710000000
+	•	Resolve productId; return [{ seller, price }] sorted ASC.
+	•	POST /api/pricebot/settings
+	•	Body: { sku, minPrice, maxPrice, stepKzt, scanIntervalMin, active, ignoreSellers }
+	•	Upsert and return full setting.
+	•	POST /api/pricebot/reprice
+	•	Body: { sku, cityId, price? }
+	•	If price provided → call postDiscount directly.
+	•	Else → call repriceOnce (engine) which computes then posts.
+	•	Return full engine decision + raw merchant response.
+	•	This route already responded 200 OK for you; keep the success path and upgrade to use postDiscount.
+	•	GET /api/debug/merchant
+	•	Call getOffersPage(0) and return { ok: true } if status 200, else { ok:false, status }.
+	•	This replaces the old version that returned 401.
 
-Create server/merchant/client.ts:
-	•	Config:
-	•	KASPI_MERCHANT_API_BASE (env; default to provided base when known).
-	•	KASPI_MERCHANT_ID = 30141222.
-	•	KASPI_MERCHANT_API_KEY (server‑only).
-	•	Implement helpers with proper headers (add both; the correct one will be used by the API you configure):
-	•	Authorization: Bearer <key> and X-Auth-Token: <key> (pick whichever works; expose via config).
-	•	Accept: application/json, User-Agent: KaspiOffersDashboard/1.0.
-	•	Endpoints (names are stable; the exact paths may differ per Kaspi deployment—auto‑discover if needed via the merchant panel or existing scripts):
-	•	listActiveOffers(merchantId) → returns our current offers list with variantProductId, name, price, stock, category.
-	•	updatePrice(offerId|variantProductId, newPrice) → updates price for a single variant.
-	•	updatePricesBulk([{ variantProductId, price }]) → bulk update with small batches (size 10–20) and backoff on 429.
-	•	Resilience: 429/503 backoff with jitter (start 1s → 8s, max 3 retries). Full error surface returned to caller.
+3.7 Scheduler (server runner)
 
-If the exact REST shape differs, inspect the merchant panel network calls and adapt client methods accordingly. Keep the method signatures above unchanged so the UI and bot logic don’t care about transport details.
-
-7.2 Data store: pricing rules + ignores
-
-Create SQLite (simple, local) via better-sqlite3 at server/db/pricing.sqlite. Add DAO server/db/rules.ts with tables:
-	•	pricing_rules(variant_id TEXT PRIMARY KEY, min_price INTEGER NOT NULL, max_price INTEGER NOT NULL, step INTEGER NOT NULL DEFAULT 1, interval_min INTEGER NOT NULL DEFAULT 5, active INTEGER NOT NULL DEFAULT 1, updated_at DATETIME)
-	•	ignored_sellers(variant_id TEXT, seller_name TEXT, PRIMARY KEY (variant_id, seller_name))
-
-Migrations: create tables if not exist on boot. All prices in KZT (integers).
-
-7.3 API for Pricebot
-
-Create routes:
-	•	GET /api/pricebot/offers → combine merchant offers with current rules; returns { name, variantProductId, ourPrice, rules: {min,max,step,interval,active}, opponentCount, opponents?: Seller[] }.
-	•	PUT /api/pricebot/rules/:variantId → upsert { minPrice, maxPrice, step, intervalMin, active }.
-	•	PUT /api/pricebot/ignore/:variantId → { sellerName, ignore: boolean }.
-	•	POST /api/pricebot/reprice/:variantId → runs reprice once for one variant (returns oldPrice, targetPrice, reason).
-	•	POST /api/pricebot/reprice-bulk → runs on all active=1 rules (rate‑limited, batched).
-
-For opponents, reuse the same sellers data we already know how to scrape: call our /api/analyze for the variant’s product page (same city). This keeps one source of truth for competitor prices.
-
-7.4 UI: “Pricebot” section (second section on the page)
-
-Under the existing analytics, render a new card “Pricebot (Store 30141222)” with a table:
-	•	Columns: Name, Variant ID, Our Price, Min Price (input), Max Price (input), Step (input), Interval min (1–10), Opponents (N) (clickable link opening modal), Active (toggle), Reprice (Run), Save.
-	•	“Opponents (N)” opens a modal with a sorted asc list: {sellerName, price} and a small ignore toggle next to each seller. Clicking saves via /api/pricebot/ignore/:variantId.
-	•	“Run” triggers one‑off reprice for that variant.
-	•	At top of the section: Run All (bulk), Dry‑run mode toggle (no price push), and Logs drawer that streams last 100 actions.
-
-7.5 Pricebot algorithm (deterministic, safe)
-
-Given {minPrice, maxPrice, step, intervalMin, active}, and competitor list C for the same variantId and city:
-	1.	Filter out ignored_sellers and our own store names (self).
-	2.	Compute competitorMin = min(price in C); if none: target = maxPrice (ceiling).
-	3.	If competitorMin < ourPrice: target = max(minPrice, competitorMin - step).
-	4.	Else: **target = clamp(competitorMin, minPrice, maxPrice)** (do not raise above maxPrice`).
-	5.	Round to nearest 1 KZT (integer).
-	6.	Only push update if abs(target - ourPrice) >= step and target changed since last run.
-	7.	Backoff on 429; skip a variant after 3 consecutive failures for 15 minutes (circuit breaker).
-
-Note: Treat bot‑heavy markets carefully: if the number of distinct sellers within ±10 KZT of competitorMin ≥ 3, do not undercut—match competitorMin but never go < minPrice. (This caps bot wars.)
-
-7.6 Scheduler
-	•	Use node-cron inside a server‑only module server/pricebot/scheduler.ts.
-	•	Every minute, pick variants with active=1, then run those whose intervalMin divides the current minute index (or use per‑variant next‑run timestamps).
-	•	Ensure only one job at a time (mutex). Batch updates (10–20 per batch) with short sleeps.
-
-⸻
-
-8) Tests
-	•	Unit:
-	•	lib/analytics.test.ts → stats + attractiveness + stability + fastestDelivery aggregator.
-	•	server/pricebot/logic.test.ts → given (rules, ourPrice, competitors) assert targetPrice. Include cases: undercut, ceiling, min guard, bot‑dense “match not undercut”.
-	•	Integration (mocked):
-	•	Merchant client mocked (no live calls).
-	•	Scrape parser tests with stored HTML fixtures (dumped by DEBUG_SCRAPE=1).
-
-⸻
-
-9) Observability
-	•	Add a minimal logger (server/log.ts) with levels; write recent pricebot actions to a ring buffer exposed at /api/pricebot/logs.
-	•	UI “Logs” drawer polls this endpoint every ~5s when open.
-
-⸻
-
-10) Documentation
-	•	Update README.md with envs:
-	•	KASPI_MERCHANT_API_KEY (server‑only; never NEXT_PUBLIC_), KASPI_MERCHANT_ID=30141222, KASPI_MERCHANT_API_BASE, DEFAULT_CITY_ID, NEXT_PUBLIC_DEFAULT_CITY_ID.
-	•	Add a Security note: do not commit .env.local; rotate keys if leaked; mask secrets in logs.
-
-⸻
-
-Acceptance criteria (don’t stop until all pass)
-	1.	pnpm typecheck && pnpm build && pnpm test all green.
-	2.	Dashboard KPIs show Fastest Delivery (not “—”), unique sellers count, attractiveness; numbers sensible.  
-	3.	Export CSV/XLSX contain (variant × sellers) rows and respect the OOS toggle.
-	4.	LRU cache reduces repeat analyze latency within 5 minutes.
-	5.	Pricebot section shows our active offers with editable min/max/step/interval, an Opponents (N) link → modal with sorted list + per‑seller ignore toggles, Active switch, Run (single) and Run All (bulk).
-	6.	Price updates honor guards (never below min, never above max), respect step size, and throttle/backoff on 429.
-	7.	Scheduler drives periodic repricing; dry‑run mode produces logs without pushing prices.
-	8.	README updated; no secrets in git history.
-
-⸻
-
-Troubleshooting notes (future‑proof)
-	•	Merchant API shapes differ by cluster; if Authorization doesn’t work, try X-Auth-Token or X-Auth-ApiKey. Inspect the merchant portal network calls and adapt client.ts without changing UI/logic signatures.
-	•	If competitor scraping returns 0 sellers, reload once with city cookie + ?c= set; then skip with a helpful error.
-	•	Keep selectors tolerant; prefer captured JSON over DOM when available.
-	•	If bot wars detected (≥3 sellers within ±3 KZT of the min), match not undercut.
-	•	Always round prices to integer KZT and batch updates.
+lib/pricebot/runner.ts
+	•	A singleton runner (store on globalThis.__pricebotRunner) that:
+	•	Loads all settings where active=true.
+	•	For each, sets a setInterval based on scanIntervalMin (clamped 1..10).
+	•	On tick: call repriceOnce({ sku, cityId:'710000000' }).
+	•	Log compact line per tick: SKU ... min/max/step → nextPrice ..., result: applied|reason.
+	•	Only start the runner on the server when process.env.NODE_ENV !== 'test'.
+	•	Expose tiny dev control:
+	•	GET /api/pricebot/runner/status → list tasks + next run at.
+	•	POST /api/pricebot/runner/reload (guarded) → reload settings, restart timers.
 
 ⸻
 
-Done = ship report
+4) Pricebot UI (second section) — finish and wire
 
-When everything is done, output:
-	1.	A brief engineering report of what changed and how validated.
-	2.	Commands to run the dashboard + pricebot locally.
-	3.	Known limitations + next bets.
+Update the existing “Pricebot (Store 30141222)” card so it loads data (it currently shows “No offers found…”, which came from a placeholder in your static dump). Then implement inline editing + opponent drawer.  ￼
 
-Stop only when all acceptance criteria above are met.
+Files to touch
+	•	app/page.tsx (or the component where the Pricebot card lives)
+	•	components/pricebot/PricebotTable.tsx (create)
+	•	components/pricebot/OpponentsDrawer.tsx (create)
+	•	components/ui/* tiny inputs/toggles if needed
+
+Behavior
+	•	On mount, fetch GET /api/pricebot/offers.
+	•	Render rows:
+	•	Name, Variant Product ID (from details), Our Price, Min (input), Max (input), Step (input), Interval (1–10 min), Active (toggle), Opponents (a link with a number).
+	•	Opponents link opens <OpponentsDrawer>:
+	•	Loads GET /api/pricebot/opponents?sku=...&cityId=710000000.
+	•	Shows sellers with current price (ASC). Each has an “ignore” toggle that updates ignoreSellers via POST /api/pricebot/settings.
+	•	“Run” button per row:
+	•	Calls POST /api/pricebot/reprice with { sku, cityId:'710000000' } (engine path).
+	•	On success, toast the result (applied vs reason).
+	•	Persist inline edits with debounce (600ms) to POST /api/pricebot/settings.
+	•	Empty/error states:
+	•	If /offers returns UNAUTHORIZED, show “Add Merchant credentials in .env.local” with a link to docs. (The HTML dump you saved showed this empty state earlier; replace it with live data.)  ￼
+
+⸻
+
+5) Price watch script (CLI)
+
+Augment the earlier watch plan so it can also dump per‑tick deltas for any list of productIds (not SKUs).
+
+scripts/price_watch.ts
+	•	CLI: --ids=108382478,121207970 --city=710000000 --intervalSec=300
+	•	Each tick: call scrapeAnalyze(id, city), append NDJSON to data_raw/watch/<id>.ndjson:
+    {"ts":"2025-08-10T12:34:56Z","variantId":"121207970","seller":"ShopKZ","price":2810,"isPriceBot":false}
+    	•	Keep sliding window per (variantId, seller) and flag bots that repeatedly undercut by ≤1 KZT.
+	•	Add npm script: "watch:prices": "tsx scripts/price_watch.ts --ids=108382478,121207970 --city=710000000 --intervalSec=300"
+
+⸻
+
+6) Analytics polish (dashboard)
+	•	In the Analytics card, include avgSpread, medianSpread, maxSpread, botShare, attractivenessIndex (already specified in Steps 1–2).
+	•	For each VariantCard and SellersTable, show “Δ vs Min” and PriceBot? (already reflected in your HTML dumps; keep it consistent).  ￼  ￼
+
+⸻
+
+7) City‑aware delivery (verify end‑to‑end)
+	•	Make sure scraped delivery dates reflect the selected city (710000000, 750000000, 620000000).
+	•	Add a small city switcher cached to localStorage.
+	•	Surface Fastest Delivery KPI.
+
+⸻
+
+8) Reliability & perf
+	•	LRU cache (TTL via SCRAPE_TTL_SEC) at scraper layer.
+	•	Backoff on anti‑bot signs; randomize small delays (100–400ms).
+	•	Always close pages/contexts/browsers. Cap to 1 tab unless SCRAPE_MAX_TABS=2.
+	•	In pricebot engine, guard against rapid flapping: don’t reprice again if last post was <30s ago.
+
+⸻
+
+9) Docs & safety
+
+README.md (inside the app)
+	•	Add Pricebot section:
+	•	How to set .env.local values (API key or cookie fallback).
+	•	Security note: .env.local is git‑ignored.
+	•	How to start runner, how to stop (/api/pricebot/runner/reload).
+	•	How opponents list is built (BFF details → productId → scraper sellers).
+	•	Add “Troubleshooting”:
+	•	401 on /api/debug/merchant → missing/invalid credentials.
+	•	NOT_ENOUGH_HISTORY on reprice → show first suitable date (your successful cURL returned this; bubble it to UI).
+
+⸻
+
+10) Tests & quick validation
+	•	Add minimal unit tests for computeNextPrice() and settings.ts (file read/write).
+	•	Manual checks:
+	•	/api/debug/merchant returns { ok:true } once creds are set.
+	•	/api/pricebot/offers returns live rows; the table is not empty anymore (replaces prior placeholder).  ￼
+	•	Opponents drawer shows sorted sellers and “ignore” toggles work.
+	•	POST /api/pricebot/reprice works both with explicit price and with engine compute (you already saw 200 OK with NOT_ENOUGH_HISTORY; show that in UI).
+	•	Runner status shows scheduled tasks.
+
+⸻
+
+File‑by‑file stubs (keep tight; fill in logic)
+
+app/api/pricebot/offers/route.ts
+import { NextResponse } from 'next/server';
+import { getOffersPage } from '@/lib/merchant/client';
+import { getSettings } from '@/lib/pricebot/settings';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(req: Request) {
+  try {
+    const url = new URL(req.url);
+    const withOpponents = url.searchParams.get('withOpponents') === 'true';
+    const all: any[] = [];
+    let page = 0;
+    for (;;) {
+      const res = await getOffersPage(page, 100);
+      if (!res?.items?.length) break;
+      all.push(...res.items);
+      page++;
+    }
+    const settings = await getSettings();
+    // map + merge minimal fields here; compute opponentsCount later if requested
+    return NextResponse.json({ ok: true, items: all, settings });
+  } catch (e: any) {
+    const status = e?.status ?? 500;
+    return NextResponse.json({ ok: false, error: e?.message ?? 'ERR', status });
+  }
+}
+
+app/api/pricebot/opponents/route.ts
+import { NextResponse } from 'next/server';
+import { resolveProductIdForSku, listOpponentsByProduct } from '@/lib/pricebot/opponents';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const sku = url.searchParams.get('sku')!;
+  const cityId = url.searchParams.get('cityId') || '710000000';
+  const productId = await resolveProductIdForSku(sku);
+  const list = await listOpponentsByProduct(productId, cityId);
+  return NextResponse.json({ ok: true, productId, opponents: list });
+}
+
+app/api/pricebot/settings/route.ts
+import { NextResponse } from 'next/server';
+import { upsertSetting } from '@/lib/pricebot/settings';
+
+export async function POST(req: Request) {
+  const auth = req.headers.get('authorization') || '';
+  if (!auth.endsWith(process.env.LOCAL_ADMIN_TOKEN!)) {
+    return NextResponse.json({ ok:false, error:'UNAUTHORIZED' }, { status:401 });
+  }
+  const body = await req.json();
+  const saved = await upsertSetting(body);
+  return NextResponse.json({ ok: true, setting: saved });
+}
+
+app/api/pricebot/reprice/route.ts
+import { NextResponse } from 'next/server';
+import { repriceOnce } from '@/lib/pricebot/engine';
+import { postDiscount } from '@/lib/merchant/client';
+
+export async function POST(req: Request) {
+  const auth = req.headers.get('authorization') || '';
+  if (!auth.endsWith(process.env.LOCAL_ADMIN_TOKEN!)) {
+    return NextResponse.json({ ok:false, error:'UNAUTHORIZED' }, { status:401 });
+  }
+  const { sku, cityId = '710000000', price } = await req.json();
+  if (price != null) {
+    const res = await postDiscount({ merchantUID: process.env.KASPI_MERCHANT_ID!, merchantSKU: sku, entries: [{ city: cityId, price }] });
+    return NextResponse.json({ ok: true, mode:'direct', result: res });
+  }
+  const decision = await repriceOnce({ sku, cityId });
+  return NextResponse.json({ ok: true, mode:'engine', ...decision });
+}
+
+app/api/debug/merchant/route.ts
+import { NextResponse } from 'next/server';
+import { getOffersPage } from '@/lib/merchant/client';
+
+export const dynamic = 'force-dynamic';
+export async function GET() {
+  try {
+    await getOffersPage(0, 10);
+    return NextResponse.json({ ok: true });
+  } catch (e:any) {
+    return NextResponse.json({ ok:false, status:e?.status ?? 500, sample:'' });
+  }
+}
+Keep component code terse; use existing design tokens (Inter, Apple‑ish palette) from earlier steps.
+
+Commit plan (small, reviewable)
+	1.	feat(pricebot): merchant client (API key/cookie) + debug route
+	2.	feat(pricebot): settings store (JSON) + types
+	3.	feat(pricebot): opponents resolver (details→product) + scraper bridge
+	4.	feat(pricebot): engine (computeNextPrice, repriceOnce)
+	5.	feat(api): /pricebot/offers | /opponents | /settings | /reprice
+	6.	feat(ui): PricebotTable + OpponentsDrawer wired
+	7.	feat(runner): scheduler singleton + status/reload endpoints
+	8.	docs: README pricebot setup + troubleshooting
+	9.	test: engine + settings
+
+⸻
+
+Don’t stop until this checklist is green
+	•	/api/debug/merchant → { ok:true } locally when creds present.
+	•	“Pricebot (Store 30141222)” renders real offers (no more “No offers found”).  ￼
+	•	I can set min/max/step/interval per row and toggle Active; values persist.
+	•	“Opponents” link shows sellers sorted by price ASC with ignore toggles.
+	•	Clicking Run posts a reprice:
+	•	If merchant responds NOT_ENOUGH_HISTORY, UI shows the firstSuitableDate you already saw in your curl (don’t hide it).
+	•	Runner is on; status endpoint lists tasks; intervals respected (1..10 min).
+	•	Docs updated with env + cookies fallback, and safety notes.
+
+Only stop when everything above is done and the UI shows real data.

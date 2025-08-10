@@ -1,4 +1,4 @@
-import PricebotPanel from '@/components/PricebotPanel'
+import PricebotTable from '@/components/pricebot/PricebotTable'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,7 +8,7 @@ export default function PricebotPage() {
       <header className="flex items-center justify-between">
         <h1 className="text-2xl md:text-3xl font-bold">Pricebot (Store 30141222)</h1>
       </header>
-      <PricebotPanel />
+      <PricebotTable />
     </main>
   )
 }
