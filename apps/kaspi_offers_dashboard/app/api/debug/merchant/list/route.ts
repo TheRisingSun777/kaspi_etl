@@ -43,7 +43,9 @@ export async function GET(request: Request) {
     const picked = pickArrayKey(json)
     return NextResponse.json({ ok: true, pickedKey: picked.key, length: picked.arr.length })
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 })
+    const msg = String(e?.message || e)
+    const status = /401|Unauthorized/.test(msg) ? 401 : 500
+    return NextResponse.json({ ok: false, status, error: msg.slice(0, 500) }, { status })
   }
 }
 

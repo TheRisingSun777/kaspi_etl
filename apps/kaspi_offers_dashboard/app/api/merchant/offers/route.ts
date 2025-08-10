@@ -38,7 +38,13 @@ export async function GET(request: Request) {
     const m = getMerchantId()
 
     const urlA = `/bff/offer-view/list?m=${m}&p=${p}&l=${l}&a=true&t=&c=&lowStock=false&notSpecifiedStock=false`
-    const resA = await mcFetch(urlA)
+    let resA: Response
+    try { resA = await mcFetch(urlA) } catch (e:any) {
+      if (String(e?.message||'').includes('401')) {
+        return NextResponse.json({ ok: false, error: 'AUTH_FAILED', hint: 'Try cookie auth. Some MC list endpoints do not accept API key.' }, { status: 401 })
+      }
+      throw e
+    }
     const textA = await resA.text()
     let jsonA: any
     try { jsonA = JSON.parse(textA) } catch { jsonA = textA }

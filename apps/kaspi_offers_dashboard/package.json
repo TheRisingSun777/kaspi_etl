@@ -5,9 +5,9 @@
   "description": "Kaspi Offers Insight - Next.js + TypeScript + Tailwind dashboard",
   "license": "MIT",
   "scripts": {
-    "dev": "next dev -p ${PORT:-3000}",
+    "dev": "next dev -p ${PORT:-3001}",
     "build": "next build",
-    "start": "next start -p ${PORT:-3000}",
+    "start": "next start -p ${PORT:-3001}",
     "lint": "next lint",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
@@ -15,7 +15,10 @@
     "watch:prices": "tsx scripts/price_watch.ts --ids=108382478 --city=710000000 --intervalSec=60"
   },
   "dependencies": {
+    "@tanstack/react-table": "^8.21.3",
     "better-sqlite3": "^12.2.0",
+    "exceljs": "^4.4.0",
+    "formidable": "^3.5.4",
     "next": "14.2.15",
     "papaparse": "5.4.1",
     "react": "18.3.1",

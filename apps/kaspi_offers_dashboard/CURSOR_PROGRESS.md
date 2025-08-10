@@ -12,4 +12,12 @@
 - Decision: Merchant list actually returns top-level `data` array. Updated array picker to include `data`.
 - Result: `/api/merchant/offers` returns >0 items; `/api/pricebot/offers` returns items merged with settings.
 
+2025-08-10T16:47Z
+- Issue: `401` from MC when using API key mode. Adjusted headers to send only `X-Auth-Token` (no Bearer). Still 401 on this endpoint with key; cookie mode may be required for list/count in this environment.
+- Action: Keep UI tolerant. Debug endpoints return status in body.
+
+2025-08-10T16:58Z
+- Added Phase G scope to CURSOR_TASK.md: pricebot controls, opponents, import/export.
+- Installed deps: exceljs, papaparse, formidable, zod, @tanstack/react-table.
+
 

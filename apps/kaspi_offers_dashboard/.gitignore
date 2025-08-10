@@ -1,20 +1,25 @@
-node_modules/
+# Build artifacts
 .next/
 out/
 dist/
 .turbo/
 .vercel/
+
+# Dependencies
+node_modules/
+
+# OS/editor junk
 .DS_Store
+
+# Envs: ignore real envs, keep example tracked
 .env*
+!.env.example
+
+# Local data & test artifacts
 /data_raw/
 /playwright-report/
-node_modules/
-.next/
-out/
-dist/
-.turbo/
-.vercel/
-.DS_Store
-.env*
+/playwright/.cache
 
-
+# Generated caches/state for this app
+tsconfig.tsbuildinfo
+server/db/*.json

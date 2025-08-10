@@ -109,3 +109,45 @@ Work in `apps/kaspi_offers_dashboard` only. TypeScript strict. No secrets in git
 - [ ] `POST /api/pricebot/reprice` still returns the real MC response (incl. `NOT_ENOUGH_HISTORY` and `firstSuitableDate`).
 - [ ] Settings persist to `server/db/pricebot.json` and “ignore seller” works.
 - [ ] No secrets committed. Types pass. Build passes.
+
+---
+
+## PHASE G — Pricebot controls, opponents, import/export
+
+Dependencies (this app only):
+- exceljs, papaparse, formidable, zod, @tanstack/react-table
+
+Settings model (server/db/pricebot.json):
+{
+  "globalIgnoreSellers": [],
+  "perSku": {
+    "SKU_STRING": {
+      "active": false,
+      "min": 0,
+      "max": 0,
+      "step": 1,
+      "intervalMinutes": 5,
+      "ignoreSellers": []
+    }
+  }
+}
+
+Backend:
+1) GET /api/pricebot/offers (update): merge live offers with settings; include stock from keys [stock, qty, quantity, availableAmount, freeBalance, available, stockTotal].
+2) GET /api/pricebot/opponents?productId=...&cityId=...: try JSON endpoint yml/offer-view/offers, fallback to scraper; return sorted sellers with isOurStore.
+3) GET /api/pricebot/settings: read JSON store.
+4) POST /api/pricebot/settings: upsert perSku or globalIgnoreSellers.
+5) POST /api/pricebot/reprice: unchanged.
+6) POST /api/pricebot/import (multipart): parse csv/xlsx; support dryRun; update settings only.
+7) GET /api/pricebot/export?format=csv|xlsx: produce required headers.
+
+Frontend (PricebotTable.tsx):
+- Columns: Name, SKU, Variant, Our Price, Stock, Active, Min, Max, Step (KZT), Interval (min), Opponents.
+- Toggles and inputs persist via debounced POST /api/pricebot/settings. Interval clamped 1..15.
+- Opponents opens modal with ignore toggles; global ignores pre-checked.
+- Sorting/filtering with @tanstack/react-table; text filter.
+- Export/Import buttons; import shows preview (dryRun) before apply.
+- Optional per-row "Reprice Now" button calling /api/pricebot/reprice.
+
+Acceptance (Phase G):
+- Real stock shown; settings persist; interval clamped; opponents sorted by price; ignores stored; sorting works; export headers exact; import dry-run preview; no secrets; existing reprice unaffected.
