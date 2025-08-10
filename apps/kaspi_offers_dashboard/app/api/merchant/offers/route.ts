@@ -14,6 +14,7 @@ function pickArrayKey(obj: any): { key: string | null; arr: any[] } {
     'content',
     'data.items',
     'data.content',
+    'data',
     'list',
     'offers',
     'results',
