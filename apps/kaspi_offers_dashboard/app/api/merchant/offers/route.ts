@@ -38,9 +38,12 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const p = Number(searchParams.get('p') ?? '0')
     const l = Number(searchParams.get('l') ?? '50')
+    const available = (searchParams.get('available') || '').toString() === '1'
     const m = getMerchantId()
 
-    const urlA = `/bff/offer-view/list?m=${m}&p=${p}&l=${l}&a=true&t=&c=&lowStock=false&notSpecifiedStock=false`
+    const urlA = available
+      ? `/bff/offer-view/list?m=${m}&p=${p}&l=${l}&available=true&t=&c=&lowStock=false&notSpecifiedStock=false`
+      : `/bff/offer-view/list?m=${m}&p=${p}&l=${l}&a=true&t=&c=&lowStock=false&notSpecifiedStock=false`
     let resA: Response
     try { resA = await mcFetch(urlA) } catch (e:any) {
       if (String(e?.message||'').includes('401')) {
