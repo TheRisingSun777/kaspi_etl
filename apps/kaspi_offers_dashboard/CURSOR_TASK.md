@@ -1,3 +1,5 @@
+API Reference: Use apps/kaspi_offers_dashboard/docs/KASPI_API_GUIDE.md as the single source of truth for all Kaspi endpoints, auth, and payloads. Do not browse; if something is ambiguous, choose the safest shippable default and log it to CURSOR_PROGRESS.md.
+
 # Kaspi Offers Insight — Pricebot (Phase G Full Feature Pass)
 
 ## Source of truth
@@ -166,4 +168,3 @@ Acceptance Criteria (must be all ✅)
 Commit etiquette
 	•	Small commits. Clear messages. Push to feat/offers-dashboard.
 	•	Don’t pause to ask questions; pick safe defaults, log them, and continue.
-   
