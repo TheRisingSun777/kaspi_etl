@@ -26,6 +26,17 @@ function buildHeaders() {
 }
 
 export async function listActiveOffers(merchantId: string = MERCHANT_ID): Promise<MerchantOffer[]> {
+  // Seed file fallback (lets you prefill offers when API access is not configured)
+  try {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const seedPath = path.join(process.cwd(), 'server', 'db', 'seed.offers.json')
+    if (fs.existsSync(seedPath)) {
+      const doc = JSON.parse(fs.readFileSync(seedPath, 'utf8'))
+      if (Array.isArray(doc?.offers)) return doc.offers as MerchantOffer[]
+    }
+  } catch {}
+
   if (!API_KEY) {
     // Mock sample when no key available
     return [
