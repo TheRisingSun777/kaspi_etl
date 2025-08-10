@@ -34,6 +34,9 @@
 
 2025-08-10T20:40Z
 - Settings API: added toggle per-seller ignore for a SKU. Store now supports 5 store profiles scaffold and active city helper (future use for top knobs).
+
+2025-08-10T20:55Z
+- Multi-store: added `/api/pricebot/stores` and UI `StoreSelector` in header (wired for future store scoping).
 - Opponents: unified response shape `{items}` and ensured sorting; modal reads it.
 - Offers: derive productId via `shopLink` regex; name prefers masterTitle/title/name; real stock mapping retained.
 - Defaults: min/max now default to current price when settings missing/zero.
