@@ -20,4 +20,13 @@
 - Added Phase G scope to CURSOR_TASK.md: pricebot controls, opponents, import/export.
 - Installed deps: exceljs, papaparse, formidable, zod, @tanstack/react-table.
 
+2025-08-10T17:08Z
+- Implemented settings store `server/db/pricebot.store.ts` with atomic writes.
+- Added settings endpoints: GET/POST /api/pricebot/settings.
+- Enhanced /api/pricebot/offers to merge settings and real stock mapping.
+- Added /api/pricebot/opponents with JSON first, Playwright fallback behind ENABLE_SCRAPE.
+- Added /api/pricebot/export (csv/xlsx) and /api/pricebot/import (csv/xlsx, dryRun).
+- UI table now uses @tanstack/react-table with sorting and a text filter, plus export buttons.
+- Added cookies login script and npm script `cookies:login` to capture mc-session/mc-sid to merchant.cookie.json.
+
 

@@ -1,6 +1,7 @@
 'use client';
 
-import {useEffect, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
+import { useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel, flexRender, createColumnHelper } from '@tanstack/react-table'
 
 type OfferRow = {
   sku: string;
@@ -9,6 +10,7 @@ type OfferRow = {
   price: number | null;
   stock?: number | null;
   opponents?: number | null;
+  settings?: { active: boolean; min: number; max: number; step: number; intervalMinutes: number; ignoreSellers: string[] }
 };
 
 function pickItems(json: any): OfferRow[] {
@@ -41,11 +43,28 @@ export default function PricebotTable() {
 
   useEffect(() => { load(); }, []);
 
+  // Simple filter state
+  const [filter, setFilter] = useState('')
+  const columnHelper = createColumnHelper<OfferRow>()
+  const columns = useMemo(()=>[
+    columnHelper.accessor('name', { header: 'Name', cell: info => info.getValue() || '' }),
+    columnHelper.accessor('sku', { header: 'SKU', cell: info => <a className="underline" href={`https://mc.shop.kaspi.kz/merchantcabinet/offers?search=${encodeURIComponent(info.getValue()||'')}`} target="_blank" rel="noreferrer">{info.getValue()}</a> }),
+    columnHelper.accessor('productId', { header: 'Variant', cell: info => String(info.getValue()||'') }),
+    columnHelper.accessor('price', { header: 'Our Price', cell: info => info.getValue() ?? '' }),
+    columnHelper.accessor('stock', { header: 'Stock', cell: info => info.getValue() ?? '' }),
+  ],[])
+  const table = useReactTable({ data: rows, columns, state: { globalFilter: filter }, onGlobalFilterChange: setFilter, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel() })
+
   return (
     <div className="overflow-x-auto">
       <div className="flex items-center justify-between mb-2">
         <div className="text-sm text-gray-500">Pricebot (live offers)</div>
-        <button className="btn-outline" onClick={load}>Reload</button>
+        <div className="flex items-center gap-2">
+          <input className="input" placeholder="Filter by text…" value={filter} onChange={e=>setFilter(e.target.value)} />
+          <a className="btn-outline" href="/api/pricebot/export?format=csv">Download CSV</a>
+          <a className="btn-outline" href="/api/pricebot/export?format=xlsx">Download XLSX</a>
+          <button className="btn-outline" onClick={load}>Reload</button>
+        </div>
       </div>
 
       {loading && <div className="text-sm text-gray-500">Loading…</div>}
@@ -53,28 +72,24 @@ export default function PricebotTable() {
 
       <table className="min-w-full text-sm">
         <thead className="text-left text-gray-500">
-          <tr>
-            <th className="p-2">Name</th>
-            <th className="p-2">SKU</th>
-            <th className="p-2">Variant</th>
-            <th className="p-2">Our Price</th>
-            <th className="p-2">Stock</th>
-          </tr>
+          {table.getHeaderGroups().map(hg=> (
+            <tr key={hg.id}>
+              {hg.headers.map(h=>(
+                <th key={h.id} className="p-2 cursor-pointer" onClick={h.column.getToggleSortingHandler()}>
+                  {flexRender(h.column.columnDef.header, h.getContext())}
+                </th>
+              ))}
+            </tr>
+          ))}
         </thead>
         <tbody>
-          {rows.map((r) => {
-            const variant = r.sku.match(/\(([^)]+)\)\s*$/)?.[1] ?? '';
-            const name = r.name || r.sku.split('_').slice(0, 3).join(' ');
-            return (
-              <tr key={r.sku} className="border-t border-border">
-                <td className="p-2">{name}</td>
-                <td className="p-2 font-mono">{r.sku}</td>
-                <td className="p-2">{variant}</td>
-                <td className="p-2">{r.price ?? ''}</td>
-                <td className="p-2">{r.stock ?? ''}</td>
-              </tr>
-            );
-          })}
+          {table.getRowModel().rows.map(row => (
+            <tr key={row.id} className="border-t border-border">
+              {row.getVisibleCells().map(cell => (
+                <td key={cell.id} className="p-2">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+              ))}
+            </tr>
+          ))}
 
           {rows.length === 0 && !loading && !error && (
             <tr>

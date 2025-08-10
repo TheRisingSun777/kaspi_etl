@@ -1,153 +1,169 @@
-# Kaspi Offers Insight — MASTER TASK (v2025‑08‑10)
+# Kaspi Offers Insight — Pricebot (Phase G Full Feature Pass)
 
-**Single source of truth for Cursor.**  
-Work in `apps/kaspi_offers_dashboard` only. TypeScript strict. No secrets in git. Small, reviewable commits.
+## Source of truth
+- This file is the only spec to follow. Do not stop until every Acceptance Criterion below is ✅.
+- Log every decision and progress to `apps/kaspi_offers_dashboard/CURSOR_PROGRESS.md`.
+- Work in **small commits**. No secrets in git. Respect `.env.local` and `.gitignore`.
 
-## Agent Ops (non‑blocking)
-- Do **not** pause between steps. Auto‑apply patches and run shell/git.
-- If port `3000` is taken, automatically use `PORT=3001`.
-- If a command fails, retry once; otherwise log the error to `apps/kaspi_offers_dashboard/CURSOR_PROGRESS.md` and continue with the rest.
-- **Never edit** `.gitignore`, `.env*`, lockfiles automatically. If a change is needed, print the exact diff to `CURSOR_PROGRESS.md`.
-- Stop **only** when all acceptance checks at the bottom are green.
+## Environment (do not change in code)
+- Listing + repricing use **Merchant Cabinet** base:
+  - `KASPI_MERCHANT_API_BASE=https://mc.shop.kaspi.kz`
+  - Cookie auth (preferred): `KASPI_MERCHANT_COOKIES=mc-session=...; mc-sid=...`
+- API key may exist in `.env.local` but is not required for Phase G.
+- Default city to show opponents/pricing examples: `CITY_ID` or `NEXT_PUBLIC_DEFAULT_CITY_ID` = `710000000`.
 
-## Pre‑flight
-- Ensure `.env.local` exists locally with a valid cookie or API key.  
-- If `GET /api/debug/merchant` returns `401`, do not block other work; log “REFRESH COOKIE” and continue, but keep the loader tolerant.
-
----
-
-## PHASE A — Merchant client + debug routes (harden headers)
-**Goal:** centralize MC headers and auth (cookie or API key), add debug list endpoint.
-
-1) Create/adjust `lib/kaspi/client.ts`:
-   - `mcFetch(path, init)` adds headers:
-     - `Origin: https://kaspi.kz`
-     - `Referer: https://kaspi.kz/`
-     - `x-auth-version: 3`
-     - `Accept: application/json, text/plain, */*`
-     - `Accept-Language: ru-RU,ru;q=0.9`
-     - realistic `User-Agent`
-     - auth: cookie via `KASPI_MERCHANT_COOKIE` (cookie mode) or `Authorization: Bearer ${KASPI_MERCHANT_API_KEY}` (token mode).
-   - `getMerchantId()` throws if missing.
-
-2) Debug endpoints:
-   - `app/api/debug/merchant/route.ts` → GET count endpoint:  
-     `/offers/api/v1/offer/count?m=${MID}` → `{ ok:true, data }` or `{ ok:false, status }`
-   - `app/api/debug/merchant/list/route.ts` → raw list dump for two param sets:
-     - `paramset=a`: `/bff/offer-view/list?m=${MID}&p=0&l=50&a=true&t=&c=&lowStock=false&notSpecifiedStock=false`
-     - `paramset=available`: `/bff/offer-view/list?m=${MID}&p=0&l=10&available=true&t=&c=&lowStock=false&notSpecifiedStock=false`
-     - If `?raw=1`, return raw JSON. Else return `{ pickedKey, length }` using the same array‑key picker as the offers route (below).
-
----
-
-## PHASE B — Offers loader (bulletproof)
-**Goal:** make `/api/merchant/offers` return items on any reasonable cluster shape.
-
-3) Update/create `app/api/merchant/offers/route.ts`:
-   - Call the `a=true` variant first (p=0,l=50).
-   - If no array is found or it’s empty, try the `available=true` variant (p=0,l=10).
-   - Implement `pickArrayKey(obj)` to search (in order):  
-     `items, content, data.items, data.content, list, offers, results, rows, page.content`
-   - Normalize each row defensively:
-     ```ts
-     const sku = it.merchantSku || it.sku || it.offerSku || it.s || it.id || '';
-     const productId = Number(it.variantProductId ?? it.productId ?? it.variantId ?? 0);
-     const name = it.name || it.title || it.productName || '';
-     const price = Number(it.price ?? it.currentPrice ?? it.offerPrice ?? it.value ?? 0);
-     const stock = Number(it.stock ?? it.available ?? it.qty ?? 0);
-     ```
-   - If still empty, return `{ ok:true, items: [], debug: { tried: 2, pickedKey, hints: ['/api/debug/merchant/list?raw=1'] } }`.
-
----
-
-## PHASE C — Pricebot storage + settings (simple JSON)
-4) Create `lib/pricebot/storage.ts` (if absent) with:
-   - `readStore()`, `writeStore()`, `getSettings(sku)`, `upsertSettings(sku, patch)`, `toggleIgnore(sku, seller, ignore)`.
-   - Path: `apps/kaspi_offers_dashboard/server/db/pricebot.json` (gitignored).
-
-5) Endpoints:
-   - `GET /api/pricebot/offers` → merge MC rows + settings.
-   - `PATCH /api/pricebot/settings/[sku]` → upsert settings.
-   - `POST /api/pricebot/ignore-seller` → toggle seller ignore.
-
----
-
-## PHASE D — Reprice (already works; keep stable)
-6) Ensure `app/api/pricebot/reprice/route.ts`:
-   - Body: `{ sku, price, cityId }`
-   - POST MC `/price/trends/api/v1/mc/discount` with:
-     ```json
-     { "merchantUID": "<MID>", "merchantSKU": "<sku>", "entries": [{ "city": "<cityId>", "price": <price> }] }
-     ```
-   - Return raw array or wrap single object in array. Surface `rejectReason` and `firstSuitableDate` unchanged.
-
----
-
-## PHASE E — Pricebot UI (table + opponents modal)
-7) `components/pricebot/PricebotTable.tsx` (or existing panel):
-   - On mount, GET `/api/pricebot/offers`.
-   - If `items.length===0`, render a banner:  
-     “No offers returned. Debug: see /api/debug/merchant/list?raw=1” and show any `.debug` payload.
-   - Table columns: **Name**, **SKU**, **Variant**, **Our Price**, **Stock**, **Min**, **Max**, **Step**, **Interval(1–10)**, **Active**, **Opponents (N)**, **Run**.
-   - Opponents link → modal: GET `/api/merchant/offer/[sku]`, list sellers ASC by price, with **ignore** button writing to `/api/pricebot/ignore-seller`.
-   - “Run” posts to `/api/pricebot/reprice` with `{ sku, price, cityId: process.env.NEXT_PUBLIC_DEFAULT_CITY_ID || '710000000' }`.
-
----
-
-## PHASE F — Docs / Troubleshooting
-8) Update app `README.md`:
-   - How to set `.env.local` (cookie vs API key).
-   - What the debug endpoints do.
-   - Why “NOT_ENOUGH_HISTORY” appears and how to read `firstSuitableDate`.
-
----
-
-## Acceptance checks (don’t stop until all are green)
-- [ ] `GET /api/debug/merchant` → `{ ok:true }` (if 401, log and continue building).
-- [ ] `GET /api/merchant/offers?p=0&l=50` → returns **items > 0** on first or fallback call; otherwise returns `items:[]` with a `debug` object and **raw** endpoint works.
-- [ ] Pricebot page **does not** silently show a blank table: either items render, or the banner with debug hint is visible.
-- [ ] `POST /api/pricebot/reprice` still returns the real MC response (incl. `NOT_ENOUGH_HISTORY` and `firstSuitableDate`).
-- [ ] Settings persist to `server/db/pricebot.json` and “ignore seller” works.
-- [ ] No secrets committed. Types pass. Build passes.
-
----
-
-## PHASE G — Pricebot controls, opponents, import/export
-
-Dependencies (this app only):
-- exceljs, papaparse, formidable, zod, @tanstack/react-table
-
-Settings model (server/db/pricebot.json):
+## Data model (settings store)
+Create/maintain `apps/kaspi_offers_dashboard/server/db/pricebot.json` (gitignored) shaped as:
+```json
 {
-  "globalIgnoreSellers": [],
-  "perSku": {
-    "SKU_STRING": {
-      "active": false,
-      "min": 0,
-      "max": 0,
-      "step": 1,
-      "intervalMinutes": 5,
-      "ignoreSellers": []
+  "global": {
+    "cityId": "710000000",
+    "ignoreSellers": ["<merchantId1>", "<merchantId2>"]
+  },
+  "items": {
+    "SKU_A": {
+      "active": true,
+      "min": 8000,
+      "max": 12000,
+      "step": 50,
+      "interval": 5,
+      "ignoreSellers": ["<merchantIdX>"]
     }
+  },
+  "updatedAt": "2025-01-01T00:00:00.000Z"
+}
+	•	active toggles pricebot per SKU.
+	•	interval in minutes (1..15).
+	•	Per-SKU ignoreSellers augments (does not replace) global.ignoreSellers.
+
+Server endpoints (create/update)
+
+All endpoints live in apps/kaspi_offers_dashboard/app/api/... (Next.js route handlers):
+	1.	GET /api/merchant/offers?p=&l=&available=1
+	•	Call MC list (cookie auth).
+	•	Normalize to:type MerchantOffer = {
+  sku: string
+  productId: number | null
+  name: string
+  price: number
+  stock: number // real stock (NOT hard-coded 1)
+}
+	•	Stock mapping: detect one of: quantity, availableQuantity, available, stock. Fallback to 0 if unknown. Include robust “picker” against data, items, content, etc.
+
+	2.	GET /api/pricebot/offers
+	•	Merge merchant offers with settings to:
+   type PricebotItem = MerchantOffer & {
+  opponents: number // can be 0 if not fetched yet
+  settings: {
+    active: boolean
+    min: number
+    max: number
+    step: number
+    interval: number
+    ignoreSellers: string[]
   }
 }
+	•	If settings missing for a SKU, return defaults: {active:false,min:0,max:0,step:1,interval:5,ignoreSellers:[]}.
 
-Backend:
-1) GET /api/pricebot/offers (update): merge live offers with settings; include stock from keys [stock, qty, quantity, availableAmount, freeBalance, available, stockTotal].
-2) GET /api/pricebot/opponents?productId=...&cityId=...: try JSON endpoint yml/offer-view/offers, fallback to scraper; return sorted sellers with isOurStore.
-3) GET /api/pricebot/settings: read JSON store.
-4) POST /api/pricebot/settings: upsert perSku or globalIgnoreSellers.
-5) POST /api/pricebot/reprice: unchanged.
-6) POST /api/pricebot/import (multipart): parse csv/xlsx; support dryRun; update settings only.
-7) GET /api/pricebot/export?format=csv|xlsx: produce required headers.
+	3.	GET /api/pricebot/settings
+	•	Returns the full settings JSON.
+	4.	POST /api/pricebot/settings
+	•	Body supports:
+	•	Update global: { global: { cityId?: string, ignoreSellers?: string[] } }
+	•	Update per SKU batch:
+   {
+  "items": {
+    "SKU_A": {"active":true,"min":8000,"max":12000,"step":50,"interval":5,"ignoreSellers":["123"]}
+  }
+}
+•	Merge + atomic write (write temp then rename).
 
-Frontend (PricebotTable.tsx):
-- Columns: Name, SKU, Variant, Our Price, Stock, Active, Min, Max, Step (KZT), Interval (min), Opponents.
-- Toggles and inputs persist via debounced POST /api/pricebot/settings. Interval clamped 1..15.
-- Opponents opens modal with ignore toggles; global ignores pre-checked.
-- Sorting/filtering with @tanstack/react-table; text filter.
-- Export/Import buttons; import shows preview (dryRun) before apply.
-- Optional per-row "Reprice Now" button calling /api/pricebot/reprice.
+	5.	GET /api/pricebot/opponents?productId=...&cityId=...
+	•	Return:
+   type Opponent = {
+  merchantId: string
+  name: string
+  price: number
+  isSelf: boolean
+}
+•	Sorted by price ASC. If productId missing, return {ok:true, items: []}.
+	•	Implementation:
+	•	Primary: Playwright scrape (feature-flagged). Use persistent context and fetch the product page https://kaspi.kz/shop/p/{productId}/?cityId=...#offers, then parse DOM or XHR to build sellers + prices.
+	•	Env flag: ENABLE_SCRAPE=1.
+	•	If flag is off or scrape fails, return an empty array (do not crash).
 
-Acceptance (Phase G):
-- Real stock shown; settings persist; interval clamped; opponents sorted by price; ignores stored; sorting works; export headers exact; import dry-run preview; no secrets; existing reprice unaffected.
+	6.	POST /api/pricebot/reprice
+	•	Already exists; keep hitting MC .../price/trends/api/v1/mc/discount with payload:
+   { merchantUID, merchantSKU, entries: [{city, price}] }
+   •	Return MC response. Do not change this route contract.
+
+	7.	Export/Import:
+	•	GET /api/pricebot/export?format=csv|xlsx
+	•	Build rows with header exactly:
+   SKU,model,brand,price,PP1,preorder,min_price,max_price,step,shop_link,pricebot_status
+   •	model, brand, PP1, preorder can be empty for now.
+	•	shop_link: if productId known → https://kaspi.kz/shop/p/{productId}?cityId={city}, else search URL https://kaspi.kz/shop/search/?text={encodeURIComponent(sku)}
+
+	•	POST /api/pricebot/import (multipart)
+	•	Accept CSV or XLSX.
+	•	Parse with papaparse or exceljs. Validate with zod.
+	•	Mapping:
+	•	Update settings: min_price, max_price, step, pricebot_status → active.
+	•	If price differs, trigger POST /api/pricebot/reprice for that SKU (queue sequentially with small delay).
+
+Cookie helper (one-time login, no password in env)
+	•	Add script scripts/cookies-login.ts:
+	•	Launch Playwright headful persistent context.
+	•	Open https://kaspi.kz/.
+	•	Instruct user to log in manually.
+	•	Poll for cookies mc-session and mc-sid, then save to server/db/merchant.cookie.json:
+   {"cookies": "mc-session=...; mc-sid=...", "savedAt": "..."}
+   	•	In our MC client, prefer this file if present; otherwise use KASPI_MERCHANT_COOKIES.
+
+UI (Pricebot page)
+	•	File(s):
+	•	components/pricebot/PricebotTable.tsx
+	•	components/pricebot/OpponentsModal.tsx
+	•	components/pricebot/GlobalIgnore.tsx
+	•	components/pricebot/ImportExportBar.tsx
+	•	Use @tanstack/react-table for sorting & column filters.
+	•	Columns:
+	1.	Active (toggle) → updates settings (debounced save)
+	2.	Name (fallback from SKU prefix)
+	3.	SKU (monospace, clickable link; productId link if known, else search link)
+	4.	Variant (parse from SKU suffix in parentheses)
+	5.	Our Price (readonly number or editable field only when we support inline reprice later)
+	6.	Stock (real stock from API)
+	7.	Min / Max / Step / Interval (inputs; interval 1..15; show helper text “min..max KZT; step KZT; run every N min”)
+	8.	Opponents (N as a link) → opens modal:
+	•	Modal lists sellers sorted asc by price.
+	•	Each seller row: name, price, toggle “Ignore”.
+	•	Persist per‑SKU ignoreSellers.
+	•	Top toolbar:
+	•	Global ignore input: comma/space separated merchant IDs → saves to global.ignoreSellers.
+	•	Buttons: Export CSV, Export XLSX, Import (accept .csv/.xlsx).
+	•	“Reload” button re-fetches /api/pricebot/offers.
+
+Styling
+	•	Keep current dark theme but upgrade the look:
+	•	Add subtle gradients to page header and cards.
+	•	Animate Active toggles (scale/opacity) and modal opening (fade/scale).
+	•	Keep it clean, Apple‑ish.
+
+Acceptance Criteria (must be all ✅)
+	•	Pricebot table renders real offers with correct stock.
+	•	Each row: Active toggle, Min/Max/Step/Interval inputs; debounced save to settings store.
+	•	Opponents count clickable → modal with sorted sellers + per‑seller ignore toggles; saved.
+	•	Global ignore field updates global.ignoreSellers.
+	•	All columns sortable; per‑column filter available.
+	•	Export CSV/XLSX with exact header.
+	•	Import CSV/XLSX applies settings; if price changed, calls /api/pricebot/reprice.
+	•	SKU links to product page (or search page).
+	•	No crashes if opponents scrape fails; returns empty list gracefully.
+	•	No secrets committed; all JSON db files ignored by git.
+	•	Progress log updated.
+
+Commit etiquette
+	•	Small commits. Clear messages. Push to feat/offers-dashboard.
+	•	Don’t pause to ask questions; pick safe defaults, log them, and continue.
+   

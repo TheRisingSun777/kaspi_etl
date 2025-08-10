@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getMerchantId, mcFetch } from '@/lib/kaspi/client'
-import { getSettings } from '@/lib/pricebot/storage'
+import { getSettings } from '@/server/db/pricebot.store'
 export const runtime = 'nodejs'
 
 function pickArrayKey(obj: any): { key: string | null; arr: any[] } {
@@ -51,12 +51,34 @@ export async function GET() {
     const offers = picked.arr.map((o: any) => {
       const sku = o.merchantSku || o.sku || o.offerSku || o.id || ''
       const settings = sku ? getSettings(sku) : undefined
+      const stockKeys = ['stock','qty','quantity','availableAmount','freeBalance','available','stockTotal']
+      const stock = (()=>{
+        for (const k of stockKeys) {
+          const v = (o as any)[k]
+          if (typeof v === 'number') return v
+          if (typeof v === 'boolean') return v ? 1 : 0
+          if (typeof v === 'string' && v.trim() !== '') {
+            const n = Number(v)
+            if (Number.isFinite(n)) return n
+          }
+        }
+        // nested paths
+        const av = (o as any)?.availabilities?.[0]
+        const nestedKeys = ['stockCount','available','qty','quantity','availableAmount','freeBalance']
+        if (av) {
+          for (const k of nestedKeys) {
+            const v = (av as any)[k]
+            if (typeof v === 'number') return v
+          }
+        }
+        return 0
+      })()
       return {
         name: o.name || o.title || o.productName || '',
         sku: sku || null,
         productId: Number(o.variantProductId ?? o.productId ?? o.variantId ?? o.id ?? 0),
         price: Number(o.price ?? o.currentPrice ?? o.offerPrice ?? o.value ?? 0),
-        stock: Number(o.stock ?? o.available ?? o.qty ?? 0),
+        stock,
         opponents: Number(o.sellersCount || o.opponents || 0),
         settings,
       }
