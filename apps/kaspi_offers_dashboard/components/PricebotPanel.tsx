@@ -17,10 +17,10 @@ export default function PricebotPanel() {
   const load = async () => {
     setLoading(true); setError(null)
     try {
-      const res = await fetch('/api/pricebot/offers')
+      const res = await fetch('/api/pricebot/offers', { cache: 'no-store' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
-      setRows(json.rows || [])
+      setRows(Array.isArray(json.rows) ? json.rows : [])
     } catch (e:any) { setError(e?.message||'Failed') }
     finally { setLoading(false) }
   }
@@ -49,7 +49,10 @@ export default function PricebotPanel() {
         </div>
       </div>
       {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto min-h-[120px]">
+        {(!rows || rows.length===0) && !loading && !error && (
+          <div className="text-sm text-gray-500 p-2">No offers found. Add credentials to .env.local or provide server/db/seed.offers.json.</div>
+        )}
         <table className="min-w-full text-sm">
           <thead className="text-left text-gray-500">
             <tr>
