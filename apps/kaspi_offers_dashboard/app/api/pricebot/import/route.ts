@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { upsertPerSku } from '@/server/db/pricebot.store'
+import { upsertItemsBatch } from '@/server/db/pricebot.store'
 import formidable from 'formidable'
 import fs from 'node:fs'
 import ExcelJS from 'exceljs'
@@ -62,18 +62,20 @@ export async function POST(req: Request) {
 
     const changes: any[] = []
     if (!dryRun) {
+      const batch: Record<string, any> = {}
       for (const r of rows) {
         if (!r.sku) continue
-        const next = upsertPerSku(String(r.sku), {
+        batch[String(r.sku)] = {
           active: r.active,
           min: isFiniteNumber(r.min) ? r.min : undefined,
           max: isFiniteNumber(r.max) ? r.max : undefined,
           step: isFiniteNumber(r.step) ? r.step : undefined,
-        })
-        changes.push({ sku: r.sku, settings: next })
+        }
       }
+      const st = upsertItemsBatch(batch)
+      Object.keys(batch).slice(0,5).forEach(sku=> changes.push({ sku, settings: st.items[sku] }))
     }
-    return NextResponse.json({ ok: true, dryRun, total: rows.length, applied: dryRun ? 0 : changes.length, sample: changes.slice(0, 5) })
+    return NextResponse.json({ ok: true, dryRun, total: rows.length, applied: dryRun ? 0 : Object.keys(rows).length, sample: changes.slice(0, 5) })
   } catch (e:any) {
     return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 })
   }
