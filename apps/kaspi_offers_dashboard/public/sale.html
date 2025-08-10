@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sale Items — Current Prices</title>
+  <style>
+    :root { color-scheme: dark light; }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 24px; background: #0A0A0C; color: #F5F5F7; }
+    .container { max-width: 980px; margin: 0 auto; }
+    h1 { margin: 0 0 16px; font-size: 22px; }
+    .controls { display: flex; gap: 8px; align-items: end; margin-bottom: 16px; flex-wrap: wrap; }
+    label { font-size: 12px; color: #A1A1AA; display: block; margin-bottom: 6px; }
+    input { background: #121214; border: 1px solid rgba(255,255,255,.06); color: #F5F5F7; padding: 8px 10px; border-radius: 8px; }
+    button { background: #0A84FF; color: white; border: 0; padding: 10px 14px; border-radius: 8px; cursor: pointer; }
+    button:disabled { opacity: .7; cursor: not-allowed; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border-top: 1px solid rgba(255,255,255,.06); padding: 10px 12px; font-size: 14px; }
+    th { text-align: left; color: #A1A1AA; font-weight: 500; }
+    .muted { color: #A1A1AA; }
+    .price { font-variant-numeric: tabular-nums; }
+    .sale { color: #FFB3B3; }
+    .badge { display: inline-block; padding: 2px 8px; font-size: 12px; border-radius: 999px; background: rgba(255,255,255,.06); color: #A1A1AA; }
+    .note { margin-top: 8px; font-size: 12px; color: #A1A1AA; }
+    .error { color: #ff6b6b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Sale Items — Current Prices</h1>
+    <div class="controls">
+      <div>
+        <label for="from">From (UTC)</label>
+        <input id="from" type="datetime-local" />
+      </div>
+      <div>
+        <label for="to">To (UTC)</label>
+        <input id="to" type="datetime-local" />
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="loadBtn">Load</button>
+      </div>
+      <div class="note">Data is fetched from your server route <code>/api/merchant/sale-items</code>. If not configured yet, sample data is shown.</div>
+    </div>
+
+    <div id="status" class="note"></div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Item</th>
+          <th>Current Price</th>
+          <th>Old Price</th>
+          <th>Discount</th>
+          <th>Stock</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const SAMPLE_ITEMS = [
+      { sku: 'SKU-001', name: 'Rashguard Black XL', price: 12990, oldPrice: 14990, stock: 7 },
+      { sku: 'SKU-002', name: 'Rashguard Black L',  price: 11990, oldPrice: 12990, stock: 3 },
+      { sku: 'SKU-003', name: 'Rashguard Black M',  price: 10990, oldPrice: 11990, stock: 5 },
+    ];
+
+    function fmt(n){ return new Intl.NumberFormat('ru-KZ').format(n) + ' ₸' }
+    function pct(cur, old){ if(!old || !cur) return '—'; const p = Math.round((1 - (cur/old))*100); return p>0 ? ('-' + p + '%') : '—' }
+
+    function render(items){
+      const tbody = document.querySelector('#rows');
+      tbody.innerHTML = ''
+      for (const it of items) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="muted">${it.sku||''}</td>
+          <td>${it.name||''} ${it.size?`<span class="badge">${it.size}</span>`:''}</td>
+          <td class="price sale">${it.price?fmt(it.price):'—'}</td>
+          <td class="price muted" style="text-decoration:${it.oldPrice?'line-through':'none'};">${it.oldPrice?fmt(it.oldPrice):'—'}</td>
+          <td>${pct(it.price, it.oldPrice)}</td>
+          <td>${Number.isFinite(it.stock)?it.stock:'—'}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function fetchSale(fromIso, toIso){
+      const params = new URLSearchParams()
+      if (fromIso) params.set('from', fromIso)
+      if (toIso) params.set('to', toIso)
+      const url = '/api/merchant/sale-items' + (params.toString()?`?${params.toString()}`:'')
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return await res.json()
+    }
+
+    function setDefaultDates(){
+      const to = new Date()
+      const from = new Date(Date.now() - 7*24*3600*1000)
+      const toLocal = new Date(to.getTime() - to.getTimezoneOffset()*60000).toISOString().slice(0,16)
+      const fromLocal = new Date(from.getTime() - from.getTimezoneOffset()*60000).toISOString().slice(0,16)
+      document.querySelector('#from').value = fromLocal
+      document.querySelector('#to').value = toLocal
+    }
+
+    async function init(){
+      setDefaultDates()
+      document.querySelector('#loadBtn').addEventListener('click', async ()=>{
+        const s = document.querySelector('#status')
+        s.textContent = 'Loading…'
+        try {
+          const from = new Date(document.querySelector('#from').value)
+          const to   = new Date(document.querySelector('#to').value)
+          const fromIso = from.toISOString()
+          const toIso = to.toISOString()
+          const json = await fetchSale(fromIso, toIso).catch(()=>({ items: SAMPLE_ITEMS, note:'Showing sample data (server route not configured yet)' }))
+          render(json.items || SAMPLE_ITEMS)
+          s.textContent = json.note || 'Loaded'
+        } catch (e){
+          render(SAMPLE_ITEMS)
+          const s = document.querySelector('#status')
+          s.innerHTML = `<span class="error">Failed to load from server; showing sample data.</span>`
+        }
+      })
+      document.querySelector('#loadBtn').click()
+    }
+    init()
+  </script>
+</body>
+</html>
+
+
