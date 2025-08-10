@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getMerchantId, mcFetch } from '@/lib/kaspi/client'
 import ExcelJS from 'exceljs'
+import { getItemSettingsOrDefault } from '@/server/db/pricebot.store'
 
 function toRows(items: any[]) {
   return items.map((it:any)=>({
@@ -25,11 +26,15 @@ export async function GET(req: Request) {
   const res = await mcFetch(`/bff/offer-view/list?m=${m}&p=0&l=200&a=true&t=&c=&lowStock=false&notSpecifiedStock=false`)
   const js = await res.json()
   const arr: any[] = Array.isArray(js?.items) ? js.items : Array.isArray(js?.data) ? js.data : []
-  const items = arr.map((o:any)=>({
-    sku: o.merchantSku || o.sku || o.offerSku || o.id || '',
-    price: Number(o.price ?? o.currentPrice ?? o.offerPrice ?? o.value ?? 0),
-    settings: undefined,
-  }))
+  const items = arr.map((o:any)=>{
+    const sku = o.merchantSku || o.sku || o.offerSku || o.id || ''
+    return {
+      sku,
+      price: Number(o.price ?? o.currentPrice ?? o.offerPrice ?? o.value ?? 0),
+      productId: Number(o.variantProductId ?? o.productId ?? o.variantId ?? 0),
+      settings: sku ? getItemSettingsOrDefault(sku) : undefined,
+    }
+  })
 
   const rows = toRows(items)
 

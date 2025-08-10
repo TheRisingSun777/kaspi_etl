@@ -1,7 +1,8 @@
 'use client';
 
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import { useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel, flexRender, createColumnHelper } from '@tanstack/react-table'
+import OpponentsModal from './OpponentsModal'
 
 type OfferRow = {
   sku: string;
@@ -25,6 +26,15 @@ export default function PricebotTable() {
   const [rows, setRows] = useState<OfferRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const saveQueue = useRef<ReturnType<typeof setTimeout>|null>(null)
+
+  function debouncedSave(sku: string, patch: any) {
+    if (saveQueue.current) clearTimeout(saveQueue.current)
+    saveQueue.current = setTimeout(async ()=>{
+      await fetch('/api/pricebot/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ items: { [sku]: patch } }) })
+      await load()
+    }, 500)
+  }
 
   async function load() {
     try {
@@ -46,12 +56,44 @@ export default function PricebotTable() {
   // Simple filter state
   const [filter, setFilter] = useState('')
   const columnHelper = createColumnHelper<OfferRow>()
+  const [showOpp, setShowOpp] = useState<{sku:string, productId:number|null}|null>(null)
   const columns = useMemo(()=>[
+    columnHelper.accessor(row=>row.settings?.active??false, { id:'active', header: 'Active', cell: info => {
+      const r = info.row.original
+      const val = !!(r.settings?.active)
+      return <input type="checkbox" defaultChecked={val} onChange={e=>debouncedSave(r.sku, { active: e.currentTarget.checked })} />
+    }}),
     columnHelper.accessor('name', { header: 'Name', cell: info => info.getValue() || '' }),
-    columnHelper.accessor('sku', { header: 'SKU', cell: info => <a className="underline" href={`https://mc.shop.kaspi.kz/merchantcabinet/offers?search=${encodeURIComponent(info.getValue()||'')}`} target="_blank" rel="noreferrer">{info.getValue()}</a> }),
+    columnHelper.accessor('sku', { header: 'SKU', cell: info => {
+      const sku = info.getValue()||''
+      const pid = info.row.original.productId
+      const link = pid ? `https://kaspi.kz/shop/p/-${pid}/?c=${process.env.NEXT_PUBLIC_DEFAULT_CITY_ID||'710000000'}` : `https://kaspi.kz/shop/search/?text=${encodeURIComponent(sku)}`
+      return <a className="underline font-mono" href={link} target="_blank" rel="noreferrer">{sku}</a>
+    }}),
     columnHelper.accessor('productId', { header: 'Variant', cell: info => String(info.getValue()||'') }),
     columnHelper.accessor('price', { header: 'Our Price', cell: info => info.getValue() ?? '' }),
     columnHelper.accessor('stock', { header: 'Stock', cell: info => info.getValue() ?? '' }),
+    columnHelper.accessor(row=>row.settings?.min ?? 0, { id:'min', header:'Min', cell: info => {
+      const r = info.row.original; const def = r.settings?.min ?? 0
+      return <input className="input w-24" defaultValue={def} onBlur={e=>debouncedSave(r.sku, { min: Number(e.currentTarget.value) })} />
+    }}),
+    columnHelper.accessor(row=>row.settings?.max ?? 0, { id:'max', header:'Max', cell: info => {
+      const r = info.row.original; const def = r.settings?.max ?? 0
+      return <input className="input w-24" defaultValue={def} onBlur={e=>debouncedSave(r.sku, { max: Number(e.currentTarget.value) })} />
+    }}),
+    columnHelper.accessor(row=>row.settings?.step ?? 1, { id:'step', header:'Step (KZT)', cell: info => {
+      const r = info.row.original; const def = r.settings?.step ?? 1
+      return <input className="input w-20" defaultValue={def} onBlur={e=>debouncedSave(r.sku, { step: Number(e.currentTarget.value) })} />
+    }}),
+    columnHelper.accessor(row=>row.settings?.interval ?? 5, { id:'interval', header:'Interval (min)', cell: info => {
+      const r = info.row.original; const def = r.settings?.interval ?? 5
+      return <input className="input w-20" defaultValue={def} onBlur={e=>debouncedSave(r.sku, { interval: Number(e.currentTarget.value) })} />
+    }}),
+    columnHelper.accessor(row=>row.opponents ?? 0, { id:'opponents', header:'Opponents', cell: info => {
+      const r = info.row.original
+      const n = Number(info.getValue()||0)
+      return <button className="underline" onClick={()=>setShowOpp({ sku: r.sku, productId: (r.productId as any)||null })}>{n}</button>
+    }}),
   ],[])
   const table = useReactTable({ data: rows, columns, state: { globalFilter: filter }, onGlobalFilterChange: setFilter, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel() })
 
@@ -101,5 +143,15 @@ export default function PricebotTable() {
         </tbody>
       </table>
     </div>
+    {showOpp && (
+      <OpponentsModal
+        sku={showOpp.sku}
+        productId={showOpp.productId}
+        cityId={String(process.env.NEXT_PUBLIC_DEFAULT_CITY_ID||'710000000')}
+        initialIgnores={[]}
+        onToggle={(id,ignore)=>{ debouncedSave(showOpp.sku, { ignoreSellers: [] }); }}
+        onClose={()=>setShowOpp(null)}
+      />
+    )}
   );
 }

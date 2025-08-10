@@ -1,42 +1,29 @@
 import { NextResponse } from 'next/server'
-import { getSettings, upsertPerSku, updateGlobalIgnore } from '@/server/db/pricebot.store'
+import { readStore, upsertItemsBatch, updateGlobal } from '@/server/db/pricebot.store'
 
 export async function GET() {
-  const st = getSettings()
+  const st = readStore()
   return NextResponse.json({ ok: true, settings: st })
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    if (Array.isArray(body?.globalIgnoreSellers)) {
-      const list = updateGlobalIgnore(body.globalIgnoreSellers.map(String))
-      return NextResponse.json({ ok: true, settings: { globalIgnoreSellers: list } })
+    if (body?.global) {
+      const st = updateGlobal({ cityId: body.global.cityId, ignoreSellers: body.global.ignoreSellers })
+      return NextResponse.json({ ok: true, settings: st })
     }
-    const sku = String(body?.sku || '')
-    const updates = body?.updates || {}
-    if (!sku) return NextResponse.json({ ok: false, error: 'MISSING_SKU' }, { status: 400 })
-    const next = upsertPerSku(sku, {
-      active: toBool(updates.active),
-      min: toNum(updates.min),
-      max: toNum(updates.max),
-      step: toNum(updates.step),
-      intervalMinutes: toNum(updates.intervalMinutes),
-      ignoreSellers: Array.isArray(updates.ignoreSellers) ? updates.ignoreSellers.map(String) : undefined,
-    })
-    return NextResponse.json({ ok: true, sku, settings: next })
+    if (body?.items && typeof body.items === 'object') {
+      const st = upsertItemsBatch(body.items)
+      return NextResponse.json({ ok: true, settings: st })
+    }
+    return NextResponse.json({ ok: false, error: 'BAD_BODY' }, { status: 400 })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 })
   }
 }
 
 function toNum(v: any): number | undefined { const n = Number(v); return Number.isFinite(n) ? n : undefined }
-function toBool(v: any): boolean | undefined {
-  if (typeof v === 'boolean') return v
-  if (typeof v === 'string') return /^(1|true|on|yes)$/i.test(v)
-  if (typeof v === 'number') return v !== 0
-  return undefined
-}
 
 import { NextRequest, NextResponse } from 'next/server'
 import fs from 'node:fs'

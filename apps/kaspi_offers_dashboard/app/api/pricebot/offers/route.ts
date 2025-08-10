@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getMerchantId, mcFetch } from '@/lib/kaspi/client'
-import { getSettings } from '@/server/db/pricebot.store'
+import { getItemSettingsOrDefault, readStore } from '@/server/db/pricebot.store'
 export const runtime = 'nodejs'
 
 function pickArrayKey(obj: any): { key: string | null; arr: any[] } {
@@ -48,9 +48,10 @@ export async function GET() {
       picked = pickArrayKey(jsB)
     }
 
+    const stAll = readStore()
     const offers = picked.arr.map((o: any) => {
       const sku = o.merchantSku || o.sku || o.offerSku || o.id || ''
-      const settings = sku ? getSettings(sku) : undefined
+      const settings = sku ? getItemSettingsOrDefault(sku) : undefined
       const stockKeys = ['stock','qty','quantity','availableAmount','freeBalance','available','stockTotal']
       const stock = (()=>{
         for (const k of stockKeys) {
