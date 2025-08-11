@@ -10,6 +10,7 @@ export async function POST(req: Request) {
   try {
     const url = new URL(req.url)
     const dryRun = url.searchParams.get('dryRun') !== 'false'
+    const storeId = url.searchParams.get('storeId') || url.searchParams.get('merchantId') || ''
     // formidable expects Node request; Next provides web Request; we can buffer
     const buf = Buffer.from(await req.arrayBuffer())
     const contentType = req.headers.get('content-type') || ''
@@ -75,7 +76,7 @@ export async function POST(req: Request) {
       const st = upsertItemsBatch(batch)
       Object.keys(batch).slice(0,5).forEach(sku=> changes.push({ sku, settings: st.items[sku] }))
     }
-    return NextResponse.json({ ok: true, dryRun, total: rows.length, applied: dryRun ? 0 : Object.keys(rows).length, sample: changes.slice(0, 5) })
+    return NextResponse.json({ ok: true, dryRun, total: rows.length, applied: dryRun ? 0 : Object.keys(rows).length, sample: changes.slice(0, 5), storeId: storeId || undefined })
   } catch (e:any) {
     return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 })
   }

@@ -12,7 +12,7 @@ export default function ImportExportBar({ storeId }: { storeId?: string }) {
     if (!file) return
     const fd = new FormData()
     fd.append('file', file)
-    const res = await fetch('/api/pricebot/import?dryRun=true', { method:'POST', body: fd })
+    const res = await fetch(`/api/pricebot/import?dryRun=true${storeId?`&storeId=${storeId}`:''}`, { method:'POST', body: fd })
     const js = await res.json().catch(()=>({ ok:false }))
     if (!js?.ok) { setError(js?.error || 'Import failed'); return }
     setPreview(js.sample || [])
@@ -22,7 +22,7 @@ export default function ImportExportBar({ storeId }: { storeId?: string }) {
     const file = inputRef.current?.files?.[0]
     if (!file) return
     const fd = new FormData(); fd.append('file', file)
-    await fetch('/api/pricebot/import?dryRun=false', { method:'POST', body: fd })
+    await fetch(`/api/pricebot/import?dryRun=false${storeId?`&storeId=${storeId}`:''}`, { method:'POST', body: fd })
     setPreview([])
   }
 

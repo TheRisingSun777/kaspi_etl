@@ -31,7 +31,7 @@ export default function PricebotTable({ storeId }: { storeId?: string }) {
   function debouncedSave(sku: string, patch: any) {
     if (saveQueue.current) clearTimeout(saveQueue.current)
     saveQueue.current = setTimeout(async ()=>{
-      await fetch('/api/pricebot/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ items: { [sku]: patch } }) })
+      await fetch('/api/pricebot/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ storeId, items: { [sku]: patch } }) })
       await load()
     }, 500)
   }
@@ -97,7 +97,7 @@ export default function PricebotTable({ storeId }: { storeId?: string }) {
     }}),
     columnHelper.display({ id:'actions', header:'Run', cell: info => {
       const r = info.row.original
-      return <button className="btn-outline" onClick={async()=>{ const resp = await fetch('/api/pricebot/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ merchantId: storeId, sku: [r.sku], mode: 'dry' }) }); const js = await resp.json(); if (js?.proposal?.price) alert(`Proposed: ${js.proposal.price}`); }}>Run</button>
+      return <button className="btn-outline" onClick={async()=>{ const resp = await fetch('/api/pricebot/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ storeId, sku: r.sku, ourPrice: r.price, mode: 'dry' }) }); const js = await resp.json(); if (js?.proposal?.price) alert(`Proposed: ${js.proposal.price}`); }}>Run</button>
     }}),
   ],[])
   const table = useReactTable({ data: rows, columns, state: { globalFilter: filter }, onGlobalFilterChange: setFilter, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel() })

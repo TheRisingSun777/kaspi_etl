@@ -1,0 +1,18 @@
+{
+    "version": 1,
+    "branch": "feat/offers-dashboard",
+    "merchantId": "CHANGE_ME",
+    "storeId": 30141222,
+    "cityId": 710000000,
+    "dryRun": true,
+    "lastRun": null,
+    "lastBulkRun": null,
+    "lastExport": null,
+    "lastImport": null,
+  "lastSeen": { "commit": null, "taskId": "CORE-001" },
+    "flags": {
+      "autoDisableWhenZeroStock": true,
+      "cacheMinutes": 3
+    }
+  }
+  

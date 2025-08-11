@@ -32,7 +32,8 @@ export async function GET(req: Request) {
         const js = await res.json().catch(()=>null)
         const arr: any[] = Array.isArray(js?.data) ? js.data : Array.isArray(js?.offers) ? js.offers : Array.isArray(js) ? js : []
         if (arr.length) {
-          const ignore = new Set([...(getSettings(merchantId).globalIgnoredOpponents||[]), ...((sku?getSettings(merchantId).sku[sku]?.ignoredOpponents:[])||[])])
+          const st = getSettings(merchantId)
+          const ignore = new Set([...(st.globalIgnoredOpponents||[]), ...((sku?st.sku[sku]?.ignoredOpponents:[])||[])])
           const sellers = arr.map((r:any)=>({
             sellerId: String(r.merchantId || r.merchantUID || r.sellerId || ''),
             sellerName: String(r.merchantName || r.sellerName || ''),
@@ -69,7 +70,8 @@ export async function GET(req: Request) {
     })
     await browser.close()
     sellers.sort((a:any,b:any)=>a.price-b.price)
-    const ignore = new Set([...(getSettings(merchantId).globalIgnoredOpponents||[]), ...((sku?getSettings(merchantId).sku[sku]?.ignoredOpponents:[])||[])])
+    const st = getSettings(merchantId)
+    const ignore = new Set([...(st.globalIgnoredOpponents||[]), ...((sku?st.sku[sku]?.ignoredOpponents:[])||[])])
     const mapped = sellers.map((s:any)=>({ sellerId: String(s.merchantUID||''), sellerName: s.merchantName, price: Number(s.price||0), isYou: String(s.merchantUID||'')===merchantId, isIgnored: ignore.has(String(s.merchantUID||'')) }))
     cache.set(ck, { expires: now + 3*60*1000, data: mapped })
     return NextResponse.json({ ok: true, items: mapped })

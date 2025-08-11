@@ -33,7 +33,7 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url)
-    const merchantId = String(searchParams.get('merchantId') || process.env.KASPI_MERCHANT_ID || '')
+    const merchantId = String(searchParams.get('merchantId') || searchParams.get('storeId') || process.env.KASPI_MERCHANT_ID || '')
     const q = String(searchParams.get('q') || '')
     const cookie = readCookieForMerchant(merchantId) || process.env.KASPI_MERCHANT_COOKIE || process.env.KASPI_MERCHANT_COOKIES || ''
     const base = process.env.KASPI_MERCHANT_API_BASE || 'https://mc.shop.kaspi.kz'

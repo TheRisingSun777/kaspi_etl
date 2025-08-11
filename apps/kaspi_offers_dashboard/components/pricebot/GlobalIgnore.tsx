@@ -9,7 +9,9 @@ export default function GlobalIgnore({ storeId }: { storeId?: string }) {
     const url = storeId ? `/api/pricebot/settings?storeId=${storeId}` : '/api/pricebot/settings'
     const res = await fetch(url, { cache: 'no-store' })
     const js = await res.json()
-    setList(js?.settings?.global?.ignoreSellers || [])
+    const v2 = js?.settings?.globalIgnoredOpponents
+    const legacy = js?.settings?.global?.ignoreSellers
+    setList(Array.isArray(v2) ? v2 : Array.isArray(legacy) ? legacy : [])
   }
   useEffect(()=>{ load() }, [storeId])
 

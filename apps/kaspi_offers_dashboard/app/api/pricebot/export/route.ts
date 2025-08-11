@@ -1,17 +1,20 @@
 import { NextResponse } from 'next/server'
 import { getMerchantId, mcFetch } from '@/lib/kaspi/client'
 import ExcelJS from 'exceljs'
-import { getItemSettingsOrDefault } from '@/server/db/pricebot.store'
+import { getSettings } from '@/server/db/pricebot.settings'
 
 export const runtime = 'nodejs'
 
-function toRows(items: any[]) {
+function toRows(items: any[], merchantId: string) {
+  const st = getSettings(merchantId)
   return items.map((it:any)=>{
     const price = Number(it.price ?? 0)
-    const min = Number(it.settings?.min ?? 0)
-    const max = Number(it.settings?.max ?? 0)
+    const sku = String(it.sku||'')
+    const item = sku ? st.sku[sku] : undefined
+    const min = Number(item?.minPrice ?? 0)
+    const max = Number(item?.maxPrice ?? 0)
     return {
-      SKU: it.sku,
+      SKU: sku,
       model: '',
       brand: '',
       price,
@@ -19,9 +22,9 @@ function toRows(items: any[]) {
       preorder: '',
       min_price: min || price || '',
       max_price: max || price || '',
-      step: it.settings?.step ?? 1,
+      step: Number(item?.stepKzt ?? 1),
       shop_link: it.productId ? `https://kaspi.kz/shop/p/-${it.productId}/?c=${process.env.DEFAULT_CITY_ID || '710000000'}` : `https://kaspi.kz/shop/search/?text=${encodeURIComponent(it.sku)}`,
-      pricebot_status: it.settings?.active ? 'on' : 'off',
+      pricebot_status: item?.active ? 'on' : 'off',
     }
   })
 }
@@ -30,6 +33,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const format = (searchParams.get('format') || 'csv').toLowerCase()
   try {
+    const merchantId = String(searchParams.get('merchantId') || searchParams.get('storeId') || process.env.KASPI_MERCHANT_ID || '')
     const m = getMerchantId()
     // Use the same list endpoint as the table. If 400/401 fallback to smaller page length.
     let res = await mcFetch(`/bff/offer-view/list?m=${m}&p=0&l=100&a=true&t=&c=&lowStock=false&notSpecifiedStock=false`)
@@ -52,11 +56,11 @@ export async function GET(req: Request) {
         sku,
         price: Number(o.price ?? o.currentPrice ?? o.offerPrice ?? o.value ?? 0),
         productId,
-        settings: sku ? getItemSettingsOrDefault(sku) : undefined,
+        settings: undefined,
       }
     })
 
-    const rows = toRows(items)
+    const rows = toRows(items, merchantId)
 
     if (format === 'xlsx') {
       const wb = new ExcelJS.Workbook()
