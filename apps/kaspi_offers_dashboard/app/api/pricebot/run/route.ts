@@ -6,6 +6,7 @@ import { updatePriceBySku } from '@/server/merchant/client'
 
 export async function POST(req: Request) {
   try {
+    const t0 = Date.now()
     const raw = await req.json()
     const parsed = RunInputSchema.safeParse(raw)
     if (!parsed.success) {
@@ -30,14 +31,16 @@ export async function POST(req: Request) {
 
     if (dry !== false) {
       addRun({ ts: new Date().toISOString(), merchantId: mId, storeId: mId, mode: 'dry', count: 1, avgDelta: delta, applied: false })
-      return NextResponse.json({ ok:true, dry:true, sku, ourPrice, proposal:{ currentPrice: ourPrice, targetPrice: target, delta, rule: { min: item.minPrice, max: item.maxPrice, step: item.stepKzt }, opponentsUsed: opp.length, ignoredOpponents: st.globalIgnoredOpponents?.length || 0, reason: { bestOpponent: best, step: item.stepKzt, floor, ceil } } })
+      const ms = Date.now() - t0
+      return new NextResponse(JSON.stringify({ ok:true, dry:true, sku, ourPrice, proposal:{ currentPrice: ourPrice, targetPrice: target, delta, rule: { min: item.minPrice, max: item.maxPrice, step: item.stepKzt }, opponentsUsed: opp.length, ignoredOpponents: st.globalIgnoredOpponents?.length || 0, reason: { bestOpponent: best, step: item.stepKzt, floor, ceil } } }), { headers: { 'X-Perf-ms': String(ms) } })
     }
 
     // Apply path (requires merchant cookie; best-effort)
     try {
       await updatePriceBySku({ sku, newPrice: target, cityId: String(process.env.DEFAULT_CITY_ID || '710000000') })
       addRun({ ts: new Date().toISOString(), merchantId: mId, storeId: mId, mode: 'apply', count: 1, avgDelta: delta, applied: true })
-      return NextResponse.json({ ok:true, dry:false, applied:true, newPrice: target, sku })
+      const ms = Date.now() - t0
+      return new NextResponse(JSON.stringify({ ok:true, dry:false, applied:true, newPrice: target, sku }), { headers: { 'X-Perf-ms': String(ms) } })
     } catch (e:any) {
       return NextResponse.json({ ok:false, code:'apply_failed', message:String(e?.message||e).slice(0,300) }, { status: 502 })
     }

@@ -36,6 +36,7 @@ function pickArrayKey(obj: any): { key: string | null; arr: any[] } {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
+    const t0 = Date.now()
     const p = Number(searchParams.get('p') ?? '0')
     const l = Number(searchParams.get('l') ?? '50')
     const available = (searchParams.get('available') || '').toString() === '1'
@@ -83,10 +84,12 @@ export async function GET(request: Request) {
       })
       .filter(Boolean) as OfferRow[]
 
+    const ms = Date.now() - t0
+    const headers = new Headers({ 'X-Perf-ms': String(ms) })
     if (!rows.length) {
-      return NextResponse.json({ ok: true, items: [], debug: { tried: 2, pickedKey: picked.key, hints: ['/api/debug/merchant/list?raw=1'] } })
+      return new NextResponse(JSON.stringify({ ok: true, items: [], debug: { tried: 2, pickedKey: picked.key, hints: ['/api/debug/merchant/list?raw=1'] } }), { headers })
     }
-    return NextResponse.json({ ok: true, items: rows })
+    return new NextResponse(JSON.stringify({ ok: true, items: rows }), { headers })
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 })
   }

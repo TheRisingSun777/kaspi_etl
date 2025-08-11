@@ -80,7 +80,7 @@ export async function GET(req: Request) {
     const ck = `${productId}:${cityId}:${merchantId}`
     const now = Date.now()
     const hit = cache.get(ck)
-    if (hit && hit.expires > now) return NextResponse.json({ ok: true, items: hit.data })
+    if (hit && hit.expires > now) return new NextResponse(JSON.stringify({ ok: true, items: hit.data }), { headers: { 'X-Perf-cache': 'hit' } })
     if (!productId) return NextResponse.json({ ok: true, sellers: [] })
 
     // First attempt: Kaspi JSON endpoint with backoff
