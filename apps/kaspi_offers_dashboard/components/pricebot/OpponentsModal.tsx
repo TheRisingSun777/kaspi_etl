@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 
-export default function OpponentsModal({ productId, cityId, onClose, sku, initialIgnores, onToggle }: { productId: number | null | undefined; cityId: string; sku: string; initialIgnores: string[]; onToggle: (merchantId: string, ignore: boolean)=>void; onClose: ()=>void }) {
+export default function OpponentsModal({ productId, cityId, onClose, sku, initialIgnores, onToggle, merchantId }: { productId: number | null | undefined; cityId: string; sku: string; merchantId?: string; initialIgnores: string[]; onToggle: (merchantId: string, ignore: boolean)=>void; onClose: ()=>void }) {
   const [sellers, setSellers] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -11,7 +11,7 @@ export default function OpponentsModal({ productId, cityId, onClose, sku, initia
     const load = async()=>{
       setLoading(true); setError(null)
       try {
-        const res = await fetch(`/api/pricebot/opponents?productId=${productId}&cityId=${cityId}&sku=${encodeURIComponent(sku)}`)
+        const res = await fetch(`/api/pricebot/opponents?productId=${productId}&cityId=${cityId}&sku=${encodeURIComponent(sku)}${merchantId?`&merchantId=${merchantId}`:''}`)
         const js = await res.json();
         const list = Array.isArray(js?.items)? js.items : Array.isArray(js?.sellers)? js.sellers : []
         list.sort((a:any,b:any)=>Number(a.price||0)-Number(b.price||0))

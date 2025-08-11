@@ -22,7 +22,7 @@ function pickItems(json: any): OfferRow[] {
   return [];
 }
 
-export default function PricebotTable() {
+export default function PricebotTable({ storeId }: { storeId?: string }) {
   const [rows, setRows] = useState<OfferRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +40,8 @@ export default function PricebotTable() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch('/api/pricebot/offers?withOpponents=false', { cache: 'no-store' });
+      const url = `/api/pricebot/offers?withOpponents=false${storeId?`&merchantId=${storeId}`:''}`
+      const res = await fetch(url, { cache: 'no-store' });
       const json = await res.json();
       setRows(pickItems(json));
     } catch (e: any) {
@@ -96,7 +97,7 @@ export default function PricebotTable() {
     }}),
     columnHelper.display({ id:'actions', header:'Run', cell: info => {
       const r = info.row.original
-      return <button className="btn-outline" onClick={async()=>{ await fetch('/api/pricebot/reprice', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sku: r.sku, useSettings: true, cityId: String(process.env.NEXT_PUBLIC_DEFAULT_CITY_ID||'710000000') }) }); }}>Run</button>
+      return <button className="btn-outline" onClick={async()=>{ const resp = await fetch('/api/pricebot/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ merchantId: storeId, sku: [r.sku], mode: 'dry' }) }); const js = await resp.json(); if (js?.proposal?.price) alert(`Proposed: ${js.proposal.price}`); }}>Run</button>
     }}),
   ],[])
   const table = useReactTable({ data: rows, columns, state: { globalFilter: filter }, onGlobalFilterChange: setFilter, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel() })
@@ -154,7 +155,8 @@ export default function PricebotTable() {
         productId={showOpp.productId}
         cityId={String(process.env.NEXT_PUBLIC_DEFAULT_CITY_ID||'710000000')}
         initialIgnores={[]}
-        onToggle={async (id,ignore)=>{ await fetch('/api/pricebot/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ toggleIgnore: true, sku: showOpp.sku, merchantId: id, ignore }) }); await load() }}
+        merchantId={storeId}
+        onToggle={async (id,ignore)=>{ await fetch('/api/pricebot/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ merchantId: storeId, updates: { [showOpp.sku]: { ignoredOpponents: ignore ? [id] : [] } } }) }); await load() }}
         onClose={()=>setShowOpp(null)}
       />
     )}
