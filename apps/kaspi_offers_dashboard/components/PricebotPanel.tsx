@@ -9,7 +9,7 @@ type Row = {
   opponentCount: number
 }
 
-export default function PricebotPanel() {
+export default function PricebotPanel({ storeId }: { storeId?: string }) {
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -21,14 +21,14 @@ export default function PricebotPanel() {
     try {
       // load settings first
       try {
-        const sres = await fetch('/api/pricebot/settings')
+        const sres = await fetch(`/api/pricebot/settings${storeId?`?storeId=${storeId}`:''}`)
         if (sres.ok) {
           const js = await sres.json()
           if (js?.settings?.base) setBase(js.settings.base)
           if (js?.settings?.merchantId) setMerchantId(js.settings.merchantId)
         }
       } catch {}
-      const res = await fetch('/api/pricebot/offers', { cache: 'no-store' })
+      const res = await fetch(`/api/pricebot/offers${storeId?`?storeId=${storeId}`:''}`, { cache: 'no-store' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
       setRows(Array.isArray(json.items) ? json.items.map((it:any)=>({
@@ -45,7 +45,7 @@ export default function PricebotPanel() {
     finally { setLoading(false) }
   }
 
-  useEffect(()=>{ load() }, [])
+  useEffect(()=>{ load() }, [storeId])
 
   const saveRule = async (id: string, body: any) => {
     await fetch(`/api/pricebot/rules/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })

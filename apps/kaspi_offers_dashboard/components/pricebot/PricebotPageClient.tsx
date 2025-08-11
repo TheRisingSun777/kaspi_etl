@@ -4,6 +4,7 @@ import StoreSelector from '@/components/pricebot/StoreSelector'
 import ImportExportBar from '@/components/pricebot/ImportExportBar'
 import GlobalIgnore from '@/components/pricebot/GlobalIgnore'
 import PricebotTable from '@/components/pricebot/PricebotTable'
+import PricebotPanel from '@/components/PricebotPanel'
 
 export default function PricebotPageClient() {
   const [storeId, setStoreId] = useState<string>('')
@@ -24,6 +25,7 @@ export default function PricebotPageClient() {
           <ImportExportBar storeId={storeId} />
         </div>
       </header>
+      <PricebotPanel storeId={storeId} />
       <GlobalIgnore storeId={storeId} />
       <PricebotTable storeId={storeId} />
     </main>
