@@ -1,46 +1,118 @@
 version: 1
 meta:
   branch: feat/offers-dashboard
-  defaultMerchantId: "CHANGE_ME"   # set your merchant
+  defaultMerchantId: "CHANGE_ME"   # set your merchant cookie filename (server/cookies/{merchantId}.json)
   defaultStoreId: 30141222         # matches current UI header snapshot
   defaultCityId: 710000000         # matches product links
   commit_style: conventional
+
+# Priorities: top of in_progress first, then top-down through backlog.
 backlog:
-  - id: EXP-001
-    title: Merchant-aware export/import (schema v2)
-    desc: Export CSV/XLSX and import accept merchantId/storeId/cityId; include stock + pricebot fields.
-    ac:
-      - Export includes columns: merchantId, storeId, cityId, productId, sku, name, ourPrice, stock, active, min, max, step, interval.
-      - Import validates via zod (no mutation on validation-only); preview + toasts in UI.
-      - Persist settings deltas to `server/db/pricebot.settings.json` (v2).
-    estimate: 4h
-    labels: [export, import, zod, ui]
   - id: RUN-001
-    title: Run + Bulk run flow (dry by default)
-    desc: Single SKU and bulk endpoints; proposals returned; confirm-to-apply path.
+    title: Single SKU "run → confirm → apply" (dry by default)
+    desc: Compute a proposal for one SKU, show it in UI, confirm, then apply price when dry=false.
     ac:
-      - `POST /api/pricebot/run` accepts merchantId, storeId, cityId, sku/productId, dry; returns proposal.
-      - Bulk route chunks ~200 SKUs; progress + summary returned.
-      - UI confirm modal before apply; success/error toasts.
+      - Server: `POST /api/pricebot/run` body `{ merchantId, storeId, cityId, sku? , productId?, dry=true }`.
+      - Returns `{ ok, dry, productId, sku, ourPrice, proposal: {currentPrice, targetPrice, delta, rule, opponentsUsed, ignoredOpponents, reason} }`.
+      - When `dry=false`, apply price via merchant API using cookie file `server/cookies/{merchantId}.json`; return `{ applied: true, newPrice }`. Never apply if cookie missing; return typed error.
+      - Append run record to `server/db/pricebot.runs.json` `{ ts, merchantId, storeId, count:1, avgDelta: <number>, applied: <bool> }`.
+      - UI (`PricebotTable` row "Run" button) opens confirm modal with summary and "Apply now" button; success/error toasts shown and row refreshed.
+      - Validation: zod schema on input; all typed errors surface toasts with helpful text.
     estimate: 5h
-    labels: [pricebot, run]
-  - id: KPI-001
-    title: KPIs + /stats
-    desc: Tiles for overall health.
+    labels: [pricebot, run, ui, apply, zod]
+
+  - id: BULK-001
+    title: Bulk run with job progress (dry default) + optional apply
+    desc: Run proposals for many SKUs chunked; poll progress; allow "apply all confirmed" in a second step.
     ac:
-      - `/api/pricebot/stats` returns: totalSKUs, activeSKUs, zeroStock, competingSKUs, winRate, lastRunCount, lastRunAvgDelta.
-      - UI renders 4–6 tiles; zero‑stock rows greyed/inactive.
+      - Server: `POST /api/pricebot/bulk` body `{ merchantId, storeId, cityId, skus?: string[], scope?: "active"|"filtered", chunkSize?: 200, dry?: true }`.
+      - Immediately returns `{ jobId }`. Progress stored in `server/db/pricebot.jobs.json` keyed by `jobId`.
+      - `GET /api/pricebot/bulk/:jobId` returns `{ status: "queued"|"running"|"done"|"error", processed, total, proposals[], summary }`.
+      - When client confirms apply, `POST /api/pricebot/bulk/:jobId/apply` applies only proposals still valid (re-check opponents), logs each apply to `pricebot.runs.json`, and returns final summary.
+      - UI: bulk action (table toolbar) shows progress bar and a summary dialog; supports cancel. All toasts wired.
+    estimate: 7h
+    labels: [pricebot, run, bulk, jobs, ui]
+
+  - id: SAFE-001
+    title: Endpoint hardening + unified zod validation
+    desc: Add strict zod schemas for run/bulk/export/import/settings and normalize API error shape.
+    ac:
+      - Shared zod validators in `server/lib/validation.ts`.
+      - Every route returns `{ ok:false, code, message, details? }` on failure; 4xx for user errors, 5xx for upstream.
+      - UI shows friendly messages (toasts) and highlights bad fields where relevant (import preview).
     estimate: 3h
-    labels: [kpi, ui]
-  - id: UX-001
-    title: Opponents modal polish
-    desc: Badges for ignored sellers, debounce save tick, and ensure merchantId is passed everywhere.
+    labels: [zod, api, ux]
+
+  - id: OPP-002
+    title: Opponents robustness: fallback, dedupe, throttling
+    desc: Make opponents retrieval resilient to layout changes and rate limits.
     ac:
-      - Ignored sellers show a badge and are excluded from proposals.
-      - Saves persist to settings v2; “Saved” tick after debounce.
+      - Try JSON endpoint first; fallback to HTML scrape with CSS/XPath selectors; both paths emit the same normalized shape.
+      - Dedupe sellers by sellerId/name; sort price asc; keep `isYou` and `isIgnored` flags intact.
+      - Cache key `(merchantId, cityId, productId)` TTL 180s; exponential backoff on 429/5xx with jitter; classify timeouts separately.
+      - Add lightweight tracing `server/logs/opponents-YYYY-MM-DD.log` (rotated daily) for debug.
+    estimate: 4h
+    labels: [opponents, scraping, caching, reliability]
+
+  - id: AUTH-001
+    title: Cookie login utility (manual refresh)
+    desc: Provide a small script + route to refresh merchant cookies safely outside git.
+    ac:
+      - Script `server/scripts/login.mjs` launches headless login, writes `server/cookies/{merchantId}.json`.
+      - `server/cookies/` is in `.gitignore`;  if missing, `/run` and `/bulk` return a typed "cookie_missing" error.
+      - Optional route `POST /api/auth/cookie-status` to check file existence + age.
+      - Documentation added to `docs/OPERATING.md` under Safety.
+    estimate: 3h
+    labels: [auth, ops]
+
+  - id: PERF-001
+    title: Performance budgets and caching
+    desc: Keep core routes responsive; add in‑memory cache for hot paths.
+    ac:
+      - Budgets: `/merchant/offers` p95 < 1500ms, `/pricebot/opponents` p95 < 2000ms, `/pricebot/run` p95 < 1000ms.
+      - In‑memory LRU (per‑process) for offers filter and small opponents results; keys include merchant/store/city.
+      - Add `X-Perf-*` headers with simple timings for debug in dev.
+    estimate: 3h
+    labels: [perf, caching]
+
+  - id: TEST-001
+    title: Tests: proposal math + routes smoke
+    desc: Unit tests for repricing logic; integration smoke for run/import/opponents.
+    ac:
+      - Jest for `server/lib/reprice.ts` with cases: min/max clamping, step rounding, ignores applied, tie‑breaker.
+      - Supertest smoke: `/run` (dry), `/opponents`, `/import` (preview), happy + failure paths.
+      - CI script `pnpm test` green; add minimal GitHub Action (optional).
+    estimate: 4h
+    labels: [tests, jest, supertest]
+
+  - id: UI-002
+    title: Store/Merchant selector + sticky header polish
+    desc: Make header controls explicit and sticky; reflect current scope everywhere.
+    ac:
+      - Header shows merchantId + storeId selector(s); selecting updates table, export links, and stats.
+      - Persist last chosen merchant/store to localStorage and `STATE.json`.
+      - Sticky header with export/import buttons and bulk actions visible on scroll.
+    estimate: 3h
+    labels: [ui, ux]
+
+  - id: DOCS-001
+    title: Operator guide + failure playbook
+    desc: Write short guides so anyone can run the bot safely.
+    ac:
+      - `docs/OPERATING.md` gains sections: cookie refresh, bulk best practices, safe apply checklist, rollback notes.
+      - `README.md` quickstart for dev (pnpm, env, cookies, routes).
     estimate: 2h
-    labels: [ui, opponents]
+    labels: [docs]
+
 in_progress:
+  - id: RUN-001
+    title: Single SKU "run → confirm → apply" (dry by default)
+    desc: As defined above.
+    ac:
+      - See backlog RUN-001 AC.
+    estimate: 5h
+    labels: [pricebot, run, ui, apply, zod]
+
 done:
   - id: EXP-001
     title: Merchant-aware export/import (schema v2)
