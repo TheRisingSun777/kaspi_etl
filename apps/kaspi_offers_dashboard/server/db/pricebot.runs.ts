@@ -4,9 +4,11 @@ import path from 'node:path'
 export type RunRecord = {
   ts: string
   merchantId: string
+  storeId?: string
   mode: 'dry' | 'apply' | string
   count: number
   avgDelta: number
+  applied?: boolean
 }
 
 type FileShape = Record<string, RunRecord[]> // keyed by merchantId
