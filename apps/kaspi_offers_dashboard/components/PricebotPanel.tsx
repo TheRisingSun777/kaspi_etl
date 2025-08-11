@@ -1,16 +1,7 @@
 "use client"
 import { useEffect, useState } from 'react'
 
-type Row = {
-  name: string
-  variantProductId: string
-  ourPrice: number
-  rules: { minPrice: number; maxPrice: number; step: number; intervalMin: number; active: number } | null
-  opponentCount: number
-}
-
 export default function PricebotPanel({ storeId }: { storeId?: string }) {
-  const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [base, setBase] = useState('')
@@ -30,19 +21,6 @@ export default function PricebotPanel({ storeId }: { storeId?: string }) {
           if (js?.settings?.merchantId) setMerchantId(js.settings.merchantId)
         }
       } catch {}
-      const res = await fetch(`/api/pricebot/offers${storeId?`?storeId=${storeId}`:''}`, { cache: 'no-store' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json = await res.json()
-      setRows(Array.isArray(json.items) ? json.items.map((it:any)=>({
-        name: it.name,
-        variantProductId: String(it.productId || ''),
-        ourPrice: Number(it.price || 0),
-        rules: null,
-        opponentCount: Number(it.opponents || 0),
-      })) : [])
-      if ((!json.items || json.items.length===0) && json.debug) {
-        console.log('[pricebot-debug]', ...json.debug)
-      }
     } catch (e:any) { setError(e?.message||'Failed') }
     finally { setLoading(false) }
   }
@@ -61,15 +39,9 @@ export default function PricebotPanel({ storeId }: { storeId?: string }) {
     loadStats()
   }, [storeId])
 
-  const saveRule = async (id: string, body: any) => {
-    await fetch(`/api/pricebot/rules/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-    await load()
-  }
+  // reserved for future per-row rule editor
 
-  const reprice = async (id: string) => {
-    const res = await fetch(`/api/pricebot/reprice/${id}`, { method: 'POST' })
-    if (res.ok) await load()
-  }
+  // reserved for future single reprice action
 
   return (
     <div className="card p-4">

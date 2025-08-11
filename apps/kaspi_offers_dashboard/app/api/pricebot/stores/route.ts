@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
-import { readMerchants } from '@/server/merchants'
+import { readMerchants, writeMerchants } from '@/server/merchants'
 
 export const runtime = 'nodejs'
 
-export async function GET() {
+export function GET() {
   try {
     const list = readMerchants()
-    // Normalize to simple id/name pairs expected by the UI
     const items = Array.isArray(list)
       ? Array.from(
           new Map(
@@ -23,25 +22,26 @@ export async function GET() {
   }
 }
 
-import { NextResponse } from 'next/server'
-import { readMerchants, writeMerchants } from '@/server/merchants'
-
-export function GET() {
-  const items = readMerchants().map(m=>({ id: m.merchantId, name: m.label, cityId: m.cityId }))
-  return NextResponse.json({ ok:true, items })
-}
-
 export async function POST(req: Request) {
   try {
-    const body = await req.json()
-    const list = readMerchants()
-    const idx = list.findIndex(m=>m.merchantId===body.merchantId)
-    const next = { merchantId: String(body.merchantId), label: String(body.label||body.merchantId), cityId: Number(body.cityId||710000000), cookieFile: body.cookieFile, apiKey: body.apiKey }
-    if (idx>=0) list[idx] = next; else list.push(next)
+    const body = await req.json().catch(() => ({}))
+    if (!body || (!body.merchantId && !body.id)) {
+      return NextResponse.json({ ok: false, code: 'bad_input', message: 'merchantId (or id) required' }, { status: 400 })
+    }
+    const merchantId = String(body.merchantId || body.id)
+    const label = String(body.label || body.name || merchantId)
+    const cityId = Number(body.cityId || 710000000)
+    const cookieFile = body.cookieFile
+    const apiKey = body.apiKey
+    const list: any[] = readMerchants()
+    const idx = list.findIndex((m: any) => String(m.merchantId || m.id) === merchantId)
+    const next = { merchantId, label, cityId, cookieFile, apiKey }
+    if (idx >= 0) list[idx] = next
+    else list.push(next)
     writeMerchants(list)
-    return NextResponse.json({ ok:true, items:list })
-  } catch (e:any) {
-    return NextResponse.json({ ok:false, error:String(e?.message||e) }, { status:400 })
+    return NextResponse.json({ ok: true, items: list.map((m: any) => ({ id: String(m.merchantId || m.id), name: String(m.label || m.name || m.id) })) })
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 })
   }
 }
 

@@ -20,7 +20,6 @@ export async function POST(req: Request) {
         for (const sku of list) {
           const st = getSettings(mId).sku[sku]
           if (!st) { job.processed++; updateJob(job); continue }
-          const best = null
           let target = st.minPrice || 0
           if (st.maxPrice) target = Math.min(st.maxPrice, target)
           job.proposals.push({ sku, target })

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { readStore } from '@/server/db/pricebot.store'
+// import { readStore } from '@/server/db/pricebot.store'
 import { getSettings } from '@/server/db/pricebot.settings'
 import { extractProductIdAndVariantFromSku } from '@/server/pricebot/sku'
 import { readCookieForMerchant } from '@/lib/kaspi/mcCookieStore'
@@ -58,7 +58,7 @@ export async function GET(req: Request) {
       picked = pickArrayKey(jsB)
     }
 
-    const stAll = readStore() // legacy settings merge (kept for now)
+    // const stAll = readStore() // legacy settings merge (kept for now)
     const stV2 = getSettings(merchantId)
     const offers = picked.arr.map((o: any) => {
       const sku = o.merchantSku || o.sku || o.offerSku || o.id || ''

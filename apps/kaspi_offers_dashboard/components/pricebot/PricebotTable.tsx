@@ -18,13 +18,7 @@ type OfferRow = {
   settings?: { active: boolean; min: number; max: number; step: number; interval: number; ignoreSellers: string[] }
 };
 
-function pickItems(json: any): OfferRow[] {
-  if (Array.isArray(json?.items)) return json.items;
-  if (Array.isArray(json?.result)) return json.result;
-  if (Array.isArray(json?.data?.items)) return json.data.items;
-  if (Array.isArray(json?.data)) return json.data;
-  return [];
-}
+// legacy helper retained for reference
 
 export default function PricebotTable({ storeId }: { storeId?: string }) {
   const rows = usePricebotStore(s=>s.rows) as any as OfferRow[]

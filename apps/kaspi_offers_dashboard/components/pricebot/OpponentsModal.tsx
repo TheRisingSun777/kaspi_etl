@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 
-export default function OpponentsModal({ productId, cityId, onClose, sku, initialIgnores, onToggle, merchantId }: { productId: number | null | undefined; cityId: string; sku: string; merchantId?: string; initialIgnores: string[]; onToggle: (merchantId: string, ignore: boolean)=>void; onClose: ()=>void }) {
+export default function OpponentsModal({ productId, cityId, onClose, sku, initialIgnores, onToggle, merchantId }: { productId: number | null | undefined; cityId: string; sku: string; merchantId?: string; initialIgnores: string[]; onToggle: (_sellerId: string, _ignore: boolean)=>void; onClose: ()=>void }) {
   const [sellers, setSellers] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -21,7 +21,7 @@ export default function OpponentsModal({ productId, cityId, onClose, sku, initia
       finally { setLoading(false) }
     }
     load()
-  }, [productId, cityId])
+  }, [productId, cityId, sku, merchantId])
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">

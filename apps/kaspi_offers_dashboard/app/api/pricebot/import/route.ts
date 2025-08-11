@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { upsertSettings as upsertV2 } from '@/server/db/pricebot.settings'
 import formidable from 'formidable'
-import fs from 'node:fs'
 import ExcelJS from 'exceljs'
 
 export const dynamic = 'force-dynamic'
@@ -14,17 +13,17 @@ export async function POST(req: Request) {
     // formidable expects Node request; Next provides web Request; we can buffer
     const buf = Buffer.from(await req.arrayBuffer())
     const contentType = req.headers.get('content-type') || ''
-    let files: any = null
+    // parse form-data if present (we don't use the parsed files directly here)
     if (/multipart\/form-data/i.test(contentType)) {
       const form = formidable({ multiples: false })
-      files = await new Promise((resolve, reject) => {
+      await new Promise((resolve, reject) => {
         form.parse({ headers: { 'content-type': contentType } } as any, (err, fields, files) => {
           if (err) reject(err); else resolve({ fields, files })
         })
       }).catch(()=>null)
     }
     // Fallback: try reading as single buffer (not full formidable in edge env). We'll support only one file in body
-    let rows: any[] = []
+    const rows: any[] = []
     try {
       // try parse as CSV
       const text = buf.toString('utf8')

@@ -23,6 +23,7 @@ export async function GET(req: Request) {
     const { productId } = extractProductIdAndVariantFromSku(sku)
     return NextResponse.json({ ok: true, sku, stock, productId })
   } catch (e:any) {
+    void e
     return NextResponse.json({ ok: false, stock: 0 })
   }
 }

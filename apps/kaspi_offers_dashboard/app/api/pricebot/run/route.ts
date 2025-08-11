@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     const mId = String(storeId || merchantId || '')
     if (!mId || !sku) return NextResponse.json({ ok:false, code:'bad_input', message:'storeId/merchantId and sku are required' }, { status:400 })
     const st = getSettings(mId)
-    const item = st.sku[sku] || { active:false, minPrice:0, maxPrice:0, stepKzt:1, intervalMin:5, ignoredOpponents:[] }
+    const item = st.sku[String(sku)] || { active:false, minPrice:0, maxPrice:0, stepKzt:1, intervalMin:5, ignoredOpponents:[] }
     const ignoreSet = new Set([...(st.globalIgnoredOpponents||[]), ...((item.ignoredOpponents)||[])])
     const opp = (Array.isArray(opponents)? opponents:[]).filter((o:any)=>!ignoreSet.has(String(o.sellerId||o.merchantId||o.merchantUID||o.id)))
     opp.sort((a:any,b:any)=>Number(a.price||0)-Number(b.price||0))
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
 
     // Apply path (requires merchant cookie; best-effort)
     try {
-      await updatePriceBySku({ sku, newPrice: target, cityId: String(process.env.DEFAULT_CITY_ID || '710000000') })
+      await updatePriceBySku({ sku: String(sku), newPrice: target, cityId: String(process.env.DEFAULT_CITY_ID || '710000000') })
       addRun({ ts: new Date().toISOString(), merchantId: mId, storeId: mId, mode: 'apply', count: 1, avgDelta: delta, applied: true })
       const ms = Date.now() - t0
       return new NextResponse(JSON.stringify({ ok:true, dry:false, applied:true, newPrice: target, sku }), { headers: { 'X-Perf-ms': String(ms) } })
