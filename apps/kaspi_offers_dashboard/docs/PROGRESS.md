@@ -1,3 +1,4 @@
+- 2025-08-11 13:26 UTC — UI stabilization: removed legacy rules table; made /pricebot client-only; added Zustand store; added row enrichment trigger; added CSV apply adapter and endpoint; improved cookie reader; fixed build/runtime.
 - 2025-08-11 13:15 UTC — TEST-001: Added import and opponents route smoke tests; green.
 - 2025-08-11 13:12 UTC — TEST-001: Added route smoke tests for /api/pricebot/run (dry + bad_input).
 - 2025-08-11 13:08 UTC — TEST-001: Added extra unit test for proposal logic; test suite green.
