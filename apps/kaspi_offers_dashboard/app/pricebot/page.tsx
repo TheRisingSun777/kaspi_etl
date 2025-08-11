@@ -1,8 +1,8 @@
 import PricebotTable from '@/components/pricebot/PricebotTable'
 import GlobalIgnore from '@/components/pricebot/GlobalIgnore'
 import ImportExportBar from '@/components/pricebot/ImportExportBar'
-import dynamic from 'next/dynamic'
-const StoreSelector = dynamic(() => import('@/components/pricebot/StoreSelector'), { ssr: false })
+import NextDynamic from 'next/dynamic'
+const StoreSelector = NextDynamic(() => import('@/components/pricebot/StoreSelector'), { ssr: false })
 
 export const dynamic = 'force-dynamic'
 
