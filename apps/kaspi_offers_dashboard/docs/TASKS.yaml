@@ -105,15 +105,21 @@ backlog:
     labels: [docs]
 
 in_progress:
-  - id: TEST-001
-    title: Tests: proposal math + routes smoke
-    desc: Unit tests for repricing logic; integration smoke for run/import/opponents.
+  - id: UI-002
+    title: Store/Merchant selector + sticky header polish
+    desc: Make header controls explicit and sticky; reflect current scope everywhere.
     ac:
-      - Green unit tests for logic; smoke tests planned next.
-    estimate: 4h
-    labels: [tests]
+      - Header shows merchantId + storeId selector(s); selecting updates table, export links, and stats.
+      - Persist last chosen merchant/store to localStorage and `STATE.json`.
+      - Sticky header with export/import buttons and bulk actions visible on scroll.
+    estimate: 3h
+    labels: [ui, ux]
 
 done:
+  - id: TEST-001
+    title: Tests: proposal math + routes smoke
+    ac:
+      - Unit tests for logic + route smoke for run/import/opponents added.
   - id: PERF-001
     title: Performance budgets and caching
     ac:
