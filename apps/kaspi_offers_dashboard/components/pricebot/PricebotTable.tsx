@@ -62,7 +62,8 @@ export default function PricebotTable({ storeId }: { storeId?: string }) {
     columnHelper.accessor(row=>row.settings?.active??false, { id:'active', header: 'Active', cell: info => {
       const r = info.row.original
       const val = !!(r.settings?.active)
-      return <input type="checkbox" defaultChecked={val} onChange={e=>debouncedSave(r.sku, { active: e.currentTarget.checked })} />
+      const isZero = Number(r.stock||0) <= 0
+      return <input type="checkbox" defaultChecked={isZero ? false : val} disabled={isZero} title={isZero? 'Auto-disabled: zero stock':''} onChange={e=>debouncedSave(r.sku, { active: e.currentTarget.checked })} />
     }}),
     columnHelper.accessor('name', { header: 'Name', cell: info => info.getValue() || '' }),
     columnHelper.accessor('sku', { header: 'SKU', cell: info => {
@@ -109,8 +110,8 @@ export default function PricebotTable({ storeId }: { storeId?: string }) {
         <div className="text-sm text-gray-500">Pricebot (live offers)</div>
         <div className="flex items-center gap-2">
           <input className="input" placeholder="Filter by text…" value={filter} onChange={e=>setFilter(e.target.value)} />
-          <a className="btn-outline" href="/api/pricebot/export?format=csv">Download CSV</a>
-          <a className="btn-outline" href="/api/pricebot/export?format=xlsx">Download XLSX</a>
+          <a className="btn-outline" href={`/api/pricebot/export?format=csv${storeId?`&storeId=${storeId}`:''}`}>Download CSV</a>
+          <a className="btn-outline" href={`/api/pricebot/export?format=xlsx${storeId?`&storeId=${storeId}`:''}`}>Download XLSX</a>
           <button className="btn-outline" onClick={load}>Reload</button>
         </div>
       </div>
@@ -131,13 +132,15 @@ export default function PricebotTable({ storeId }: { storeId?: string }) {
           ))}
         </thead>
         <tbody>
-          {table.getRowModel().rows.map(row => (
-            <tr key={row.id} className="border-t border-border">
+          {table.getRowModel().rows.map(row => {
+            const isZero = Number((row.original as any).stock||0) <= 0
+            return (
+            <tr key={row.id} className={`border-t border-border ${isZero ? 'opacity-50' : ''}`}>
               {row.getVisibleCells().map(cell => (
                 <td key={cell.id} className="p-2">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
               ))}
             </tr>
-          ))}
+          )})}
 
           {rows.length === 0 && !loading && !error && (
             <tr>
