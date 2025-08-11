@@ -102,47 +102,6 @@ export default function PricebotPanel({ storeId }: { storeId?: string }) {
         </div>
       </div>
       {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
-      <div className="overflow-x-auto min-h-[120px]">
-        {(!rows || rows.length===0) && !loading && !error && (
-          <div className="text-sm text-gray-500 p-2">No offers returned. Debug: see <a className="underline" href="/api/debug/merchant/list?raw=1" target="_blank">/api/debug/merchant/list?raw=1</a></div>
-        )}
-        <table className="min-w-full text-sm">
-          <thead className="text-left text-gray-500">
-            <tr>
-              <th className="p-2">Name</th>
-              <th className="p-2">Variant ID</th>
-              <th className="p-2">Our Price</th>
-              <th className="p-2">Min</th>
-              <th className="p-2">Max</th>
-              <th className="p-2">Step</th>
-              <th className="p-2">Interval</th>
-              <th className="p-2">Active</th>
-              <th className="p-2">Run</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r)=>{
-              const rule = r.rules || { minPrice: r.ourPrice, maxPrice: r.ourPrice, step: 1, intervalMin: 5, active: 0 }
-              return (
-                <tr key={r.variantProductId} className="border-t border-border">
-                  <td className="p-2">{r.name}</td>
-                  <td className="p-2 text-gray-500">{r.variantProductId}</td>
-                  <td className="p-2">{new Intl.NumberFormat('ru-KZ').format(r.ourPrice)}</td>
-                  <td className="p-2"><input className="input w-24" defaultValue={rule.minPrice} onBlur={e=>rule.minPrice=Number(e.currentTarget.value)} /></td>
-                  <td className="p-2"><input className="input w-24" defaultValue={rule.maxPrice} onBlur={e=>rule.maxPrice=Number(e.currentTarget.value)} /></td>
-                  <td className="p-2"><input className="input w-20" defaultValue={rule.step} onBlur={e=>rule.step=Number(e.currentTarget.value)} /></td>
-                  <td className="p-2"><input className="input w-20" defaultValue={rule.intervalMin} onBlur={e=>rule.intervalMin=Number(e.currentTarget.value)} /></td>
-                  <td className="p-2"><input type="checkbox" defaultChecked={!!rule.active} onChange={e=>rule.active = e.currentTarget.checked?1:0} /></td>
-                  <td className="p-2 flex gap-2">
-                    <button className="btn-outline" onClick={()=>saveRule(r.variantProductId, rule)}>Save</button>
-                    <button className="btn-outline" onClick={()=>reprice(r.variantProductId)}>Run</button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
     </div>
   )
 }

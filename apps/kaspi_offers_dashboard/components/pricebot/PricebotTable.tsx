@@ -1,6 +1,8 @@
 'use client';
 
 import {useEffect, useMemo, useRef, useState} from 'react';
+import { usePricebotStore } from '@/lib/pricebot/store'
+import { enrichRow } from '@/lib/pricebot/enrich'
 import { useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel, flexRender, createColumnHelper } from '@tanstack/react-table'
 import OpponentsModal from './OpponentsModal'
 import RunConfirmModal from './RunConfirmModal'
@@ -25,9 +27,10 @@ function pickItems(json: any): OfferRow[] {
 }
 
 export default function PricebotTable({ storeId }: { storeId?: string }) {
-  const [rows, setRows] = useState<OfferRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const rows = usePricebotStore(s=>s.rows) as any as OfferRow[]
+  const storeCity = String(process.env.NEXT_PUBLIC_DEFAULT_CITY_ID||'710000000')
+  const loading = usePricebotStore(s=>s.loading)
+  const error = usePricebotStore(s=>s.error)
   const saveQueue = useRef<ReturnType<typeof setTimeout>|null>(null)
 
   function debouncedSave(sku: string, patch: any) {
@@ -38,23 +41,8 @@ export default function PricebotTable({ storeId }: { storeId?: string }) {
     }, 500)
   }
 
-  async function load() {
-    try {
-      setLoading(true);
-      setError(null);
-      const url = `/api/pricebot/offers?withOpponents=false${storeId?`&merchantId=${storeId}`:''}`
-      const res = await fetch(url, { cache: 'no-store' });
-      const json = await res.json();
-      setRows(pickItems(json));
-    } catch (e: any) {
-      setError(e?.message ?? 'Failed to load');
-      setRows([]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => { load(); }, []);
+  async function load() { usePricebotStore.getState().loadOffers(storeId) }
+  useEffect(() => { load(); }, [storeId]);
 
   // Simple filter state
   const [filter, setFilter] = useState('')
@@ -69,7 +57,18 @@ export default function PricebotTable({ storeId }: { storeId?: string }) {
       const isZero = Number(r.stock||0) <= 0
       return <input type="checkbox" defaultChecked={isZero ? false : val} disabled={isZero} title={isZero? 'Auto-disabled: zero stock':''} onChange={e=>debouncedSave(r.sku, { active: e.currentTarget.checked })} />
     }}),
-    columnHelper.accessor('name', { header: 'Name', cell: info => info.getValue() || '' }),
+    columnHelper.accessor('name', { header: 'Name', cell: info => {
+      const name = info.getValue() || ''
+      const r = info.row.original
+      const n = Number(r.opponents||0)
+      return (
+        <div className="flex items-center gap-2">
+          <span>{name}</span>
+          <button className="text-xs underline" title="Show sellers" onClick={()=>setShowOpp({ sku: r.sku, productId: (r.productId as any)||null })}>{n}</button>
+          <button className="text-xs text-blue-400" title="Enrich" onClick={async()=>{ const e = await enrichRow(r as any, { cityId: storeCity }); usePricebotStore.getState().patchRow(String(r.productId||r.sku||''), e as any) }}>↻</button>
+        </div>
+      )
+    }}),
     columnHelper.accessor('sku', { header: 'SKU', cell: info => {
       const sku = info.getValue()||''
       const pid = info.row.original.productId
@@ -95,7 +94,7 @@ export default function PricebotTable({ storeId }: { storeId?: string }) {
       const r = info.row.original; const def = r.settings?.interval ?? 5
       return <input className="input w-20" defaultValue={def} onBlur={e=>debouncedSave(r.sku, { interval: Number(e.currentTarget.value) })} />
     }}),
-    columnHelper.accessor(row=>row.opponents ?? 0, { id:'opponents', header:'Opponents', cell: info => {
+    columnHelper.accessor(row=>row.opponents ?? 0, { id:'opponents', header:'Sellers', cell: info => {
       const r = info.row.original
       const n = Number(info.getValue()||0)
       return <button className="underline" onClick={()=>setShowOpp({ sku: r.sku, productId: (r.productId as any)||null })}>{n}</button>

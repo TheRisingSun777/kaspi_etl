@@ -9,6 +9,9 @@ All caches and routes are keyed by merchant/store/city (and product where releva
 ## 2025-08-11 — Settings source of truth migration to v2
 We standardized on `server/db/pricebot.settings.json` keyed by merchantId. UI writes via `/api/pricebot/settings` with `storeId` as merchantId; routes (opponents/run/export) now read v2 fields (minPrice/maxPrice/stepKzt/ignoredOpponents). Legacy `pricebot.json` helpers remain for backward compatibility but are not used for new writes.
 
+## 2025-08-11 — Stores source list from repo file
+We expose `/api/pricebot/stores` backed by `server/db/merchants.json` to avoid coupling to env vars and to keep store metadata (ids, labels) editable without code changes. The UI only needs id/name and persists the chosen id in localStorage, which also aligns with repo memory in `STATE.json` later.
+
 ## 2025-08-11 — Local telemetry for KPIs (runs)
 We persist lightweight run telemetry to `server/db/pricebot.runs.json` keyed by merchantId to power KPI tiles (`/api/pricebot/stats`). Each run stores timestamp, count, and avgDelta. This avoids DB complexity and keeps privacy local. Future: aggregate bulk runs and compute winRate once apply-path is implemented.
 

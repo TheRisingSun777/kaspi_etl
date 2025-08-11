@@ -1,3 +1,4 @@
+// 'use client'
 import PricebotPageClient from '@/components/pricebot/PricebotPageClient'
 
 export const dynamic = 'force-dynamic'

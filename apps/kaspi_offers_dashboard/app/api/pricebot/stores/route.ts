@@ -1,4 +1,29 @@
 import { NextResponse } from 'next/server'
+import { readMerchants } from '@/server/merchants'
+
+export const runtime = 'nodejs'
+
+export async function GET() {
+  try {
+    const list = readMerchants()
+    // Normalize to simple id/name pairs expected by the UI
+    const items = Array.isArray(list)
+      ? Array.from(
+          new Map(
+            list
+              .map((m: any) => ({ id: String(m.id || m.merchantId || ''), name: String(m.name || m.label || m.id || '') }))
+              .filter((m) => !!m.id)
+              .map((m) => [m.id, m])
+          ).values()
+        )
+      : []
+    return NextResponse.json({ ok: true, items })
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 })
+  }
+}
+
+import { NextResponse } from 'next/server'
 import { readMerchants, writeMerchants } from '@/server/merchants'
 
 export function GET() {

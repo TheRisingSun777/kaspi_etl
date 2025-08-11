@@ -1,4 +1,29 @@
 {
-  "rules": {},
+  "rules": {
+    "108382483": {
+      "variantId": "108382483",
+      "minPrice": 8648,
+      "maxPrice": 8648,
+      "step": 1,
+      "intervalMin": 5,
+      "active": 0
+    },
+    "120938458": {
+      "variantId": "120938458",
+      "minPrice": 12000,
+      "maxPrice": 13000,
+      "step": 1,
+      "intervalMin": 5,
+      "active": 1
+    },
+    "121213229": {
+      "variantId": "121213229",
+      "minPrice": 17990,
+      "maxPrice": 17990,
+      "step": 1,
+      "intervalMin": 5,
+      "active": 1
+    }
+  },
   "ignored": {}
 }

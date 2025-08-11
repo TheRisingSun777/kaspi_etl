@@ -252,8 +252,7 @@ async function discoverVariantMap(page: Page): Promise<Record<string, string>> {
 
       // 0) Directly read global BACKEND object if available
       try {
-          // @ts-expect-error intentional access to BACKEND injected by page
-        const conf = (window as any)?.BACKEND?.components?.configurator;
+        const conf = (window as any)?.BACKEND?.components?.configurator as any;
         if (conf && Array.isArray(conf.matrix)) {
           function walk(node: any, ctx: { dim?: string }) {
             const ch = node?.characteristic || {};
@@ -279,8 +278,7 @@ async function discoverVariantMap(page: Page): Promise<Record<string, string>> {
       try {
         const m = html.match(/BACKEND\.components\.configurator\s*=\s*(\{[\s\S]*?\});/);
         if (m) {
-          // @ts-expect-error dynamic JSON from page
-          const conf = JSON.parse(m[1] as string);
+          const conf: any = JSON.parse(m[1] as string);
 
           function walk(node: any, ctx: { color?: string; size?: string; dim?: string }) {
             if (!node) return;
@@ -302,7 +300,6 @@ async function discoverVariantMap(page: Page): Promise<Record<string, string>> {
                const label = `${next.size || ''}${dim}`.trim();
                if (pid && label) out[pid] = label;
                // Attach color/size/name metadata when available for export
-               // @ts-expect-error dynamic augmentation for export labels
                if (!out[pid] && next.color) out[pid] = label || String(next.color);
             }
             if (Array.isArray(node.matrix)) {

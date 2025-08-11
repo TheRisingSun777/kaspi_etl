@@ -14,12 +14,15 @@ export async function POST(req: Request) {
     // formidable expects Node request; Next provides web Request; we can buffer
     const buf = Buffer.from(await req.arrayBuffer())
     const contentType = req.headers.get('content-type') || ''
-    const form = formidable({ multiples: false })
-    const files: any = await new Promise((resolve, reject) => {
-      form.parse({ headers: { 'content-type': contentType } } as any, (err, fields, files) => {
-        if (err) reject(err); else resolve({ fields, files })
-      })
-    }).catch(()=>null)
+    let files: any = null
+    if (/multipart\/form-data/i.test(contentType)) {
+      const form = formidable({ multiples: false })
+      files = await new Promise((resolve, reject) => {
+        form.parse({ headers: { 'content-type': contentType } } as any, (err, fields, files) => {
+          if (err) reject(err); else resolve({ fields, files })
+        })
+      }).catch(()=>null)
+    }
     // Fallback: try reading as single buffer (not full formidable in edge env). We'll support only one file in body
     let rows: any[] = []
     try {

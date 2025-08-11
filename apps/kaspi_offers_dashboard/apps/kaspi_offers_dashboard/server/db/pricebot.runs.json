@@ -1,0 +1,31 @@
+{
+  "test-store": [
+    {
+      "ts": "2025-08-11T12:34:18.536Z",
+      "merchantId": "test-store",
+      "storeId": "test-store",
+      "mode": "dry",
+      "count": 1,
+      "avgDelta": 0,
+      "applied": false
+    },
+    {
+      "ts": "2025-08-11T12:50:09.935Z",
+      "merchantId": "test-store",
+      "storeId": "test-store",
+      "mode": "dry",
+      "count": 1,
+      "avgDelta": 0,
+      "applied": false
+    },
+    {
+      "ts": "2025-08-11T12:51:02.522Z",
+      "merchantId": "test-store",
+      "storeId": "test-store",
+      "mode": "dry",
+      "count": 1,
+      "avgDelta": 0,
+      "applied": false
+    }
+  ]
+}

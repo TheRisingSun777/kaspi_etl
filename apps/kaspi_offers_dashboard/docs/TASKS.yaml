@@ -112,6 +112,8 @@ in_progress:
       - Header shows merchantId + storeId selector(s); selecting updates table, export links, and stats.
       - Persist last chosen merchant/store to localStorage and `STATE.json`.
       - Sticky header with export/import buttons and bulk actions visible on scroll.
+    progress:
+      - 2025-08-11: Added `/api/pricebot/stores` route and wired `StoreSelector`; header made sticky in `PricebotPageClient`.
     estimate: 3h
     labels: [ui, ux]
 
