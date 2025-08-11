@@ -4,6 +4,7 @@ import {useEffect, useMemo, useRef, useState} from 'react';
 import { useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel, flexRender, createColumnHelper } from '@tanstack/react-table'
 import OpponentsModal from './OpponentsModal'
 import RunConfirmModal from './RunConfirmModal'
+import BulkProgress from './BulkProgress'
 
 type OfferRow = {
   sku: string;
@@ -60,6 +61,7 @@ export default function PricebotTable({ storeId }: { storeId?: string }) {
   const columnHelper = createColumnHelper<OfferRow>()
   const [showOpp, setShowOpp] = useState<{sku:string, productId:number|null}|null>(null)
   const [confirmRun, setConfirmRun] = useState<{ sku:string; ourPrice:number; target:number }|null>(null)
+  const [bulkJob, setBulkJob] = useState<string|undefined>()
   const columns = useMemo(()=>[
     columnHelper.accessor(row=>row.settings?.active??false, { id:'active', header: 'Active', cell: info => {
       const r = info.row.original
@@ -121,7 +123,7 @@ export default function PricebotTable({ storeId }: { storeId?: string }) {
           <a className="btn-outline" href={`/api/pricebot/export?format=xlsx${storeId?`&storeId=${storeId}`:''}`}>Download XLSX</a>
           <button className="btn-outline" onClick={async()=>{
             const res = await fetch('/api/pricebot/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ storeId }) })
-            const js = await res.json(); if (js?.jobId) alert(`Bulk job started: ${js.jobId}`)
+            const js = await res.json(); if (js?.jobId) setBulkJob(js.jobId)
           }}>Bulk Run</button>
           <button className="btn-outline" onClick={load}>Reload</button>
         </div>
@@ -182,6 +184,9 @@ export default function PricebotTable({ storeId }: { storeId?: string }) {
         onApply={async()=>{ await fetch('/api/pricebot/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ storeId, sku: confirmRun.sku, ourPrice: confirmRun.ourPrice, dry: false }) }); setConfirmRun(null); await load() }}
         onClose={()=>setConfirmRun(null)}
       />
+    )}
+    {bulkJob && (
+      <BulkProgress jobId={bulkJob} onClose={()=>setBulkJob(undefined)} />
     )}
   </>
   );

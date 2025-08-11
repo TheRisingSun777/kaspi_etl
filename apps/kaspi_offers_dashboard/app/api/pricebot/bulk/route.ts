@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
-import { RunInputSchema } from '@/server/lib/validation'
+import { BulkInputSchema } from '@/server/lib/validation'
 import { createJob, getJob, updateJob } from '@/server/db/pricebot.jobs'
 import { getSettings } from '@/server/db/pricebot.settings'
 
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(()=>({}))
-    const parsed = RunInputSchema.extend({ skus: (RunInputSchema.shape.sku as any).array().optional(), scope: (RunInputSchema.shape.sku as any).optional() }).safeParse(body)
+    const parsed = BulkInputSchema.safeParse(body)
     if (!parsed.success) return NextResponse.json({ ok:false, code:'bad_input', message:'Invalid bulk input', details: parsed.error.flatten() }, { status: 400 })
     const { storeId, merchantId, skus } = parsed.data as any
     const mId = String(storeId || merchantId || '')
