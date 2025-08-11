@@ -7,3 +7,4 @@
 - 2025-08-11 10:48 UTC — CORE-001: Offers endpoint maps v2 settings (minPrice/maxPrice/stepKzt/intervalMin/ignoredOpponents) to UI shape.
 - 2025-08-11 10:51 UTC — CORE-001 marked done; moving focus to KPI-001 next per plan.
 - 2025-08-11 10:58 UTC — KPI-001: Added `/api/pricebot/stats` and overview tiles in `PricebotPanel`; accepts storeId/merchantId; placeholders for winRate/lastRun.*.
+- 2025-08-11 11:04 UTC — KPI-001: Implemented local telemetry storage (`server/db/pricebot.runs.json`); `/stats` now returns lastRunCount/lastRunAvgDelta; single-run records on dry-run.
