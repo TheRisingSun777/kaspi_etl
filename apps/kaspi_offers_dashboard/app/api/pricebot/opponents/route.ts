@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { chromium } from 'playwright'
 import { extractProductIdAndVariantFromSku } from '@/server/pricebot/sku'
+import { getSettings } from '@/server/db/pricebot.settings'
 
 const cache = new Map<string, { expires: number; data: any[] }>()
 
@@ -10,13 +11,14 @@ export async function GET(req: Request) {
     let productId = String(searchParams.get('productId') || '')
     const sku = searchParams.get('sku') || ''
     const cityId = String(searchParams.get('cityId') || process.env.DEFAULT_CITY_ID || '710000000')
+    const merchantId = String(searchParams.get('merchantId') || process.env.KASPI_MERCHANT_ID || '')
     if (!productId && sku) {
       const e = extractProductIdAndVariantFromSku(sku)
       if (e.productId) productId = String(e.productId)
     }
     if (!productId) return NextResponse.json({ ok: true, items: [] })
 
-    const ck = `${productId}:${cityId}`
+    const ck = `${productId}:${cityId}:${merchantId}`
     const now = Date.now()
     const hit = cache.get(ck)
     if (hit && hit.expires > now) return NextResponse.json({ ok: true, items: hit.data })
@@ -30,11 +32,13 @@ export async function GET(req: Request) {
         const js = await res.json().catch(()=>null)
         const arr: any[] = Array.isArray(js?.data) ? js.data : Array.isArray(js?.offers) ? js.offers : Array.isArray(js) ? js : []
         if (arr.length) {
+          const ignore = new Set([...(getSettings(merchantId).globalIgnoredOpponents||[]), ...((sku?getSettings(merchantId).sku[sku]?.ignoredOpponents:[])||[])])
           const sellers = arr.map((r:any)=>({
-            merchantUID: String(r.merchantId || r.merchantUID || r.sellerId || ''),
-            merchantName: String(r.merchantName || r.sellerName || ''),
+            sellerId: String(r.merchantId || r.merchantUID || r.sellerId || ''),
+            sellerName: String(r.merchantName || r.sellerName || ''),
             price: Number(r.price || r.minPrice || r.priceBase || 0),
-            isOurStore: String(r.merchantId || r.merchantUID || '') === String(process.env.KASPI_MERCHANT_ID || ''),
+            isYou: String(r.merchantId || r.merchantUID || '') === merchantId,
+            isIgnored: ignore.has(String(r.merchantId || r.merchantUID || r.sellerId || '')),
           })).filter(s=>s.price>0)
           sellers.sort((a,b)=>a.price-b.price)
           cache.set(ck, { expires: now + 3*60*1000, data: sellers })
@@ -65,9 +69,10 @@ export async function GET(req: Request) {
     })
     await browser.close()
     sellers.sort((a:any,b:any)=>a.price-b.price)
-    for (const s of sellers) s.isOurStore = String(s.merchantUID) === String(process.env.KASPI_MERCHANT_ID || '')
-    cache.set(ck, { expires: now + 3*60*1000, data: sellers })
-    return NextResponse.json({ ok: true, items: sellers })
+    const ignore = new Set([...(getSettings(merchantId).globalIgnoredOpponents||[]), ...((sku?getSettings(merchantId).sku[sku]?.ignoredOpponents:[])||[])])
+    const mapped = sellers.map((s:any)=>({ sellerId: String(s.merchantUID||''), sellerName: s.merchantName, price: Number(s.price||0), isYou: String(s.merchantUID||'')===merchantId, isIgnored: ignore.has(String(s.merchantUID||'')) }))
+    cache.set(ck, { expires: now + 3*60*1000, data: mapped })
+    return NextResponse.json({ ok: true, items: mapped })
   } catch (e:any) {
     return NextResponse.json({ ok: true, items: [] })
   }
