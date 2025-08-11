@@ -1,3 +1,4 @@
+- 2025-08-11 12:42 UTC — SAFE-001: Added shared zod validators for run/bulk/export/settings and unified bad_input error responses.
 - 2025-08-11 12:35 UTC — BULK-001: Added bulk apply endpoint and Apply All button in progress modal; records appended for applied items.
 - 2025-08-11 12:28 UTC — BULK-001: Added progress polling UI with modal; basic proposals per SKU produced server-side.
 - 2025-08-11 12:20 UTC — BULK-001: Added bulk run endpoint with simple job tracking and UI trigger; background processes SKU list into proposals.

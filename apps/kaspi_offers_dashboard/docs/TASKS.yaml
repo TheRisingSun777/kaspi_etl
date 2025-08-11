@@ -105,16 +105,21 @@ backlog:
     labels: [docs]
 
 in_progress:
-  - id: BULK-001
-    title: Bulk run with job progress (dry default) + optional apply
-    desc: As defined above.
+  - id: SAFE-001
+    title: Endpoint hardening + unified zod validation
+    desc: Add strict zod schemas for run/bulk/export/import/settings and normalize API error shape.
     ac:
-      - `/api/pricebot/bulk` enqueues and returns jobId; `/api/pricebot/bulk?jobId=` returns progress with proposals.
-      - `/api/pricebot/bulk/:jobId/apply` applies remaining proposals and returns summary; telemetry appended.
-    estimate: 7h
-    labels: [pricebot, run, bulk, jobs, ui]
+      - Shared zod validators in `server/lib/validation.ts`.
+      - Every route returns `{ ok:false, code, message, details? }` on failure; 4xx for user errors, 5xx for upstream.
+      - UI shows friendly messages (toasts) and highlights bad fields where relevant (import preview).
+    estimate: 3h
+    labels: [zod, api, ux]
 
 done:
+  - id: BULK-001
+    title: Bulk run with job progress (dry default) + optional apply
+    ac:
+      - Bulk enqueues jobs, supports progress polling, and apply-all endpoint with telemetry.
   - id: RUN-001
     title: Single SKU "run → confirm → apply" (dry by default)
     ac:

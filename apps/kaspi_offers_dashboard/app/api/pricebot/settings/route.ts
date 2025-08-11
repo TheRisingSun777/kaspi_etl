@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSettings as getV2, upsertSettings as upsertV2 } from '@/server/db/pricebot.settings'
+import { SettingsPostSchema } from '@/server/lib/validation'
 
 export async function GET(req: Request) {
   const url = new URL(req.url)
@@ -10,7 +11,10 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json()
+    const raw = await req.json()
+    const parsed = SettingsPostSchema.safeParse(raw)
+    if (!parsed.success) return NextResponse.json({ ok:false, code:'bad_input', message:'Invalid settings input', details: parsed.error.flatten() }, { status:400 })
+    const body = parsed.data
     const merchantId = String(body.merchantId || body.storeId || process.env.KASPI_MERCHANT_ID || '')
     const rawUpdates: Record<string, any> = body?.updates || body?.items || {}
     const updates: Record<string, any> = {}

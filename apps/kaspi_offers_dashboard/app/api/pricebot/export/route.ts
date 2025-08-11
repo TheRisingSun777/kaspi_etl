@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getMerchantId, mcFetch } from '@/lib/kaspi/client'
 import ExcelJS from 'exceljs'
 import { getSettings } from '@/server/db/pricebot.settings'
+import { ExportQuerySchema } from '@/server/lib/validation'
 
 export const runtime = 'nodejs'
 
@@ -34,10 +35,17 @@ function toRows(items: any[], merchantId: string, cityId: string) {
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
-  const format = (searchParams.get('format') || 'csv').toLowerCase()
+  const parsed = ExportQuerySchema.safeParse({
+    merchantId: searchParams.get('merchantId') || searchParams.get('storeId') || undefined,
+    storeId: searchParams.get('storeId') || undefined,
+    cityId: searchParams.get('cityId') || undefined,
+    format: (searchParams.get('format') || 'csv').toLowerCase(),
+  })
+  if (!parsed.success) return NextResponse.json({ ok:false, code:'bad_input', message:'Invalid export query', details: parsed.error.flatten() }, { status:400 })
+  const { format, merchantId: mid, storeId, cityId } = parsed.data
   try {
-    const merchantId = String(searchParams.get('merchantId') || searchParams.get('storeId') || process.env.KASPI_MERCHANT_ID || '')
-    const cityId = String(searchParams.get('cityId') || process.env.DEFAULT_CITY_ID || '710000000')
+    const merchantId = String(mid || storeId || process.env.KASPI_MERCHANT_ID || '')
+    const city = String(cityId || process.env.DEFAULT_CITY_ID || '710000000')
     const m = getMerchantId()
     // Use the same list endpoint as the table. If 400/401 fallback to smaller page length.
     let res = await mcFetch(`/bff/offer-view/list?m=${m}&p=0&l=100&a=true&t=&c=&lowStock=false&notSpecifiedStock=false`)
@@ -64,7 +72,7 @@ export async function GET(req: Request) {
       }
     })
 
-    const rows = toRows(items, merchantId, cityId)
+    const rows = toRows(items, merchantId, city)
 
     if (format === 'xlsx') {
       const wb = new ExcelJS.Workbook()
@@ -76,7 +84,7 @@ export async function GET(req: Request) {
         ws.addRow([
           merchantId,
           merchantId,
-          cityId,
+          city,
           '',
           base.SKU,
           '',
@@ -99,7 +107,7 @@ export async function GET(req: Request) {
     const csvRows = rows.map((r:any)=>[
       merchantId,
       merchantId,
-      cityId,
+      city,
       '',
       r.SKU,
       '',

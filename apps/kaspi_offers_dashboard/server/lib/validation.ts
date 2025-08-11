@@ -25,4 +25,47 @@ export const BulkInputSchema = z.object({
 
 export type BulkInput = z.infer<typeof BulkInputSchema>
 
+export const ExportQuerySchema = z.object({
+  merchantId: z.string().optional(),
+  storeId: z.string().optional(),
+  cityId: z.union([z.string(), z.number()]).optional(),
+  format: z.enum(['csv','xlsx']).default('csv')
+})
+
+export const SettingsPostSchema = z.object({
+  merchantId: z.string().optional(),
+  storeId: z.string().optional(),
+  updates: z.record(z.object({
+    active: z.boolean().optional(),
+    min: z.number().optional(),
+    max: z.number().optional(),
+    step: z.number().optional(),
+    interval: z.number().optional(),
+    ignoredOpponents: z.array(z.string()).optional(),
+    // v2 keys
+    minPrice: z.number().optional(),
+    maxPrice: z.number().optional(),
+    stepKzt: z.number().optional(),
+    intervalMin: z.number().optional(),
+    ignoreSellers: z.array(z.string()).optional(),
+  })).optional(),
+  items: z.record(z.object({
+    active: z.boolean().optional(),
+    min: z.number().optional(),
+    max: z.number().optional(),
+    step: z.number().optional(),
+    interval: z.number().optional(),
+  })).optional(),
+  globalIgnore: z.array(z.string()).optional(),
+  global: z.object({ ignoreSellers: z.array(z.string()).optional() }).optional(),
+})
+
+export const ImportRowSchema = z.object({
+  sku: z.string().min(1),
+  min: z.number().optional(),
+  max: z.number().optional(),
+  step: z.number().optional(),
+  active: z.boolean().optional(),
+})
+
 
