@@ -1,3 +1,4 @@
+- 2025-08-11 12:35 UTC — BULK-001: Added bulk apply endpoint and Apply All button in progress modal; records appended for applied items.
 - 2025-08-11 12:28 UTC — BULK-001: Added progress polling UI with modal; basic proposals per SKU produced server-side.
 - 2025-08-11 12:20 UTC — BULK-001: Added bulk run endpoint with simple job tracking and UI trigger; background processes SKU list into proposals.
 - 2025-08-11 12:08 UTC — RUN-001: Added zod validation + apply path for single run; UI confirm modal with Apply; run records appended with applied flag.

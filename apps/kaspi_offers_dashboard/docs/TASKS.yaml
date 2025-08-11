@@ -110,6 +110,7 @@ in_progress:
     desc: As defined above.
     ac:
       - `/api/pricebot/bulk` enqueues and returns jobId; `/api/pricebot/bulk?jobId=` returns progress with proposals.
+      - `/api/pricebot/bulk/:jobId/apply` applies remaining proposals and returns summary; telemetry appended.
     estimate: 7h
     labels: [pricebot, run, bulk, jobs, ui]
 

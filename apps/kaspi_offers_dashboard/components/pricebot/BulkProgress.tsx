@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 export default function BulkProgress({ jobId, onClose }:{ jobId:string; onClose:()=>void }){
   const [job, setJob] = useState<any>(null)
   const [err, setErr] = useState<string|undefined>()
+  const [applying, setApplying] = useState(false)
   useEffect(()=>{
     let alive = true
     const tick = async()=>{
@@ -28,7 +29,10 @@ export default function BulkProgress({ jobId, onClose }:{ jobId:string; onClose:
         <div className="text-sm">Status: {job?.status || 'queued'}</div>
         <div className="w-full bg-gray-700/40 h-2 rounded"><div className="bg-blue-500 h-2 rounded" style={{ width: `${pct}%` }} /></div>
         <div className="text-xs text-gray-400">{job?.processed || 0}/{job?.total || 0} ({pct}%)</div>
-        <div className="flex justify-end"><button className="btn-outline" onClick={onClose}>Close</button></div>
+        <div className="flex justify-end gap-2">
+          {job?.status==='done' && <button className="btn" disabled={applying} onClick={async()=>{ setApplying(true); await fetch(`/api/pricebot/bulk/${jobId}/apply`, { method:'POST' }); setApplying(false) }}>Apply All</button>}
+          <button className="btn-outline" onClick={onClose}>Close</button>
+        </div>
       </div>
     </div>
   )
