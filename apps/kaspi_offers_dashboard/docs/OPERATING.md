@@ -26,6 +26,8 @@ Keep working memory in the repo so work can resume even if the chat resets.
 - Never commit secrets or cookies. Use local files (e.g., `server/cookies/{merchantId}.json`) and keep them in `.gitignore`.
 - Repricing endpoints run **dry by default**; require explicit confirmation to apply.
 - Validate all import/user inputs with zod; surface typed errors to the UI with toasts.
+ - Cookie refresh: run `node apps/kaspi_offers_dashboard/server/scripts/login.mjs <merchantId>` and then verify via `POST /api/auth/cookie-status`.
+When the chat approaches 80 % of the token limit, checkpoint your work to PROGRESS.md, update STATE.json, and start a new chat with the unified intro prompt. This prevents context loss.
 
 ## Interfaces (current expectations)
 (All accept `merchantId`; where applicable also `storeId` and `cityId`.)

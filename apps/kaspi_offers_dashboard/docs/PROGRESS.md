@@ -1,3 +1,4 @@
+- 2025-08-11 12:56 UTC — AUTH-001: Added cookie-status route and login.mjs script; documented steps in OPERATING.md.
 - 2025-08-11 12:50 UTC — OPP-002: Opponents robustness — JSON backoff, dedupe+sort, extended selectors, 180s cache, and daily trace logs.
 - 2025-08-11 12:42 UTC — SAFE-001: Added shared zod validators for run/bulk/export/settings and unified bad_input error responses.
 - 2025-08-11 12:35 UTC — BULK-001: Added bulk apply endpoint and Apply All button in progress modal; records appended for applied items.

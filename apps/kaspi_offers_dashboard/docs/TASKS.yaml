@@ -105,17 +105,21 @@ backlog:
     labels: [docs]
 
 in_progress:
-  - id: OPP-002
-    title: Opponents robustness: fallback, dedupe, throttling
-    desc: Make opponents retrieval resilient to layout changes and rate limits.
+  - id: AUTH-001
+    title: Cookie login utility (manual refresh)
+    desc: Provide a small script + route to refresh merchant cookies safely outside git.
     ac:
-      - JSON first with backoff; scrape fallback with extended selectors.
-      - Dedupe by seller and sort asc; keep flags.
-      - Cache TTL 180s; daily trace logs.
-    estimate: 4h
-    labels: [opponents, scraping, caching, reliability]
+      - Script `server/scripts/login.mjs` launches login and writes `server/cookies/{merchantId}.json`.
+      - `POST /api/auth/cookie-status` checks cookie file existence + age.
+      - OPERATING.md documents refresh steps.
+    estimate: 3h
+    labels: [auth, ops]
 
 done:
+  - id: OPP-002
+    title: Opponents robustness: fallback, dedupe, throttling
+    ac:
+      - JSON backoff + scraper fallback; dedupe/sort; 180s cache; daily logs.
   - id: SAFE-001
     title: Endpoint hardening + unified zod validation
     ac:
