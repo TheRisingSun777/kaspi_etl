@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getItemSettingsOrDefault, readStore } from '@/server/db/pricebot.store'
+import { readStore } from '@/server/db/pricebot.store'
+import { getSettings } from '@/server/db/pricebot.settings'
 import { extractProductIdAndVariantFromSku } from '@/server/pricebot/sku'
 import { readCookieForMerchant } from '@/lib/kaspi/mcCookieStore'
 export const runtime = 'nodejs'
@@ -58,9 +59,10 @@ export async function GET(req: Request) {
     }
 
     const stAll = readStore() // legacy settings merge (kept for now)
+    const stV2 = getSettings(merchantId)
     const offers = picked.arr.map((o: any) => {
       const sku = o.merchantSku || o.sku || o.offerSku || o.id || ''
-      const settings = sku ? getItemSettingsOrDefault(sku) : undefined
+      const v2 = sku ? stV2.sku[sku] : undefined
       const stockKeys = ['stock','qty','quantity','availableAmount','freeBalance','available','stockTotal']
       const stock = (()=>{
         for (const k of stockKeys) {
@@ -94,15 +96,22 @@ export async function GET(req: Request) {
         if (e.productId) productId = e.productId
       }
       const offerName = o.masterTitle || o.title || o.name || o.productName || ''
-      // default min/max to current price if settings are zeros
-      const minDefault = settings && (!settings.min || settings.min===0) ? Number(o.price ?? o.currentPrice ?? o.offerPrice ?? o.value ?? 0) : settings?.min
-      const maxDefault = settings && (!settings.max || settings.max===0) ? Number(o.price ?? o.currentPrice ?? o.offerPrice ?? o.value ?? 0) : settings?.max
-      const fixedSettings = settings ? { ...settings, min: Number(minDefault||0), max: Number(maxDefault||0) } : undefined
+      const curPrice = Number(o.price ?? o.currentPrice ?? o.offerPrice ?? o.value ?? 0)
+      const fixedSettings = v2
+        ? {
+            active: !!v2.active,
+            min: Number(v2.minPrice || 0) || curPrice || 0,
+            max: Number(v2.maxPrice || 0) || curPrice || 0,
+            step: Number(v2.stepKzt || 1),
+            interval: Number(v2.intervalMin || 5),
+            ignoreSellers: Array.isArray(v2.ignoredOpponents) ? v2.ignoredOpponents : [],
+          }
+        : undefined
       return {
         name: offerName,
         sku: sku || null,
         productId,
-        price: Number(o.price ?? o.currentPrice ?? o.offerPrice ?? o.value ?? 0),
+        price: curPrice,
         stock,
         opponents: Number(o.sellersCount || o.opponents || 0),
         settings: fixedSettings,
