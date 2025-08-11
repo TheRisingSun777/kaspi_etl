@@ -6,3 +6,4 @@
 - 2025-08-11 10:44 UTC — CORE-001: Fixed typecheck, added `@types/formidable`; export links include `storeId`; cleaned scrape types to remove unnecessary ts-expect-error warnings.
 - 2025-08-11 10:48 UTC — CORE-001: Offers endpoint maps v2 settings (minPrice/maxPrice/stepKzt/intervalMin/ignoredOpponents) to UI shape.
 - 2025-08-11 10:51 UTC — CORE-001 marked done; moving focus to KPI-001 next per plan.
+- 2025-08-11 10:58 UTC — KPI-001: Added `/api/pricebot/stats` and overview tiles in `PricebotPanel`; accepts storeId/merchantId; placeholders for winRate/lastRun.*.

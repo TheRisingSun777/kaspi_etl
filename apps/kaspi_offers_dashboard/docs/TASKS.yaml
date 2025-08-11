@@ -41,14 +41,14 @@ backlog:
     estimate: 2h
     labels: [ui, opponents]
 in_progress:
-  - id: CORE-001
-    title: Wire merchantId/cityId end-to-end
-    desc: Ensure every route + UI call is merchant-aware and cached by merchant/store/city/product.
+  - id: KPI-001
+    title: KPIs + /stats
+    desc: Tiles for overall health.
     ac:
-      - Offers/opponents/settings/export/import/run/bulk/stats accept merchantId; UI passes it.
-      - Caches keyed by merchant+store+city or product as appropriate.
-    estimate: 2h
-    labels: [core]
+      - `/api/pricebot/stats` returns: totalSKUs, activeSKUs, zeroStock, competingSKUs, winRate, lastRunCount, lastRunAvgDelta.
+      - UI renders 4–6 tiles; zero‑stock rows greyed/inactive.
+    estimate: 3h
+    labels: [kpi, ui]
 done:
   - id: OFR-001
     title: Offers route accepts merchantId + search
