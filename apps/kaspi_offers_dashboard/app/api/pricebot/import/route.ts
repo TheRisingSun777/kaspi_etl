@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { upsertItemsBatch } from '@/server/db/pricebot.store'
+import { upsertSettings as upsertV2 } from '@/server/db/pricebot.settings'
 import formidable from 'formidable'
 import fs from 'node:fs'
 import ExcelJS from 'exceljs'
@@ -63,18 +63,18 @@ export async function POST(req: Request) {
 
     const changes: any[] = []
     if (!dryRun) {
-      const batch: Record<string, any> = {}
+      const updates: Record<string, any> = {}
       for (const r of rows) {
         if (!r.sku) continue
-        batch[String(r.sku)] = {
-          active: r.active,
-          min: isFiniteNumber(r.min) ? r.min : undefined,
-          max: isFiniteNumber(r.max) ? r.max : undefined,
-          step: isFiniteNumber(r.step) ? r.step : undefined,
+        updates[String(r.sku)] = {
+          active: !!r.active,
+          minPrice: isFiniteNumber(r.min) ? r.min : undefined,
+          maxPrice: isFiniteNumber(r.max) ? r.max : undefined,
+          stepKzt: isFiniteNumber(r.step) ? r.step : undefined,
         }
       }
-      const st = upsertItemsBatch(batch)
-      Object.keys(batch).slice(0,5).forEach(sku=> changes.push({ sku, settings: st.items[sku] }))
+      const st = upsertV2(String(storeId || ''), updates)
+      Object.keys(updates).slice(0,5).forEach(sku=> changes.push({ sku, settings: st.sku[sku] }))
     }
     return NextResponse.json({ ok: true, dryRun, total: rows.length, applied: dryRun ? 0 : Object.keys(rows).length, sample: changes.slice(0, 5), storeId: storeId || undefined })
   } catch (e:any) {

@@ -5,7 +5,7 @@ import { getSettings } from '@/server/db/pricebot.settings'
 
 export const runtime = 'nodejs'
 
-function toRows(items: any[], merchantId: string) {
+function toRows(items: any[], merchantId: string, cityId: string) {
   const st = getSettings(merchantId)
   return items.map((it:any)=>{
     const price = Number(it.price ?? 0)
@@ -14,6 +14,9 @@ function toRows(items: any[], merchantId: string) {
     const min = Number(item?.minPrice ?? 0)
     const max = Number(item?.maxPrice ?? 0)
     return {
+      merchantId,
+      storeId: merchantId,
+      cityId,
       SKU: sku,
       model: '',
       brand: '',
@@ -23,7 +26,7 @@ function toRows(items: any[], merchantId: string) {
       min_price: min || price || '',
       max_price: max || price || '',
       step: Number(item?.stepKzt ?? 1),
-      shop_link: it.productId ? `https://kaspi.kz/shop/p/-${it.productId}/?c=${process.env.DEFAULT_CITY_ID || '710000000'}` : `https://kaspi.kz/shop/search/?text=${encodeURIComponent(it.sku)}`,
+      shop_link: it.productId ? `https://kaspi.kz/shop/p/-${it.productId}/?c=${cityId}` : `https://kaspi.kz/shop/search/?text=${encodeURIComponent(it.sku)}`,
       pricebot_status: item?.active ? 'on' : 'off',
     }
   })
@@ -34,6 +37,7 @@ export async function GET(req: Request) {
   const format = (searchParams.get('format') || 'csv').toLowerCase()
   try {
     const merchantId = String(searchParams.get('merchantId') || searchParams.get('storeId') || process.env.KASPI_MERCHANT_ID || '')
+    const cityId = String(searchParams.get('cityId') || process.env.DEFAULT_CITY_ID || '710000000')
     const m = getMerchantId()
     // Use the same list endpoint as the table. If 400/401 fallback to smaller page length.
     let res = await mcFetch(`/bff/offer-view/list?m=${m}&p=0&l=100&a=true&t=&c=&lowStock=false&notSpecifiedStock=false`)
@@ -60,20 +64,56 @@ export async function GET(req: Request) {
       }
     })
 
-    const rows = toRows(items, merchantId)
+    const rows = toRows(items, merchantId, cityId)
 
     if (format === 'xlsx') {
       const wb = new ExcelJS.Workbook()
       const ws = wb.addWorksheet('pricebot')
-      const headers = ['SKU','model','brand','price','PP1','preorder','min_price','max_price','step','shop_link','pricebot_status']
+      const headers = ['merchantId','storeId','cityId','productId','sku','name','price','stock','active','min_price','max_price','step','interval','shop_link','pricebot_status']
       ws.addRow(headers)
-      rows.forEach(r=>ws.addRow(headers.map(h=>(r as any)[h])))
+      rows.forEach(r=>{
+        const base = (r as any)
+        ws.addRow([
+          merchantId,
+          merchantId,
+          cityId,
+          '',
+          base.SKU,
+          '',
+          base.price,
+          '',
+          base.pricebot_status==='on',
+          base.min_price,
+          base.max_price,
+          base.step,
+          '',
+          base.shop_link,
+          base.pricebot_status,
+        ])
+      })
       const buf = await wb.xlsx.writeBuffer()
       return new NextResponse(buf as any, { headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition': 'attachment; filename="pricebot.xlsx"' } })
     }
 
-    const headers = ['SKU','model','brand','price','PP1','preorder','min_price','max_price','step','shop_link','pricebot_status']
-    const csv = [headers.join(','), ...rows.map(r=>headers.map(h=>String((r as any)[h] ?? '')).join(','))].join('\n')
+    const csvHeaders = ['merchantId','storeId','cityId','productId','sku','name','price','stock','active','min_price','max_price','step','interval','shop_link','pricebot_status']
+    const csvRows = rows.map((r:any)=>[
+      merchantId,
+      merchantId,
+      cityId,
+      '',
+      r.SKU,
+      '',
+      r.price,
+      '',
+      r.pricebot_status==='on',
+      r.min_price,
+      r.max_price,
+      r.step,
+      '',
+      r.shop_link,
+      r.pricebot_status,
+    ].map(v=>String(v ?? '')).join(','))
+    const csv = [csvHeaders.join(','), ...csvRows].join('\n')
     return new NextResponse(csv, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="pricebot.csv"' } })
   } catch (e:any) {
     return NextResponse.json({ ok:false, error: String(e?.message||e) }, { status: 500 })
