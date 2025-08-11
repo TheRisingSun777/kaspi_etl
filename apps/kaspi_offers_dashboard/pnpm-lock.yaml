@@ -38,6 +38,9 @@ importers:
       zod:
         specifier: 3.23.8
         version: 3.23.8
+      zustand:
+        specifier: ^5.0.7
+        version: 5.0.7(@types/react@18.3.12)(react@18.3.1)
     devDependencies:
       '@playwright/test':
         specifier: ^1.54.2
@@ -2847,6 +2850,24 @@ packages:
 
   zod@3.23.8:
     resolution: {integrity: sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==}
+
+  zustand@5.0.7:
+    resolution: {integrity: sha512-Ot6uqHDW/O2VdYsKLLU8GQu8sCOM1LcoE8RwvLv9uuRT9s6SOHCKs0ZEOhxg+I1Ld+A1Q5lwx+UlKXXUoCZITg==}
+    engines: {node: '>=12.20.0'}
+    peerDependencies:
+      '@types/react': '>=18.0.0'
+      immer: '>=9.0.6'
+      react: '>=18.0.0'
+      use-sync-external-store: '>=1.2.0'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      immer:
+        optional: true
+      react:
+        optional: true
+      use-sync-external-store:
+        optional: true
 
 snapshots:
 
@@ -5832,3 +5853,8 @@ snapshots:
       readable-stream: 3.6.2
 
   zod@3.23.8: {}
+
+  zustand@5.0.7(@types/react@18.3.12)(react@18.3.1):
+    optionalDependencies:
+      '@types/react': 18.3.12
+      react: 18.3.1
