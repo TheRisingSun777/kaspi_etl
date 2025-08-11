@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { getMerchantId, mcFetch } from '@/lib/kaspi/client'
 import { getItemSettingsOrDefault, readStore } from '@/server/db/pricebot.store'
-import { extractProductIdAndVariantFromSku, buildShopLink } from '@/server/pricebot/sku'
+import { extractProductIdAndVariantFromSku } from '@/server/pricebot/sku'
+import { readCookieForMerchant } from '@/lib/kaspi/mcCookieStore'
 export const runtime = 'nodejs'
 
 function pickArrayKey(obj: any): { key: string | null; arr: any[] } {
@@ -26,30 +26,38 @@ function pickArrayKey(obj: any): { key: string | null; arr: any[] } {
   return { key: null, arr: [] }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    if (!process.env.KASPI_MERCHANT_API_BASE || !process.env.KASPI_MERCHANT_ID) {
+    if (!process.env.KASPI_MERCHANT_API_BASE) {
       return NextResponse.json({ error: 'MISSING_ENV' }, { status: 500 })
     }
 
-    const m = getMerchantId()
-    const urlA = `/bff/offer-view/list?m=${m}&p=0&l=100&a=true&t=&c=&lowStock=false&notSpecifiedStock=false`
-    const resA = await mcFetch(urlA)
+    const { searchParams } = new URL(req.url)
+    const merchantId = String(searchParams.get('merchantId') || process.env.KASPI_MERCHANT_ID || '')
+    const q = String(searchParams.get('q') || '')
+    const cookie = readCookieForMerchant(merchantId) || process.env.KASPI_MERCHANT_COOKIE || process.env.KASPI_MERCHANT_COOKIES || ''
+    const base = process.env.KASPI_MERCHANT_API_BASE || 'https://mc.shop.kaspi.kz'
+    const urlA = `${base}/bff/offer-view/list?m=${merchantId}&p=0&l=100&a=true&t=${encodeURIComponent(q)}&c=&lowStock=false&notSpecifiedStock=false`
+    const resA = await fetch(urlA, { headers: {
+      accept: 'application/json, text/plain, */*',
+      origin: 'https://kaspi.kz', referer: 'https://kaspi.kz/', 'x-auth-version': '3',
+      cookie
+    }, cache: 'no-store' })
     const txtA = await resA.text()
     let jsA: any
     try { jsA = JSON.parse(txtA) } catch { jsA = txtA }
     let picked = pickArrayKey(jsA)
 
     if (!picked.arr.length) {
-      const urlB = `/bff/offer-view/list?m=${m}&p=0&l=10&available=true&t=&c=&lowStock=false&notSpecifiedStock=false`
-      const resB = await mcFetch(urlB)
+      const urlB = `${base}/bff/offer-view/list?m=${merchantId}&p=0&l=10&available=true&t=${encodeURIComponent(q)}&c=&lowStock=false&notSpecifiedStock=false`
+      const resB = await fetch(urlB, { headers: { accept: 'application/json, text/plain, */*', origin: 'https://kaspi.kz', referer: 'https://kaspi.kz/', 'x-auth-version': '3', cookie }, cache: 'no-store' })
       const txtB = await resB.text()
       let jsB: any
       try { jsB = JSON.parse(txtB) } catch { jsB = txtB }
       picked = pickArrayKey(jsB)
     }
 
-    const stAll = readStore()
+    const stAll = readStore() // legacy settings merge (kept for now)
     const offers = picked.arr.map((o: any) => {
       const sku = o.merchantSku || o.sku || o.offerSku || o.id || ''
       const settings = sku ? getItemSettingsOrDefault(sku) : undefined
