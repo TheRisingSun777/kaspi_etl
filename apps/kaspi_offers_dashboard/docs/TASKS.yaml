@@ -105,15 +105,21 @@ backlog:
     labels: [docs]
 
 in_progress:
-  - id: RUN-001
-    title: Single SKU "run → confirm → apply" (dry by default)
+  - id: BULK-001
+    title: Bulk run with job progress (dry default) + optional apply
     desc: As defined above.
     ac:
-      - See backlog RUN-001 AC.
-    estimate: 5h
-    labels: [pricebot, run, ui, apply, zod]
+      - See backlog BULK-001 AC.
+    estimate: 7h
+    labels: [pricebot, run, bulk, jobs, ui]
 
 done:
+  - id: RUN-001
+    title: Single SKU "run → confirm → apply" (dry by default)
+    ac:
+      - Server run endpoint validates with zod, returns proposal, and applies on dry=false.
+      - UI confirm modal shows proposal and applies.
+      - Run records appended with applied flag.
   - id: EXP-001
     title: Merchant-aware export/import (schema v2)
     ac:
