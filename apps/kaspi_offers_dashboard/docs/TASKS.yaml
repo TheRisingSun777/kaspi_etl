@@ -67,3 +67,8 @@ done:
     ac:
       - PricebotTable requests offers with selected storeId and runs proposals via `/api/pricebot/run` (dry).
       - OpponentsModal requests with merchantId; per-seller ignores persist through settings.
+  - id: CORE-001
+    title: Wire merchantId/cityId end-to-end
+    ac:
+      - Offers/opponents/settings/export/import/run accept merchantId/storeId; UI passes it.
+      - Caches keyed by merchant+city+product where applicable; unified v2 settings source of truth.
