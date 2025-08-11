@@ -105,17 +105,21 @@ backlog:
     labels: [docs]
 
 in_progress:
-  - id: SAFE-001
-    title: Endpoint hardening + unified zod validation
-    desc: Add strict zod schemas for run/bulk/export/import/settings and normalize API error shape.
+  - id: OPP-002
+    title: Opponents robustness: fallback, dedupe, throttling
+    desc: Make opponents retrieval resilient to layout changes and rate limits.
     ac:
-      - Shared zod validators in `server/lib/validation.ts`.
-      - Every route returns `{ ok:false, code, message, details? }` on failure; 4xx for user errors, 5xx for upstream.
-      - UI shows friendly messages (toasts) and highlights bad fields where relevant (import preview).
-    estimate: 3h
-    labels: [zod, api, ux]
+      - JSON first with backoff; scrape fallback with extended selectors.
+      - Dedupe by seller and sort asc; keep flags.
+      - Cache TTL 180s; daily trace logs.
+    estimate: 4h
+    labels: [opponents, scraping, caching, reliability]
 
 done:
+  - id: SAFE-001
+    title: Endpoint hardening + unified zod validation
+    ac:
+      - Shared validators and unified error responses for key routes.
   - id: BULK-001
     title: Bulk run with job progress (dry default) + optional apply
     ac:
