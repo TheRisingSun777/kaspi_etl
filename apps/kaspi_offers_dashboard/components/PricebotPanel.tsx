@@ -15,6 +15,8 @@ export default function PricebotPanel({ storeId }: { storeId?: string }) {
   const [error, setError] = useState<string | null>(null)
   const [base, setBase] = useState('')
   const [merchantId, setMerchantId] = useState('')
+  const [stats, setStats] = useState<any>(null)
+  const [statsLoading, setStatsLoading] = useState(false)
 
   const load = async () => {
     setLoading(true); setError(null)
@@ -47,6 +49,18 @@ export default function PricebotPanel({ storeId }: { storeId?: string }) {
 
   useEffect(()=>{ load() }, [storeId])
 
+  useEffect(()=>{
+    const loadStats = async()=>{
+      setStatsLoading(true)
+      try {
+        const res = await fetch(`/api/pricebot/stats${storeId?`?storeId=${storeId}`:''}`, { cache: 'no-store' })
+        const js = await res.json().catch(()=>null)
+        setStats(js?.stats || null)
+      } finally { setStatsLoading(false) }
+    }
+    loadStats()
+  }, [storeId])
+
   const saveRule = async (id: string, body: any) => {
     await fetch(`/api/pricebot/rules/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     await load()
@@ -59,8 +73,16 @@ export default function PricebotPanel({ storeId }: { storeId?: string }) {
 
   return (
     <div className="card p-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
+        <div className="card p-3"><div className="text-xs text-gray-500">Total SKUs</div><div className="text-xl font-semibold">{statsLoading? '…' : (stats?.totalSKUs ?? '—')}</div></div>
+        <div className="card p-3"><div className="text-xs text-gray-500">Active SKUs</div><div className="text-xl font-semibold">{statsLoading? '…' : (stats?.activeSKUs ?? '—')}</div></div>
+        <div className="card p-3"><div className="text-xs text-gray-500">Zero Stock</div><div className="text-xl font-semibold">{statsLoading? '…' : (stats?.zeroStock ?? '—')}</div></div>
+        <div className="card p-3"><div className="text-xs text-gray-500">Competing</div><div className="text-xl font-semibold">{statsLoading? '…' : (stats?.competingSKUs ?? '—')}</div></div>
+        <div className="card p-3"><div className="text-xs text-gray-500">Win Rate</div><div className="text-xl font-semibold">{statsLoading? '…' : (typeof stats?.winRate === 'number' ? `${Math.round(stats.winRate*100)}%` : '—')}</div></div>
+        <div className="card p-3"><div className="text-xs text-gray-500">Last Run Δ</div><div className="text-xl font-semibold">{statsLoading? '…' : (stats?.lastRunAvgDelta ?? '—')}</div></div>
+      </div>
       <div className="flex items-center justify-between mb-2">
-        <div className="text-sm text-gray-500">Pricebot (Store {process.env.NEXT_PUBLIC_KASPI_MERCHANT_ID || '30141222'})</div>
+        <div className="text-sm text-gray-500">Pricebot (Store {storeId || process.env.NEXT_PUBLIC_KASPI_MERCHANT_ID || '30141222'})</div>
         <div className="flex gap-2 items-end">
           <div>
             <label className="block text-xs text-gray-500">API Base</label>
