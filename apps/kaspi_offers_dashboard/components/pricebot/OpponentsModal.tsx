@@ -5,6 +5,7 @@ export default function OpponentsModal({ productId, cityId, onClose, sku, initia
   const [sellers, setSellers] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState<string>('')
 
   useEffect(()=>{
     if (!productId) return
@@ -29,6 +30,7 @@ export default function OpponentsModal({ productId, cityId, onClose, sku, initia
           <div className="font-semibold">Opponents — {sku}</div>
           <button className="btn-outline" onClick={onClose}>Close</button>
         </div>
+        {saved && <div className="text-xs text-green-500 mb-2">{saved}</div>}
         {loading && <div className="text-sm text-gray-400">Loading…</div>}
         {error && <div className="text-sm text-red-500">{error}</div>}
         <div className="max-h-[60vh] overflow-auto">
@@ -46,9 +48,13 @@ export default function OpponentsModal({ productId, cityId, onClose, sku, initia
                 const ignored = initialIgnores.includes(id)
                 return (
                   <tr key={id} className="border-t border-border">
-                    <td className="p-2">{s.name || s.merchantName}</td>
+                    <td className="p-2">
+                      {s.name || s.merchantName}
+                      {ignored && <span className="ml-2 px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-[10px] align-middle">Ignored</span>}
+                      {s.isYou && <span className="ml-2 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px] align-middle">You</span>}
+                    </td>
                     <td className="p-2">{s.price}</td>
-                    <td className="p-2"><input type="checkbox" defaultChecked={ignored} onChange={(e)=>onToggle(id, e.currentTarget.checked)} /></td>
+                    <td className="p-2"><input type="checkbox" defaultChecked={ignored} onChange={(e)=>{ onToggle(id, e.currentTarget.checked); setSaved('Saved'); setTimeout(()=>setSaved(''), 700) }} /></td>
                   </tr>
                 )
               })}
