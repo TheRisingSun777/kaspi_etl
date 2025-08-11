@@ -109,7 +109,7 @@ in_progress:
     title: Bulk run with job progress (dry default) + optional apply
     desc: As defined above.
     ac:
-      - See backlog BULK-001 AC.
+      - `/api/pricebot/bulk` enqueues and returns jobId; `/api/pricebot/bulk?jobId=` returns progress with proposals.
     estimate: 7h
     labels: [pricebot, run, bulk, jobs, ui]
 

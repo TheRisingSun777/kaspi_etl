@@ -1,3 +1,4 @@
+- 2025-08-11 12:20 UTC — BULK-001: Added bulk run endpoint with simple job tracking and UI trigger; background processes SKU list into proposals.
 - 2025-08-11 12:08 UTC — RUN-001: Added zod validation + apply path for single run; UI confirm modal with Apply; run records appended with applied flag.
 - 2025-08-11 11:24 UTC — EXP-001: Export includes merchantId/storeId/cityId columns and uses selected city; Import writes to v2 settings with minPrice/maxPrice/stepKzt.
 # PROGRESS
