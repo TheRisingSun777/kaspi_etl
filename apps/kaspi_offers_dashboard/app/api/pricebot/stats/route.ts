@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSettings } from '@/server/db/pricebot.settings'
 import { mcFetch, getMerchantId } from '@/lib/kaspi/client'
+import { getLastRun } from '@/server/db/pricebot.runs'
 
 export const runtime = 'nodejs'
 
@@ -32,10 +33,11 @@ export async function GET(req: Request) {
       }
     } catch {}
 
-    // winRate/lastRun* placeholders (wire once run/bulk writes telemetry)
+    // last run telemetry
+    const last = getLastRun(merchantId)
+    const lastRunCount = last?.count ?? null
+    const lastRunAvgDelta = last?.avgDelta ?? null
     const winRate = null
-    const lastRunCount = null
-    const lastRunAvgDelta = null
 
     return NextResponse.json({ ok:true, stats: { totalSKUs, activeSKUs, zeroStock, competingSKUs, winRate, lastRunCount, lastRunAvgDelta, cityId, merchantId } })
   } catch (e:any) {

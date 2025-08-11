@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSettings } from '@/server/db/pricebot.settings'
+import { addRun } from '@/server/db/pricebot.runs'
 
 export async function POST(req: Request) {
   try {
@@ -18,6 +19,8 @@ export async function POST(req: Request) {
     if (typeof floor==='number') target = Math.max(floor, target)
     if (typeof ceil==='number') target = Math.min(ceil, target)
     target = Math.max(0, Math.round(target))
+    const delta = (typeof ourPrice === 'number' && Number.isFinite(ourPrice)) ? (target - Number(ourPrice)) : 0
+    addRun({ ts: new Date().toISOString(), merchantId: mId, mode: 'dry', count: 1, avgDelta: delta })
     return NextResponse.json({ ok:true, proposal:{ price: target, reason: { bestOpponent: best, step: item.stepKzt, floor, ceil } } })
   } catch (e:any) {
     return NextResponse.json({ ok:false, error:String(e?.message||e) }, { status:500 })
