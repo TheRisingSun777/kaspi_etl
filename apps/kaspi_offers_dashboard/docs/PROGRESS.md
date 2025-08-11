@@ -1,3 +1,4 @@
+- 2025-08-11 13:08 UTC — TEST-001: Added extra unit test for proposal logic; test suite green.
 - 2025-08-11 13:02 UTC — PERF-001: Added X-Perf-ms headers to run/offers and X-Perf-cache to opponents.
 - 2025-08-11 12:56 UTC — AUTH-001: Added cookie-status route and login.mjs script; documented steps in OPERATING.md.
 - 2025-08-11 12:50 UTC — OPP-002: Opponents robustness — JSON backoff, dedupe+sort, extended selectors, 180s cache, and daily trace logs.

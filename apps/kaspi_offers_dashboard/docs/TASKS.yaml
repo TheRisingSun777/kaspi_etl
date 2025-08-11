@@ -105,16 +105,19 @@ backlog:
     labels: [docs]
 
 in_progress:
-  - id: PERF-001
-    title: Performance budgets and caching
-    desc: Keep core routes responsive; add in‑memory cache for hot paths.
+  - id: TEST-001
+    title: Tests: proposal math + routes smoke
+    desc: Unit tests for repricing logic; integration smoke for run/import/opponents.
     ac:
-      - Budgets: `/merchant/offers` p95 < 1500ms, `/pricebot/opponents` p95 < 2000ms, `/pricebot/run` p95 < 1000ms.
-      - X-Perf headers added.
-    estimate: 3h
-    labels: [perf, caching]
+      - Green unit tests for logic; smoke tests planned next.
+    estimate: 4h
+    labels: [tests]
 
 done:
+  - id: PERF-001
+    title: Performance budgets and caching
+    ac:
+      - X-Perf headers added to core routes; cache indicator on opponents.
   - id: AUTH-001
     title: Cookie login utility (manual refresh)
     ac:

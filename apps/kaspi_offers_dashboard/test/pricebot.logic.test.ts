@@ -12,6 +12,11 @@ describe('pricebot logic', () => {
     const out = computeTargetPrice({ ourPrice: 1200, minPrice: 1000, maxPrice: 2000, step: 50, competitors: [ { seller:'a', price: 1100 }, { seller:'b', price:1102 }, { seller:'c', price:1099 } ] })
     expect(out.target).toBe(1099)
   })
+
+  it('respects step size and clamps around guardrails', () => {
+    const out = computeTargetPrice({ ourPrice: 1005, minPrice: 1000, maxPrice: 1010, step: 5, competitors: [ { seller:'a', price: 1004 } ] })
+    expect(out.target).toBe(1000)
+  })
 })
 
 
