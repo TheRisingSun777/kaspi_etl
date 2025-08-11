@@ -41,16 +41,13 @@ backlog:
     estimate: 2h
     labels: [ui, opponents]
 in_progress:
+done:
   - id: EXP-001
     title: Merchant-aware export/import (schema v2)
-    desc: Export CSV/XLSX and import accept merchantId/storeId/cityId; include stock + pricebot fields.
     ac:
       - Export includes columns: merchantId, storeId, cityId, productId, sku, name, ourPrice, stock, active, min, max, step, interval.
       - Import validates via zod (no mutation on validation-only); preview + toasts in UI.
       - Persist settings deltas to `server/db/pricebot.settings.json` (v2).
-    estimate: 4h
-    labels: [export, import, zod, ui]
-done:
   - id: OFR-001
     title: Offers route accepts merchantId + search
     ac:
