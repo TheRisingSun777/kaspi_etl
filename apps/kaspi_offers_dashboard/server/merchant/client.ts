@@ -46,7 +46,6 @@ export async function getOfferDetailsBySku(sku: string) {
  *
  * Important: we fetch current details first and only swap the price, so we don't lose required fields.
  */
-import type { RequestInit } from 'undici'; // if needed for types
 
 // … existing imports and helper functions …
 

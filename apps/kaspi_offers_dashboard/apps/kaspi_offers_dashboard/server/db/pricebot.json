@@ -58,12 +58,20 @@
     },
     "OnlyFit 004": {
       "active": true,
-      "min": 0,
-      "max": 0,
+      "min": 18990,
+      "max": 18990,
       "step": 1,
       "interval": 5,
       "ignoreSellers": []
+    },
+    "OnlyFit 058": {
+      "active": false,
+      "min": 0,
+      "max": 0,
+      "step": 1,
+      "interval": 3,
+      "ignoreSellers": []
     }
   },
-  "updatedAt": "2025-08-11T05:42:17.939Z"
+  "updatedAt": "2025-08-11T05:49:19.854Z"
 }
