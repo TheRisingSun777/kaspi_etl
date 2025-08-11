@@ -119,6 +119,10 @@ export default function PricebotTable({ storeId }: { storeId?: string }) {
           <input className="input" placeholder="Filter by text…" value={filter} onChange={e=>setFilter(e.target.value)} />
           <a className="btn-outline" href={`/api/pricebot/export?format=csv${storeId?`&storeId=${storeId}`:''}`}>Download CSV</a>
           <a className="btn-outline" href={`/api/pricebot/export?format=xlsx${storeId?`&storeId=${storeId}`:''}`}>Download XLSX</a>
+          <button className="btn-outline" onClick={async()=>{
+            const res = await fetch('/api/pricebot/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ storeId }) })
+            const js = await res.json(); if (js?.jobId) alert(`Bulk job started: ${js.jobId}`)
+          }}>Bulk Run</button>
           <button className="btn-outline" onClick={load}>Reload</button>
         </div>
       </div>
