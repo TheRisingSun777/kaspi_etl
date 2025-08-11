@@ -6,9 +6,11 @@ import GlobalIgnore from '@/components/pricebot/GlobalIgnore'
 import PricebotTable from '@/components/pricebot/PricebotTable'
 import PricebotPanel from '@/components/PricebotPanel'
 import { usePricebotStore } from '@/lib/pricebot/store'
+import BulkProgress from '@/components/pricebot/BulkProgress'
 
 export default function PricebotPageClient() {
   const [storeId, setStoreId] = useState<string>('')
+  const [bulkJob, setBulkJob] = useState<string | undefined>()
   const loadOffers = usePricebotStore(s=>s.loadOffers)
   useEffect(()=>{
     (async()=>{
@@ -26,11 +28,13 @@ export default function PricebotPageClient() {
         <div className="flex items-center gap-3">
           <StoreSelector onChange={setStoreId} />
           <ImportExportBar storeId={storeId} />
+          <button className="btn-outline" onClick={async()=>{ const res = await fetch('/api/pricebot/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ storeId }) }); const js = await res.json().catch(()=>({})); if (js?.jobId) setBulkJob(js.jobId) }}>Bulk Run</button>
         </div>
       </header>
       <PricebotPanel storeId={storeId} />
       <GlobalIgnore storeId={storeId} />
       <PricebotTable storeId={storeId} />
+      {bulkJob && <BulkProgress jobId={bulkJob} onClose={()=>setBulkJob(undefined)} />}
     </main>
   )
 }
