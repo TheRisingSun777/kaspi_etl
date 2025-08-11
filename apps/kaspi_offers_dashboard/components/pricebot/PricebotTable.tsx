@@ -3,6 +3,7 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import { useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel, flexRender, createColumnHelper } from '@tanstack/react-table'
 import OpponentsModal from './OpponentsModal'
+import RunConfirmModal from './RunConfirmModal'
 
 type OfferRow = {
   sku: string;
@@ -58,6 +59,7 @@ export default function PricebotTable({ storeId }: { storeId?: string }) {
   const [filter, setFilter] = useState('')
   const columnHelper = createColumnHelper<OfferRow>()
   const [showOpp, setShowOpp] = useState<{sku:string, productId:number|null}|null>(null)
+  const [confirmRun, setConfirmRun] = useState<{ sku:string; ourPrice:number; target:number }|null>(null)
   const columns = useMemo(()=>[
     columnHelper.accessor(row=>row.settings?.active??false, { id:'active', header: 'Active', cell: info => {
       const r = info.row.original
@@ -98,7 +100,12 @@ export default function PricebotTable({ storeId }: { storeId?: string }) {
     }}),
     columnHelper.display({ id:'actions', header:'Run', cell: info => {
       const r = info.row.original
-      return <button className="btn-outline" onClick={async()=>{ const resp = await fetch('/api/pricebot/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ storeId, sku: r.sku, ourPrice: r.price, mode: 'dry' }) }); const js = await resp.json(); if (js?.proposal?.price) alert(`Proposed: ${js.proposal.price}`); }}>Run</button>
+      return <button className="btn-outline" onClick={async()=>{
+        const resp = await fetch('/api/pricebot/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ storeId, sku: r.sku, ourPrice: r.price, dry: true }) })
+        const js = await resp.json()
+        const target = js?.proposal?.targetPrice ?? js?.proposal?.price
+        if (typeof target === 'number') setConfirmRun({ sku: r.sku, ourPrice: Number(r.price||0), target })
+      }}>Run</button>
     }}),
   ],[])
   const table = useReactTable({ data: rows, columns, state: { globalFilter: filter }, onGlobalFilterChange: setFilter, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel() })
@@ -161,6 +168,15 @@ export default function PricebotTable({ storeId }: { storeId?: string }) {
         merchantId={storeId}
         onToggle={async (id,ignore)=>{ await fetch('/api/pricebot/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ merchantId: storeId, updates: { [showOpp.sku]: { ignoredOpponents: ignore ? [id] : [] } } }) }); await load() }}
         onClose={()=>setShowOpp(null)}
+      />
+    )}
+    {confirmRun && (
+      <RunConfirmModal
+        sku={confirmRun.sku}
+        ourPrice={confirmRun.ourPrice}
+        targetPrice={confirmRun.target}
+        onApply={async()=>{ await fetch('/api/pricebot/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ storeId, sku: confirmRun.sku, ourPrice: confirmRun.ourPrice, dry: false }) }); setConfirmRun(null); await load() }}
+        onClose={()=>setConfirmRun(null)}
       />
     )}
   </>
