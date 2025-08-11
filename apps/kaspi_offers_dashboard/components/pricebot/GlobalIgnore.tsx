@@ -1,20 +1,21 @@
 'use client'
 import { useEffect, useState } from 'react'
 
-export default function GlobalIgnore() {
+export default function GlobalIgnore({ storeId }: { storeId?: string }) {
   const [list, setList] = useState<string[]>([])
   const [input, setInput] = useState('')
 
   async function load() {
-    const res = await fetch('/api/pricebot/settings', { cache: 'no-store' })
+    const url = storeId ? `/api/pricebot/settings?storeId=${storeId}` : '/api/pricebot/settings'
+    const res = await fetch(url, { cache: 'no-store' })
     const js = await res.json()
     setList(js?.settings?.global?.ignoreSellers || [])
   }
-  useEffect(()=>{ load() }, [])
+  useEffect(()=>{ load() }, [storeId])
 
   async function save(newList: string[]) {
     setList(newList)
-    await fetch('/api/pricebot/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ global: { ignoreSellers: newList } }) })
+    await fetch('/api/pricebot/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ storeId, global: { ignoreSellers: newList } }) })
   }
 
   function add() {

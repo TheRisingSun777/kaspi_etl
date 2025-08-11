@@ -3,6 +3,34 @@
     "cityId": "710000000",
     "ignoreSellers": []
   },
+  "profiles": [
+    {
+      "id": "store-1",
+      "name": "Store 1",
+      "cityId": "710000000"
+    },
+    {
+      "id": "store-2",
+      "name": "Store 2",
+      "cityId": "710000000"
+    },
+    {
+      "id": "store-3",
+      "name": "Store 3",
+      "cityId": "710000000"
+    },
+    {
+      "id": "store-4",
+      "name": "Store 4",
+      "cityId": "710000000"
+    },
+    {
+      "id": "store-5",
+      "name": "Store 5",
+      "cityId": "710000000"
+    }
+  ],
+  "activeProfileId": "store-1",
   "items": {
     "CL_OC_MEN_PRINT51_BLACK_116155651_54-56_(3XL)": {
       "active": true,
@@ -27,7 +55,15 @@
       "step": 1,
       "interval": 5,
       "ignoreSellers": []
+    },
+    "OnlyFit 004": {
+      "active": true,
+      "min": 0,
+      "max": 0,
+      "step": 1,
+      "interval": 5,
+      "ignoreSellers": []
     }
   },
-  "updatedAt": "2025-08-10T20:17:21.686Z"
+  "updatedAt": "2025-08-11T05:42:17.939Z"
 }
