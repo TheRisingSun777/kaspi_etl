@@ -15,12 +15,15 @@
     "watch:prices": "tsx scripts/price_watch.ts --ids=108382478 --city=710000000 --intervalSec=60",
     "cookies:login": "tsx scripts/cookies_login.ts",
     "cookies:collect": "node --import tsx ./scripts/collect_cookie_from_chrome.mjs",
+    "cookies:collect:profile2": "node --import tsx ./scripts/collect_cookie_from_profile2.mjs",
     "cookies:kill": "osascript -e 'quit app \"Google Chrome\"' || true && pkill -f 'Google Chrome' || true",
-    "cookies:launch": "/Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --profile-directory=\"Profile 2\" --remote-debugging-port=9222 'https://kaspi.kz/shop/p/-131138247/?c=710000000' >/dev/null 2>&1 & disown"
+    "cookies:launch": "/Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --user-data-dir=\"$HOME/Library/Application Support/Google/Chrome\" --profile-directory=\"Profile 2\" --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --no-first-run --no-default-browser-check 'https://kaspi.kz/shop/p/-131138247/?c=710000000' >/dev/null 2>&1 & disown",
+    "cookies:check": "(curl -sS http://127.0.0.1:9222/json/version || curl -sS http://localhost:9222/json/version) | python3 -m json.tool"
   },
   "dependencies": {
     "@tanstack/react-table": "^8.21.3",
     "better-sqlite3": "^12.2.0",
+    "chrome-cookies-secure": "3.0.0",
     "chrome-remote-interface": "0.33.0",
     "exceljs": "^4.4.0",
     "formidable": "^3.5.4",
