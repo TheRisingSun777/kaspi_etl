@@ -9,7 +9,7 @@
     "lastBulkRun": null,
     "lastExport": null,
     "lastImport": null,
-  "lastSeen": { "commit": "83fece5a63f81d6c8259b8025477cc8d2f1bf8b0", "taskId": "UI-002" },
+  "lastSeen": { "commit": null, "taskId": "UI-002" },
     "flags": {
       "autoDisableWhenZeroStock": true,
       "cacheMinutes": 3

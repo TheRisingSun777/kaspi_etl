@@ -1,6 +1,5 @@
 - 2025-08-12 10:05 UTC — UI-002: Opponents modal loader now reads `items` only and sorts by price; opponents count typing/consistency fixed in store; curl verification steps documented.
 - 2025-08-12 10:30 UTC — UI-002: Fixed stores route file path to merchants.json and ensured it returns items; dev server command corrected.
-- 2025-08-12 21:45 UTC — OPP-002: Added storefront env cookie support, sec-ch headers, HTML JSON-LD scrape, and optional Playwright fallback; robust seller extraction so modal shows names/prices even if IDs vary.
 - 2025-08-12 10:22 UTC — UI-002: Fixed offers route to not hard-stop on missing env and improved cookie file discovery paths.
 - 2025-08-11 13:26 UTC — UI stabilization: removed legacy rules table; made /pricebot client-only; added Zustand store; added row enrichment trigger; added CSV apply adapter and endpoint; improved cookie reader; fixed build/runtime.
 - 2025-08-11 13:34 UTC — UI-002: Added `/api/pricebot/stores` backed by `server/db/merchants.json`; header made sticky with store selector + import/export bar.

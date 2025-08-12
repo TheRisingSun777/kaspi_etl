@@ -116,7 +116,6 @@ in_progress:
       - 2025-08-11: Added `/api/pricebot/stores` route and wired `StoreSelector`; header made sticky in `PricebotPageClient`.
       - 2025-08-11: Wired offers page to request `withOpponents=true`; opponents merge added server-side; UI consumes sellers.
       - 2025-08-12: Updated `OpponentsModal` to read `items` only; ensured opponents count stays correct in `store.ts` and silenced TS warning with `(it: any)`.
-      - 2025-08-12: Implemented storefront cookie env override, HTML JSON-LD scrape, optional Playwright fallback, and robust seller extraction; modal now shows seller names/prices even when API shape changes.
     estimate: 3h
     labels: [ui, ux]
 
