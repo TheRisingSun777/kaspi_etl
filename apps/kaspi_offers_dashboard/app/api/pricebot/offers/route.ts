@@ -29,10 +29,6 @@ function pickArrayKey(obj: any): { key: string | null; arr: any[] } {
 
 export async function GET(req: Request) {
   try {
-    if (!process.env.KASPI_MERCHANT_API_BASE) {
-      return NextResponse.json({ error: 'MISSING_ENV' }, { status: 500 })
-    }
-
     const { searchParams } = new URL(req.url)
     const merchantId = String(searchParams.get('merchantId') || searchParams.get('storeId') || process.env.KASPI_MERCHANT_ID || '')
     const q = String(searchParams.get('q') || '')
