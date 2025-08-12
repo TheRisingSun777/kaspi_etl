@@ -1,0 +1,32 @@
+- 2025-08-12 10:05 UTC — UI-002: Opponents modal loader now reads `items` only and sorts by price; opponents count typing/consistency fixed in store; curl verification steps documented.
+- 2025-08-12 10:30 UTC — UI-002: Fixed stores route file path to merchants.json and ensured it returns items; dev server command corrected.
+- 2025-08-12 10:22 UTC — UI-002: Fixed offers route to not hard-stop on missing env and improved cookie file discovery paths.
+- 2025-08-11 13:26 UTC — UI stabilization: removed legacy rules table; made /pricebot client-only; added Zustand store; added row enrichment trigger; added CSV apply adapter and endpoint; improved cookie reader; fixed build/runtime.
+- 2025-08-11 13:34 UTC — UI-002: Added `/api/pricebot/stores` backed by `server/db/merchants.json`; header made sticky with store selector + import/export bar.
+- 2025-08-11 13:52 UTC — UI-002: Persist selected storeId to repo `STATE.json` via debug route; wired Bulk Run in header; fixed lints; build green.
+- 2025-08-11 17:58 UTC — Opponents: Switched `/api/pricebot/opponents` to POST JSON with browser headers; added logging and city cookie; wired `/api/pricebot/offers?withOpponents=true` to merge sellers.
+- 2025-08-11 13:15 UTC — TEST-001: Added import and opponents route smoke tests; green.
+- 2025-08-11 13:12 UTC — TEST-001: Added route smoke tests for /api/pricebot/run (dry + bad_input).
+- 2025-08-11 13:08 UTC — TEST-001: Added extra unit test for proposal logic; test suite green.
+- 2025-08-11 13:02 UTC — PERF-001: Added X-Perf-ms headers to run/offers and X-Perf-cache to opponents.
+- 2025-08-11 12:56 UTC — AUTH-001: Added cookie-status route and login.mjs script; documented steps in OPERATING.md.
+- 2025-08-11 12:50 UTC — OPP-002: Opponents robustness — JSON backoff, dedupe+sort, extended selectors, 180s cache, and daily trace logs.
+- 2025-08-11 12:42 UTC — SAFE-001: Added shared zod validators for run/bulk/export/settings and unified bad_input error responses.
+- 2025-08-11 12:35 UTC — BULK-001: Added bulk apply endpoint and Apply All button in progress modal; records appended for applied items.
+- 2025-08-11 12:28 UTC — BULK-001: Added progress polling UI with modal; basic proposals per SKU produced server-side.
+- 2025-08-11 12:20 UTC — BULK-001: Added bulk run endpoint with simple job tracking and UI trigger; background processes SKU list into proposals.
+- 2025-08-11 12:08 UTC — RUN-001: Added zod validation + apply path for single run; UI confirm modal with Apply; run records appended with applied flag.
+- 2025-08-11 11:24 UTC — EXP-001: Export includes merchantId/storeId/cityId columns and uses selected city; Import writes to v2 settings with minPrice/maxPrice/stepKzt.
+# PROGRESS
+
+- 2025-08-11 10:22 UTC — Added repo memory scaffold (OPERATING.md, TASKS.yaml, PROGRESS.md, STATE.json, DECISIONS.md). No app code changed.
+- 2025-08-11 10:22 UTC — Defaults set: storeId=30141222, cityId=710000000 (adjust if needed).
+- 2025-08-11 10:35 UTC — CORE-001: Unified merchant-aware settings: API `/api/pricebot/settings` accepts GET(req) and POST storeId/merchantId; UI passes `storeId` on saves; run/export/opponents consume `pricebot.settings.json` v2.
+- 2025-08-11 10:44 UTC — CORE-001: Fixed typecheck, added `@types/formidable`; export links include `storeId`; cleaned scrape types to remove unnecessary ts-expect-error warnings.
+- 2025-08-11 10:48 UTC — CORE-001: Offers endpoint maps v2 settings (minPrice/maxPrice/stepKzt/intervalMin/ignoredOpponents) to UI shape.
+- 2025-08-11 10:51 UTC — CORE-001 marked done; moving focus to KPI-001 next per plan.
+- 2025-08-11 10:58 UTC — KPI-001: Added `/api/pricebot/stats` and overview tiles in `PricebotPanel`; accepts storeId/merchantId; placeholders for winRate/lastRun.*.
+- 2025-08-11 11:04 UTC — KPI-001: Implemented local telemetry storage (`server/db/pricebot.runs.json`); `/stats` now returns lastRunCount/lastRunAvgDelta; single-run records on dry-run.
+- 2025-08-11 11:10 UTC — KPI-001: Grey out zero-stock rows and auto-disable Active checkbox when stock=0 per UI notes.
+- 2025-08-11 11:16 UTC — UX-001: Opponents modal shows Ignored/You badges and brief Saved tick after toggles.
+- 2025-08-11 12:00 UTC — Refactored TASKS.yaml backlog (STK-001, OPP-002, EXP-002, RUN-002, KPI-002, STR-001, AUTH-001, UX-002) and added context-rotation note to OPERATING.md.

@@ -221,3 +221,7 @@ apps/kaspi_offers_dashboard/data_raw/
 apps/kaspi_offers_dashboard/playwright/.cache
 apps/kaspi_offers_dashboard/server/db/*.json
 apps/kaspi_offers_dashboard/server/db/merchants/*.json
+
+# Assistant bundles (big + churny)
+assistant_bundles/
+apps/**/assistant_bundles/

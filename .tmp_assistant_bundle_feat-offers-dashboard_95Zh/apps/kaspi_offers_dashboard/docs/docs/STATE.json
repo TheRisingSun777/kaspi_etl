@@ -1,0 +1,18 @@
+{
+    "version": 1,
+    "branch": "feat/offers-dashboard",
+    "merchantId": "30141222",
+    "storeId": 30141222,
+    "cityId": 710000000,
+    "dryRun": true,
+    "lastRun": "2025-08-11T17:58:00Z",
+    "lastBulkRun": null,
+    "lastExport": null,
+    "lastImport": null,
+  "lastSeen": { "commit": null, "taskId": "UI-002" },
+    "flags": {
+      "autoDisableWhenZeroStock": true,
+      "cacheMinutes": 3
+    }
+  }
+  

@@ -113,42 +113,6 @@ export async function GET(req: NextRequest) {
   }
 
   if (!js) {
-    // 4) Last-resort fallback: scrape product page HTML and extract JSON-LD offers
-    if (productId) {
-      const htmlHeaders: Record<string, string> = {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'ru-KZ,ru;q=0.9,en;q=0.8',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
-        'Cookie': cookieStr,
-        'Referer': referer,
-      }
-      const url = `https://kaspi.kz/shop/p/-${productId}/?c=${cityId}`
-      const page = await fetch(url, { headers: htmlHeaders, cache: 'no-store' }).then(r=>r.text()).catch(()=> '')
-      if (page && /<script[^>]+application\/ld\+json/i.test(page)) {
-        const scripts = Array.from(page.matchAll(/<script[^>]+application\/ld\+json"?[^>]*>([\s\S]*?)<\/script>/gi)).map(m=>m[1])
-        let sellersFromLd: any[] = []
-        for (const s of scripts) {
-          try {
-            const obj = JSON.parse(s.trim())
-            const offers = Array.isArray(obj?.offers) ? obj.offers : (Array.isArray(obj?.offers?.offers) ? obj.offers.offers : [])
-            if (Array.isArray(offers) && offers.length) {
-              sellersFromLd = offers.map((o:any)=>({
-                merchantId: String(o?.seller?.name || o?.seller || ''),
-                merchantName: String(o?.seller?.name || o?.seller || ''),
-                price: Number(o?.price || 0),
-                isYou: false,
-              }))
-              if (sellersFromLd.length) break
-            }
-          } catch {}
-        }
-        if (sellersFromLd.length) {
-          // Keep entries even without numeric merchantId so UI can at least show names/prices
-          const list = sellersFromLd.filter(x=> x.merchantName && Number.isFinite(Number(x.price)))
-          return NextResponse.json({ ok: true, items: list })
-        }
-      }
-    }
     return NextResponse.json({ ok: false, error: 'Kaspi returned no JSON (blocked?)' }, { status: 502 })
   }
 
