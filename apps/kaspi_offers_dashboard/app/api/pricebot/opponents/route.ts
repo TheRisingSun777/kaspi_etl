@@ -102,13 +102,35 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Kaspi returned no JSON (blocked?)' }, { status: 502 })
   }
 
-  const offers: any[] = Array.isArray(js) ? js : (Array.isArray(js?.items) ? js.items : [])
+  // Try to pick sellers array from multiple known shapes
+  function pickArrayKey(obj: any): any[] {
+    const candidates = [
+      'items',
+      'content',
+      'data.items',
+      'data.content',
+      'data',
+      'list',
+      'offers',
+      'results',
+      'rows',
+      'page.content',
+    ]
+    for (const key of candidates) {
+      const parts = key.split('.')
+      let cur: any = obj
+      for (const p of parts) cur = cur?.[p]
+      if (Array.isArray(cur)) return cur
+    }
+    return Array.isArray(obj) ? obj : []
+  }
+  const offers: any[] = pickArrayKey(js)
   const sellers = offers
     .map((o: any) => ({
-      merchantId: String(o.merchantId ?? o.merchantUID ?? ''),
-      merchantName: o.merchantName ?? o.name ?? '',
-      price: Number(o.price ?? 0),
-      isYou: !!merchantId && String(o.merchantId) === String(merchantId),
+      merchantId: String(o.merchantId ?? o.merchantUID ?? o.id ?? ''),
+      merchantName: o.merchantName ?? o.name ?? o.merchant ?? '',
+      price: Number(o.price ?? o.offerPrice ?? o.value ?? 0),
+      isYou: !!merchantId && (String(o.merchantId ?? o.merchantUID ?? o.id ?? '') === String(merchantId)),
     }))
     .filter((s: any) => s.merchantId)
 
