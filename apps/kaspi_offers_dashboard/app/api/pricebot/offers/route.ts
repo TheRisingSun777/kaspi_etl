@@ -31,8 +31,14 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
     const merchantId = String(searchParams.get('merchantId') || searchParams.get('storeId') || process.env.KASPI_MERCHANT_ID || '')
+    if (!merchantId) {
+      return NextResponse.json({ ok: true, items: [], debug: { reason: 'NO_MERCHANT_ID', hint: 'Select a store in header' } })
+    }
     const q = String(searchParams.get('q') || '')
     const cookie = readCookieForMerchant(merchantId) || process.env.KASPI_MERCHANT_COOKIE || process.env.KASPI_MERCHANT_COOKIES || ''
+    if (!cookie) {
+      return NextResponse.json({ ok: true, items: [], debug: { reason: 'NO_COOKIE', hint: 'Run cookies:login or add server/merchant/<id>.cookie.json' } })
+    }
     const base = process.env.KASPI_MERCHANT_API_BASE || 'https://mc.shop.kaspi.kz'
     const urlA = `${base}/bff/offer-view/list?m=${merchantId}&p=0&l=100&a=true&t=${encodeURIComponent(q)}&c=&lowStock=false&notSpecifiedStock=false`
     const resA = await fetch(urlA, { headers: {

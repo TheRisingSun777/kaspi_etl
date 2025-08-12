@@ -3,7 +3,8 @@ import path from 'node:path'
 
 export type Merchant = { merchantId: string; label: string; cityId?: number; cookieFile?: string; apiKey?: string }
 
-const FILE = path.join(process.cwd(), 'apps', 'kaspi_offers_dashboard', 'server', 'db', 'merchants.json')
+// Resolve merchants list relative to the app root. In dev, cwd is the app dir.
+const FILE = path.join(process.cwd(), 'server', 'db', 'merchants.json')
 
 function ensureDir() { const dir = path.dirname(FILE); if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }) }
 
