@@ -48,7 +48,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Missing productId or sku' }, { status: 400 })
   }
 
-  const rawCookie = readKaspiCookie(merchantId)
+  const envSf = process.env.KASPI_STOREFRONT_COOKIE || process.env.KASPI_STOREFRONT_COOKIES || ''
+  const rawCookie = envSf || readKaspiCookie(merchantId)
   const cookieStr = ensureCityCookie(rawCookie || `locale=ru-RU; kaspi.storefront.cookie.city=${cityId}`, cityId)
 
   const referer = productId
@@ -61,12 +62,17 @@ export async function GET(req: NextRequest) {
     'Content-Type': 'application/json; charset=UTF-8',
     'Origin': 'https://kaspi.kz',
     'Referer': referer,
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
     'X-KS-City': cityId,
     'X-Requested-With': 'XMLHttpRequest',
     'Sec-Fetch-Site': 'same-site',
     'Sec-Fetch-Mode': 'cors',
     'Sec-Fetch-Dest': 'empty',
+    'sec-ch-ua': '"Chromium";v="120", "Not=A?Brand";v="24"',
+    'sec-ch-ua-platform': '"macOS"',
+    'sec-ch-ua-mobile': '?0',
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache',
     'Cookie': cookieStr,
   }
 
@@ -83,6 +89,10 @@ export async function GET(req: NextRequest) {
   // 1) POST JSON with Content-Type
   let { ok, text } = await fetchText(OFFERS_API, { method: 'POST', headers: baseHeaders, body: JSON.stringify(payload) })
   let js = ok ? tryParseJson(text) : null
+  if (!js && ok) {
+    // Kaspi sometimes returns text/html error page; surface hint
+    console.warn('[opponents] non-JSON OK body sample:', text.slice(0, 200))
+  }
 
   // 2) Fallback: POST without Content-Type
   if (!js) {
@@ -99,6 +109,7 @@ export async function GET(req: NextRequest) {
     const qs = `?productId=${encodeURIComponent(productId)}&cityId=${encodeURIComponent(cityId)}&page=0&sort=DEFAULT&limit=100`
     const r3 = await fetchText(OFFERS_API + qs, { method: 'GET', headers: h3 })
     js = r3.ok ? tryParseJson(r3.text) : null
+    if (!js && r3.ok) console.warn('[opponents:get] non-JSON OK body sample:', r3.text.slice(0, 200))
   }
 
   if (!js) {

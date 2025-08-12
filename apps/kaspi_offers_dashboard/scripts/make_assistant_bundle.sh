@@ -1,43 +1,58 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BRANCH=${1:-feat/offers-dashboard}
-OUT="assistant_bundle_${BRANCH}_$(date +%Y%m%d_%H%M).zip"
-ROOT="$(git rev-parse --show-toplevel)"
-TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+# Usage: scripts/make_assistant_bundle.sh [branch]
+# Example: scripts/make_assistant_bundle.sh feat/offers-dashboard
 
-echo "branch: $(git rev-parse --abbrev-ref "$BRANCH")" > "$TMP/METADATA.txt"
-echo "commit: $(git rev-parse "$BRANCH")"           >> "$TMP/METADATA.txt"
-echo "base:   origin/main"                          >> "$TMP/METADATA.txt"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$ROOT"
 
-# Copy target paths (no secrets)
+BRANCH="${1:-$(git rev-parse --abbrev-ref HEAD)}"
+SAFE_BRANCH="${BRANCH//\//-}"                # sanitize for filenames
+TS="$(date +%Y%m%d_%H%M)"
+OUTDIR="$ROOT/assistant_bundles"
+TMP="$OUTDIR/_tmp_${SAFE_BRANCH}_${TS}"
+
+mkdir -p "$OUTDIR" "$TMP"
+
 copy() {
-  local p="$1"
-  if [ -e "$ROOT/$p" ]; then
-    mkdir -p "$TMP/$(dirname "$p")"
-    # exclude local cookie files if that folder exists
-    rsync -a --exclude='*.cookie.json' "$ROOT/$p" "$TMP/$p"
+  local rel="$1"
+  local src="$ROOT/$rel"
+  local dst="$TMP/$rel"
+  if [[ -e "$src" ]]; then
+    mkdir -p "$(dirname "$dst")"
+    rsync -a "$src" "$dst"
+  else
+    echo "WARN: missing $rel" >&2
   fi
 }
+
+# What to include (adjust freely)
 copy apps/kaspi_offers_dashboard/app/api/pricebot
 copy apps/kaspi_offers_dashboard/components/pricebot
 copy apps/kaspi_offers_dashboard/lib/pricebot
 copy apps/kaspi_offers_dashboard/scripts
 copy apps/kaspi_offers_dashboard/docs
-copy package.json
+copy apps/kaspi_offers_dashboard/package.json
+
+# root-level files
 copy pnpm-workspace.yaml
 copy pnpm-lock.yaml
 
-# Add the diff (so I can see exactly what changed)
-git -C "$ROOT" diff --no-ext-diff origin/main.."$BRANCH" -- apps scripts docs > "$TMP/changes.diff" || true
-
-# Sanitize env if present
-if [ -f "$ROOT/apps/kaspi_offers_dashboard/.env.example" ]; then
-  mkdir -p "$TMP/env"
-  cp "$ROOT/apps/kaspi_offers_dashboard/.env.example" "$TMP/env/.env.example"
+# Optional: include sanitized env example if present
+if [[ -f "$ROOT/apps/kaspi_offers_dashboard/.env.example" ]]; then
+  copy apps/kaspi_offers_dashboard/.env.example
 fi
 
-( cd "$TMP" && zip -qr "$OUT" . )
-mv "$TMP/$OUT" "$ROOT/"
-echo "Wrote $ROOT/$OUT"
+# Optional: include a diff against main
+git diff --no-ext-diff "origin/main...$BRANCH" > "$TMP/changes.diff" || true
+
+ZIPFILE="$OUTDIR/assistant_bundle_${SAFE_BRANCH}_${TS}.zip"
+(
+  cd "$TMP"
+  zip -r "$ZIPFILE" .
+)
+echo "Bundle created: $ZIPFILE"
+
+# Cleanup temp dir
+rm -rf "$TMP"
