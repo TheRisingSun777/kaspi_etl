@@ -33,7 +33,7 @@ function toCookieHeader(cookies, cityId) {
 async function main() {
   const merchantId = process.argv[2] || '30141222'
   const cityId = process.argv[3] || '710000000'
-  const host = process.env.CDP_HOST || '127.0.0.1'
+  const host = process.env.CDP_HOST || 'localhost'
   const port = Number(process.env.CDP_PORT || 9222)
 
   let client
@@ -41,7 +41,7 @@ async function main() {
     client = await CDP({ host, port })
   } catch (e) {
     console.error('[cookie-grab] Could not connect to Chrome DevTools on', `${host}:${port}`)
-    console.error('Start Chrome with: open -na "Google Chrome" --args --profile-directory="Profile 2" --remote-debugging-port=9222 https://kaspi.kz/shop/p/-131138247/?c=710000000')
+    console.error('Start Chrome with: /Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --profile-directory="Profile 2" --remote-debugging-port=9222 https://kaspi.kz/shop/p/-131138247/?c=710000000')
     process.exit(2)
   }
   const { Network } = client
