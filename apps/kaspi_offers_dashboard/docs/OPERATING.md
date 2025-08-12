@@ -27,6 +27,12 @@ Keep working memory in the repo so work can resume even if the chat resets.
 - Repricing endpoints run **dry by default**; require explicit confirmation to apply.
 - Validate all import/user inputs with zod; surface typed errors to the UI with toasts.
  - Cookie refresh: run `node apps/kaspi_offers_dashboard/server/scripts/login.mjs <merchantId>` and then verify via `POST /api/auth/cookie-status`.
+ - Cookie refresh (alt): quick grab from running Chrome profile via CDP:
+   1) Start Chrome with your UNI profile and remote debugging:
+      `open -na "Google Chrome" --args --profile-directory="UNI" --remote-debugging-port=9222 https://kaspi.kz/shop/p/-131138247/?c=710000000`
+   2) Ensure you are logged in and the product page loads sellers.
+   3) In the app dir, run: `pnpm cookies:collect` (defaults to merchant 30141222, city 710000000)
+   4) The cookie is saved to `apps/kaspi_offers_dashboard/server/merchant/<merchantId>.cookie.json`.
 When the chat approaches 80 % of the token limit, checkpoint your work to PROGRESS.md, update STATE.json, and start a new chat with the unified intro prompt. This prevents context loss.
 
 ## Interfaces (current expectations)

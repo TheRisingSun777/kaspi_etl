@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "watch:prices": "tsx scripts/price_watch.ts --ids=108382478 --city=710000000 --intervalSec=60",
-    "cookies:login": "tsx scripts/cookies_login.ts"
+    "cookies:login": "tsx scripts/cookies_login.ts",
+    "cookies:collect": "node --loader tsx ./scripts/collect_cookie_from_chrome.mjs"
   },
   "dependencies": {
     "@tanstack/react-table": "^8.21.3",
