@@ -35,17 +35,23 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: true, items: [], debug: { reason: 'NO_MERCHANT_ID', hint: 'Select a store in header' } })
     }
     const q = String(searchParams.get('q') || '')
-    const cookie = readCookieForMerchant(merchantId) || process.env.KASPI_MERCHANT_COOKIE || process.env.KASPI_MERCHANT_COOKIES || ''
+    // Prefer env for Merchant Cabinet cookie (mc-session), then fall back to file
+    const cookie = process.env.KASPI_MERCHANT_COOKIE || process.env.KASPI_MERCHANT_COOKIES || readCookieForMerchant(merchantId) || ''
     if (!cookie) {
       return NextResponse.json({ ok: true, items: [], debug: { reason: 'NO_COOKIE', hint: 'Run cookies:login or add server/merchant/<id>.cookie.json' } })
     }
     const base = process.env.KASPI_MERCHANT_API_BASE || 'https://mc.shop.kaspi.kz'
     const urlA = `${base}/bff/offer-view/list?m=${merchantId}&p=0&l=100&a=true&t=${encodeURIComponent(q)}&c=&lowStock=false&notSpecifiedStock=false`
-    const resA = await fetch(urlA, { headers: {
+    const headers = {
       accept: 'application/json, text/plain, */*',
-      origin: 'https://kaspi.kz', referer: 'https://kaspi.kz/', 'x-auth-version': '3',
-      cookie
-    }, cache: 'no-store' })
+      origin: 'https://kaspi.kz',
+      referer: 'https://kaspi.kz/',
+      'x-auth-version': '3',
+      cookie,
+      // help MC endpoints behave like browser
+      'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+    } as Record<string,string>
+    const resA = await fetch(urlA, { headers, cache: 'no-store' })
     const txtA = await resA.text()
     let jsA: any
     try { jsA = JSON.parse(txtA) } catch { jsA = txtA }
@@ -53,7 +59,7 @@ export async function GET(req: Request) {
 
     if (!picked.arr.length) {
       const urlB = `${base}/bff/offer-view/list?m=${merchantId}&p=0&l=10&available=true&t=${encodeURIComponent(q)}&c=&lowStock=false&notSpecifiedStock=false`
-      const resB = await fetch(urlB, { headers: { accept: 'application/json, text/plain, */*', origin: 'https://kaspi.kz', referer: 'https://kaspi.kz/', 'x-auth-version': '3', cookie }, cache: 'no-store' })
+      const resB = await fetch(urlB, { headers, cache: 'no-store' })
       const txtB = await resB.text()
       let jsB: any
       try { jsB = JSON.parse(txtB) } catch { jsB = txtB }
@@ -123,7 +129,7 @@ export async function GET(req: Request) {
     // ------------------------------------------------------------------
     // 1)  OPTIONAL seller scrape
     // ------------------------------------------------------------------
-    const withOpponents = new URL(req.url).searchParams.get('withOpponents') === 'true'
+    const withOpponents = new URL(req.url).searchParams.get('withOpponents') !== 'false'
     if (withOpponents) {
       const cityId = new URL(req.url).searchParams.get('cityId') || '710000000'
       const merchantId = new URL(req.url).searchParams.get('merchantId') || new URL(req.url).searchParams.get('storeId') || process.env.KASPI_MERCHANT_ID || ''

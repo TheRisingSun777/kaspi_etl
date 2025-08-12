@@ -130,10 +130,10 @@ export async function GET(req: NextRequest) {
   const offers: any[] = pickArrayKey(js)
   const sellers = offers
     .map((o: any) => ({
-      merchantId: String(o.merchantId ?? o.merchantUID ?? o.id ?? ''),
-      merchantName: o.merchantName ?? o.name ?? o.merchant ?? '',
-      price: Number(o.price ?? o.offerPrice ?? o.value ?? 0),
-      isYou: !!merchantId && (String(o.merchantId ?? o.merchantUID ?? o.id ?? '') === String(merchantId)),
+      merchantId: String(o.merchantId ?? o.merchantUID ?? o.id ?? o.sellerId ?? ''),
+      merchantName: o.merchantName ?? o.name ?? o.merchant ?? o.seller ?? '',
+      price: Number(o.price ?? o.offerPrice ?? o.value ?? o.prices?.[0]?.price ?? 0),
+      isYou: !!merchantId && (String(o.merchantId ?? o.merchantUID ?? o.id ?? o.sellerId ?? '') === String(merchantId)),
     }))
     .filter((s: any) => s.merchantId)
 

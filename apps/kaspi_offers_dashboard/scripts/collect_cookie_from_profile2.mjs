@@ -20,12 +20,12 @@ async function main() {
   const cityId = process.argv[3] || '710000000'
 
   const url = 'https://kaspi.kz'
-  const opts = { profile: 'Profile 2' }
+  const profile = 'Profile 2'
   const header = await new Promise((resolve, reject) => {
     getCookies(url, 'header', (err, cookie) => {
       if (err) return reject(err)
       resolve(cookie)
-    }, opts)
+    }, profile)
   }).catch((e) => {
     console.error('[cookie-grab:profile2] error reading Chrome cookies:', e?.message || e)
     return ''

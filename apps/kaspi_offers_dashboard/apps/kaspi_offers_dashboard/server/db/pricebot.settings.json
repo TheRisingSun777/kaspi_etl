@@ -1,4 +1,10 @@
 {
+  "30137883": {
+    "merchantId": "30137883",
+    "defaultCityId": 710000000,
+    "globalIgnoredOpponents": [],
+    "sku": {}
+  },
   "30141222": {
     "merchantId": "30141222",
     "defaultCityId": 710000000,
@@ -26,6 +32,24 @@
   },
   "30141225": {
     "merchantId": "30141225",
+    "defaultCityId": 710000000,
+    "globalIgnoredOpponents": [],
+    "sku": {}
+  },
+  "30290083": {
+    "merchantId": "30290083",
+    "defaultCityId": 710000000,
+    "globalIgnoredOpponents": [],
+    "sku": {}
+  },
+  "30361967": {
+    "merchantId": "30361967",
+    "defaultCityId": 710000000,
+    "globalIgnoredOpponents": [],
+    "sku": {}
+  },
+  "30362323": {
+    "merchantId": "30362323",
     "defaultCityId": 710000000,
     "globalIgnoredOpponents": [],
     "sku": {}

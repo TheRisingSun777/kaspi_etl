@@ -3,4 +3,7 @@ ignoredBuiltDependencies:
 
 onlyBuiltDependencies:
   - esbuild
+  - keytar
+  - sqlite3
+  - tldjs
   - unrs-resolver
