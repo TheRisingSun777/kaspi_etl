@@ -149,7 +149,33 @@ export async function GET(req: NextRequest) {
         }
       }
     }
-    return NextResponse.json({ ok: false, error: 'Kaspi returned no JSON (blocked?)' }, { status: 502 })
+
+    // 5) Optional: Playwright fallback (real browser context)
+    if (process.env.PLAYWRIGHT_FALLBACK === '1' && productId) {
+      try {
+        const { chromium } = await import('playwright') as any
+        const browser = await chromium.launch({ headless: true })
+        const context = await browser.newContext({
+          userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+        })
+        const page = await context.newPage()
+        await page.goto(`https://kaspi.kz/shop/p/-${productId}/?c=${cityId}`, { waitUntil: 'domcontentloaded', timeout: 15000 })
+        const payloadForBrowser = payload
+        const jsInBrowser = await page.evaluate(async (apiUrl, pld) => {
+          const r = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pld) })
+          const t = await r.text()
+          try { return JSON.parse(t) } catch { return null }
+        }, OFFERS_API, payloadForBrowser)
+        await browser.close()
+        if (jsInBrowser && (Array.isArray(jsInBrowser) || Array.isArray(jsInBrowser?.items))) {
+          js = jsInBrowser
+        }
+      } catch (e) {
+        console.warn('[opponents:playwright] fallback failed', e)
+      }
+    }
+
+    if (!js) return NextResponse.json({ ok: false, error: 'Kaspi returned no JSON (blocked?)' }, { status: 502 })
   }
 
   // Try to pick sellers array from multiple known shapes
