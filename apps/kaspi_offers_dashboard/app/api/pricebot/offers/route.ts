@@ -132,7 +132,12 @@ export async function GET(req: Request) {
       for (const it of offers as any[]) {
         const task = (async()=>{
           try {
-            const qs = new URLSearchParams({ sku: String(it.sku||''), merchantId: String(merchantId||''), cityId: String(cityId) }).toString()
+            const qs = new URLSearchParams({
+              sku: String(it.sku || ''),
+              productId: String(it.productId || ''),
+              merchantId: String(merchantId || ''),
+              cityId: String(cityId),
+            }).toString()
             const res = await fetch(`${new URL(req.url).origin}/api/pricebot/opponents?${qs}`)
             const js = await res.json().catch(()=>null)
             const sellers = Array.isArray(js?.items)? js.items : []

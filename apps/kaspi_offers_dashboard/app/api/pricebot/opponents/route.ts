@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
     : 'https://kaspi.kz/'
 
   const baseHeaders: Record<string, string> = {
-    'Accept': 'application/json, text/*',
+    'Accept': 'application/json, text/plain, */*',
     'Accept-Language': 'ru-KZ,ru;q=0.9,en;q=0.8',
     'Content-Type': 'application/json; charset=UTF-8',
     'Origin': 'https://kaspi.kz',
@@ -64,6 +64,9 @@ export async function GET(req: NextRequest) {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
     'X-KS-City': cityId,
     'X-Requested-With': 'XMLHttpRequest',
+    'Sec-Fetch-Site': 'same-site',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Dest': 'empty',
     'Cookie': cookieStr,
   }
 
