@@ -178,7 +178,7 @@ export async function GET(req: NextRequest) {
     if (!js) return NextResponse.json({ ok: false, error: 'Kaspi returned no JSON (blocked?)' }, { status: 502 })
   }
 
-  // Try to pick sellers array from multiple known shapes
+  // Try to pick sellers array from multiple known shapes; else recursively search for likely arrays
   function pickArrayKey(obj: any): any[] {
     const candidates = [
       'items',
@@ -188,6 +188,7 @@ export async function GET(req: NextRequest) {
       'data',
       'list',
       'offers',
+      'offers.items',
       'results',
       'rows',
       'page.content',
@@ -198,17 +199,52 @@ export async function GET(req: NextRequest) {
       for (const p of parts) cur = cur?.[p]
       if (Array.isArray(cur)) return cur
     }
-    return Array.isArray(obj) ? obj : []
+    return []
   }
-  const offers: any[] = pickArrayKey(js)
+  function isSellerLike(o: any): boolean {
+    if (!o || typeof o !== 'object') return false
+    const keys = Object.keys(o)
+    const hasPrice = 'price' in o || 'offerPrice' in o || 'value' in o || (o?.prices && Array.isArray(o.prices))
+    const hasMerchant = 'merchantId' in o || 'merchantUID' in o || 'sellerId' in o || 'merchantName' in o || 'seller' in o || 'name' in o
+    return hasPrice && hasMerchant
+  }
+  function findFirstSellerArray(node: any): any[] {
+    const seen = new Set<any>()
+    const stack: any[] = [node]
+    while (stack.length) {
+      const cur = stack.shift()
+      if (!cur || typeof cur !== 'object') continue
+      if (seen.has(cur)) continue
+      seen.add(cur)
+      if (Array.isArray(cur)) {
+        if (cur.some(isSellerLike)) return cur
+        // explore nested arrays/objects too
+        for (const v of cur) if (v && typeof v === 'object') stack.push(v)
+        continue
+      }
+      for (const v of Object.values(cur)) stack.push(v)
+    }
+    return []
+  }
+  let offers: any[] = pickArrayKey(js)
+  if (!offers.length) offers = findFirstSellerArray(js)
   const sellers = offers
-    .map((o: any) => ({
-      merchantId: String(o.merchantId ?? o.merchantUID ?? o.id ?? o.sellerId ?? ''),
-      merchantName: o.merchantName ?? o.name ?? o.merchant ?? o.seller ?? '',
-      price: Number(o.price ?? o.offerPrice ?? o.value ?? o.prices?.[0]?.price ?? 0),
-      isYou: !!merchantId && (String(o.merchantId ?? o.merchantUID ?? o.id ?? o.sellerId ?? '') === String(merchantId)),
-    }))
-    .filter((s: any) => s.merchantId)
+    .map((o: any) => {
+      const id = o.merchantId ?? o.merchantUID ?? o.id ?? o.sellerId ?? ''
+      const name = o.merchantName ?? o.name ?? o.merchant ?? o.seller ?? ''
+      let price = Number(o.price ?? o.offerPrice ?? o.value ?? 0)
+      if (!Number.isFinite(price) && Array.isArray(o.prices)) {
+        const p = o.prices.find((x:any)=> Number.isFinite(Number(x?.price)))
+        if (p) price = Number(p.price)
+      }
+      return {
+        merchantId: String(id || name || ''),
+        merchantName: String(name || id || ''),
+        price: Number.isFinite(price) ? price : 0,
+        isYou: !!merchantId && (String(id || '') === String(merchantId)),
+      }
+    })
+    .filter((s: any) => s.merchantId && s.merchantName)
 
   return NextResponse.json({ ok: true, items: sellers })
 }
