@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "watch:prices": "tsx scripts/price_watch.ts --ids=108382478 --city=710000000 --intervalSec=60",
     "cookies:login": "tsx scripts/cookies_login.ts",
-    "cookies:collect": "node --loader tsx ./scripts/collect_cookie_from_chrome.mjs"
+    "cookies:collect": "node --import tsx ./scripts/collect_cookie_from_chrome.mjs",
+    "cookies:launch": "open -na \"Google Chrome\" --args --profile-directory=\"Profile 2\" --remote-debugging-port=9222 'https://kaspi.kz/shop/p/-131138247/?c=710000000'"
   },
   "dependencies": {
     "@tanstack/react-table": "^8.21.3",
