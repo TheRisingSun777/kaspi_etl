@@ -9,20 +9,23 @@ export default function OpponentsModal({ productId, cityId, onClose, sku, initia
 
   useEffect(()=>{
     if (!productId) return
-    const load = async()=>{
-      setLoading(true); setError(null)
+    const load = async () => {
+      setLoading(true); setError(null);
       try {
         const params = new URLSearchParams({ sku, cityId: cityId || '710000000' });
         if (merchantId) params.set('merchantId', String(merchantId));
         if (productId)  params.set('productId', String(productId));
         const res = await fetch(`/api/pricebot/opponents?${params.toString()}`);
-        const js = await res.json();
-        const list = Array.isArray(js?.items)? js.items : Array.isArray(js?.sellers)? js.sellers : []
-        list.sort((a:any,b:any)=>Number(a.price||0)-Number(b.price||0))
-        setSellers(list)
-      } catch (e:any) { setError(e?.message||'Failed') }
-      finally { setLoading(false) }
-    }
+        const js  = await res.json();
+        const list = Array.isArray(js?.items) ? js.items : [];
+        list.sort((a: any, b: any) => Number(a.price || 0) - Number(b.price || 0));
+        setSellers(list);
+      } catch (e: any) {
+        setError(e?.message || 'Failed');
+      } finally {
+        setLoading(false);
+      }
+    };
     load()
   }, [productId, cityId, sku, merchantId])
 

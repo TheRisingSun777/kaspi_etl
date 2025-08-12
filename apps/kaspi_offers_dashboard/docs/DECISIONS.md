@@ -18,6 +18,9 @@ We persist lightweight run telemetry to `server/db/pricebot.runs.json` keyed by 
 ## 2025-08-11 — Dry-run by default for repricing
 All run/bulk actions default to dry-run and require explicit confirmation to apply, to prevent accidental price changes.
 
+## 2025-08-12 — Opponents API response shape normalization
+Kaspi intermittently returns sellers as a top-level array or under `items`. The UI `OpponentsModal` now reads `items` only, while the server route always normalizes and returns `{ ok, items: [...] }`. This avoids coupling the modal to legacy `{ sellers: [] }` shapes and reduces UI branching. Store opponents count also tolerates either a numeric `opponents` or a `sellers[]` list.
+
 ## 2025-08-11 — Import validation with zod + preview
 Imports are validated first; errors are typed and shown as toasts. No mutation occurs until the user confirms a clean import.
 

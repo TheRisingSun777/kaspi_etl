@@ -1,3 +1,4 @@
+- 2025-08-12 10:05 UTC — UI-002: Opponents modal loader now reads `items` only and sorts by price; opponents count typing/consistency fixed in store; curl verification steps documented.
 - 2025-08-11 13:26 UTC — UI stabilization: removed legacy rules table; made /pricebot client-only; added Zustand store; added row enrichment trigger; added CSV apply adapter and endpoint; improved cookie reader; fixed build/runtime.
 - 2025-08-11 13:34 UTC — UI-002: Added `/api/pricebot/stores` backed by `server/db/merchants.json`; header made sticky with store selector + import/export bar.
 - 2025-08-11 13:52 UTC — UI-002: Persist selected storeId to repo `STATE.json` via debug route; wired Bulk Run in header; fixed lints; build green.

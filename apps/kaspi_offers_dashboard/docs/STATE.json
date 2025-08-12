@@ -1,7 +1,7 @@
 {
     "version": 1,
     "branch": "feat/offers-dashboard",
-    "merchantId": "CHANGE_ME",
+    "merchantId": "30141222",
     "storeId": 30141222,
     "cityId": 710000000,
     "dryRun": true,
