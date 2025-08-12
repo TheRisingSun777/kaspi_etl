@@ -91,7 +91,7 @@ export default function PricebotTable({ storeId }: { storeId?: string }) {
     columnHelper.accessor(row=>row.opponents ?? 0, { id:'opponents', header:'Sellers', cell: info => {
       const r = info.row.original
       const n = Number(info.getValue()||0)
-      return <button className="underline" onClick={()=>setShowOpp({ sku: r.sku, productId: (r.productId as any)||null })}>{n}</button>
+          return <button className="underline" onClick={()=>setShowOpp({ sku: r.sku, productId: (r.productId as any)||null })}>{n}</button>
     }}),
     columnHelper.display({ id:'actions', header:'Run', cell: info => {
       const r = info.row.original
@@ -148,10 +148,11 @@ export default function PricebotTable({ storeId }: { storeId?: string }) {
             </tr>
           )})}
 
-          {rows.length === 0 && !loading && !error && (
+          {table.getRowModel().rows.length === 0 && !loading && !error && (
             <tr>
-              <td colSpan={5} className="p-2 text-sm text-gray-500">
-                No offers returned. Check /api/debug/merchant and credentials in .env.local.
+              {/*  make the cell span exactly the number of visible columns  */}
+              <td colSpan={table.getAllLeafColumns().length} className="p-2 text-sm text-gray-500">
+              No products match the current filter. Reload or adjust your filters to see data.
               </td>
             </tr>
           )}

@@ -2,10 +2,7 @@
   "30141222": {
     "merchantId": "30141222",
     "defaultCityId": 710000000,
-    "globalIgnoredOpponents": [
-      "30137883",
-      "30290083"
-    ],
+    "globalIgnoredOpponents": [],
     "sku": {
       "CL_OC_MEN_PRINT51_BLACK_116155651_54-56_(3XL)": {
         "active": false
@@ -14,6 +11,24 @@
         "active": false
       }
     }
+  },
+  "30141223": {
+    "merchantId": "30141223",
+    "defaultCityId": 710000000,
+    "globalIgnoredOpponents": [],
+    "sku": {}
+  },
+  "30141224": {
+    "merchantId": "30141224",
+    "defaultCityId": 710000000,
+    "globalIgnoredOpponents": [],
+    "sku": {}
+  },
+  "30141225": {
+    "merchantId": "30141225",
+    "defaultCityId": 710000000,
+    "globalIgnoredOpponents": [],
+    "sku": {}
   },
   "test-store": {
     "merchantId": "test-store",

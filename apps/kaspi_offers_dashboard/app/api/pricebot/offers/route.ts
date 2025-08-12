@@ -118,6 +118,42 @@ export async function GET(req: Request) {
       }
     })
 
+    // ------------------------------------------------------------------
+    // 1)  OPTIONAL seller scrape
+    // ------------------------------------------------------------------
+    const withOpponents = new URL(req.url).searchParams.get('withOpponents') === 'true'
+    if (withOpponents) {
+      const cityId = new URL(req.url).searchParams.get('cityId') || '710000000'
+      const merchantId = new URL(req.url).searchParams.get('merchantId') || new URL(req.url).searchParams.get('storeId') || process.env.KASPI_MERCHANT_ID || ''
+      const MAX_PAR = 5
+      const queue: Promise<void>[] = []
+      for (const it of offers as any[]) {
+        const task = (async()=>{
+          try {
+            const qs = new URLSearchParams({ sku: String(it.sku||''), merchantId: String(merchantId||''), cityId: String(cityId) }).toString()
+            const res = await fetch(`${new URL(req.url).origin}/api/pricebot/opponents?${qs}`)
+            const js = await res.json().catch(()=>null)
+            const sellers = Array.isArray(js?.items)? js.items : []
+            it.sellers = sellers
+            it.opponents = sellers.length
+          } catch (err) {
+            console.warn('[offers] opponents fetch failed for', it.sku, err)
+            it.sellers = []
+            it.opponents = 0
+          }
+        })()
+        queue.push(task)
+        if (queue.length >= MAX_PAR) {
+          await Promise.race(queue)
+          queue.splice(0, 1)
+        }
+      }
+      await Promise.all(queue)
+    }
+
+    // ------------------------------------------------------------------
+    // 2)  Return to caller
+    // ------------------------------------------------------------------
     if (!offers.length) return NextResponse.json({ ok: true, items: [], debug: { tried: 2, pickedKey: picked.key, hints: ['/api/debug/merchant/list?raw=1'] } })
     return NextResponse.json({ ok: true, items: offers })
   } catch (e: any) {

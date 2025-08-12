@@ -1,8 +1,24 @@
+import fs from 'node:fs'
+import path from 'node:path'
 const BASE   = process.env.KASPI_MERCHANT_API_BASE!;
 const MODE   = (process.env.KASPI_MERCHANT_AUTH_MODE || 'cookie') as 'cookie'|'token';
 const COOKIE = process.env.KASPI_MERCHANT_COOKIE || '';
 const MID    = process.env.KASPI_MERCHANT_ID!;
 const DEFAULT_CITY = process.env.DEFAULT_CITY_ID || '710000000';
+
+// Lightweight debug logger configured at module import time
+const LOG_DIR = path.join(process.cwd(), 'server');
+const LOG_FILE = path.join(LOG_DIR, 'pricebot_debug.log');
+try { if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true }); } catch {}
+const logger = {
+  debug: (message: string, meta?: unknown) => {
+    try {
+      const line = `${new Date().toISOString()} ${message}${meta !== undefined ? ' ' + safeStringify(meta) : ''}`;
+      fs.appendFileSync(LOG_FILE, line + '\n');
+    } catch {}
+  }
+};
+function safeStringify(v: unknown) { try { return JSON.stringify(v); } catch { return String(v); } }
 
 function headers(extra?: Record<string,string>) {
   const h: Record<string,string> = { 'Accept': 'application/json', 'User-Agent': 'KaspiOffersDashboard/1.0' };
@@ -78,9 +94,35 @@ export async function updatePriceBySku({
     ],
   };
 
-  return api(`/price/trends/api/v1/mc/discount`, {
+  // Debug: payload we are about to send to Kaspi
+  logger.debug('upload_prices:start', { endpoint: '/price/trends/api/v1/mc/discount', body });
+
+  // Honor DRY_RUN env to skip actual HTTP POST but still log the payload
+  const dryEnv = String(process.env.DRY_RUN || '').toLowerCase();
+  const isDry = dryEnv === '1' || dryEnv === 'true' || dryEnv === 'yes';
+  if (isDry) {
+    logger.debug('upload_prices:dry_skip', { reason: 'DRY_RUN env active', body });
+    // Emulate a lightweight OK response
+    return { ok: true, dryRun: true, skipped: true, body } as unknown as any;
+  }
+
+  // Perform request directly to capture raw status + body for logging
+  const res = await fetch(`${BASE}/price/trends/api/v1/mc/discount`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers() },
     body: JSON.stringify(body),
+    cache: 'no-store',
   });
+  const status = res.status;
+  const text = await res.text();
+
+  // Debug: raw HTTP response
+  logger.debug('upload_prices:response', { status, body: text });
+
+  // Preserve prior behavior: return parsed JSON when possible, else raw text; throw on HTTP error codes.
+  if (!res.ok) {
+    // surface HTTP error with body
+    throw new Error(`MerchantAPI ${status} ${res.statusText} :: ${text.slice(0,500)}`);
+  }
+  try { return JSON.parse(text); } catch { return text; }
 }

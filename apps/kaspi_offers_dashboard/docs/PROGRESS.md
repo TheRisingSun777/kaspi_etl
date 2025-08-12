@@ -1,6 +1,7 @@
 - 2025-08-11 13:26 UTC — UI stabilization: removed legacy rules table; made /pricebot client-only; added Zustand store; added row enrichment trigger; added CSV apply adapter and endpoint; improved cookie reader; fixed build/runtime.
 - 2025-08-11 13:34 UTC — UI-002: Added `/api/pricebot/stores` backed by `server/db/merchants.json`; header made sticky with store selector + import/export bar.
 - 2025-08-11 13:52 UTC — UI-002: Persist selected storeId to repo `STATE.json` via debug route; wired Bulk Run in header; fixed lints; build green.
+- 2025-08-11 17:58 UTC — Opponents: Switched `/api/pricebot/opponents` to POST JSON with browser headers; added logging and city cookie; wired `/api/pricebot/offers?withOpponents=true` to merge sellers.
 - 2025-08-11 13:15 UTC — TEST-001: Added import and opponents route smoke tests; green.
 - 2025-08-11 13:12 UTC — TEST-001: Added route smoke tests for /api/pricebot/run (dry + bad_input).
 - 2025-08-11 13:08 UTC — TEST-001: Added extra unit test for proposal logic; test suite green.

@@ -114,6 +114,7 @@ in_progress:
       - Sticky header with export/import buttons and bulk actions visible on scroll.
     progress:
       - 2025-08-11: Added `/api/pricebot/stores` route and wired `StoreSelector`; header made sticky in `PricebotPageClient`.
+      - 2025-08-11: Wired offers page to request `withOpponents=true`; opponents merge added server-side; UI consumes sellers.
     estimate: 3h
     labels: [ui, ux]
 
