@@ -23,3 +23,5 @@ node_modules/
 # Generated caches/state for this app
 tsconfig.tsbuildinfo
 server/db/*.json
+server/db/cookies/*.json
+server/merchant/*.json
