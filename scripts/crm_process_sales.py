@@ -35,13 +35,22 @@ from utils.phones import parse_kz_phone
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+RUN_DATE = os.environ.get("RUN_DATE", pd.Timestamp.utcnow().strftime("%Y%m%d"))
 DATA_CRM_DIR = REPO_ROOT / "data_crm"
 SALES_XLSX = DATA_CRM_DIR / "sales_ksp_crm_20250813_v1.xlsx"
 KSP_MAP_XLSX = DATA_CRM_DIR / "mappings" / "ksp_sku_map_updated.xlsx"
 SKU_MAP_XLSX = DATA_CRM_DIR / "sku_map_crm_20250813_v1.xlsx"
 STOCK_CSV = DATA_CRM_DIR / "stock_on_hand.csv"
+PROCESSED_DIR = DATA_CRM_DIR / "processed"
+STOCK_DIR = DATA_CRM_DIR / "stock"
+PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+STOCK_DIR.mkdir(parents=True, exist_ok=True)
+
+PROCESSED_SALES_DATED = PROCESSED_DIR / f"processed_sales_{RUN_DATE}.csv"
+STOCK_UPDATED_DATED = STOCK_DIR / f"stock_on_hand_updated_{RUN_DATE}.csv"
+
+PROCESSED_SALES_CSV = DATA_CRM_DIR / "processed_sales_latest.csv"
 STOCK_UPDATED_CSV = DATA_CRM_DIR / "stock_on_hand_updated.csv"
-PROCESSED_SALES_CSV = DATA_CRM_DIR / "processed_sales_20250813.csv"
 MISSING_SKUS_CSV = DATA_CRM_DIR / "missing_skus.csv"
 SALES_FIXED_XLSX = DATA_CRM_DIR / "sales_ksp_crm_fixed.xlsx"
 ORDERS_CSV = DATA_CRM_DIR / "orders_clean_preview.csv"
@@ -68,6 +77,48 @@ def _ensure_columns(df: pd.DataFrame, required: Iterable[str]) -> None:
     for col in required:
         if col not in df.columns:
             df[col] = pd.NA
+
+
+def normalize_size(value: object) -> str:
+    """Normalize size tokens to canonical forms.
+
+    - Returns "" for NaN/None/empty or placeholders (nan/none/null/-/_)
+    - Collapses spaces and uppercases
+    - Maps XXL/XXXL/XXXXL → 2XL/3XL/4XL
+    - Accepts explicit 2XL/3XL/4XL and S/M/L/XL
+    - If mixed tokens present, picks the last recognized token
+    - If a numeric size (44–64) is present, returns that number as string
+    """
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return ""
+    text = str(value).strip()
+    if not text:
+        return ""
+    upper = text.upper().strip()
+    if upper in {"NAN", "NONE", "NULL", "-", "_"}:
+        return ""
+    upper = upper.replace(" ", "")
+
+    # Expand common textual variants
+    repl = {
+        "XXXXL": "4XL",
+        "XXXL": "3XL",
+        "XXL": "2XL",
+        "X-L": "XL",
+        "X L": "XL",
+        "2 X L": "2XL",
+        "3 X L": "3XL",
+        "4 X L": "4XL",
+    }
+    for k, v in repl.items():
+        upper = upper.replace(k, v)
+
+    # Recognized tokens
+    tokens = re.findall(r"(4[4-9]|5[0-9]|6[0-4]|[2-4]?XL|XL|L|M|S)", upper)
+    if tokens:
+        return tokens[-1]
+
+    return upper
 
 
 def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, Optional[pd.DataFrame], pd.DataFrame]:
@@ -130,12 +181,32 @@ def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, Optional[pd.DataFrame], p
 def compute_sku_id_inplace(sales_df: pd.DataFrame) -> None:
     if "sku_key" not in sales_df.columns:
         raise KeyError("Expected column 'sku_key' in sales file after normalization")
-    # If my_size missing, create empty to avoid 'nan' text
+    # Ensure columns exist and clean NaN/None → ""
     if "my_size" not in sales_df.columns:
         sales_df["my_size"] = ""
-    sales_df["sku_key"] = sales_df["sku_key"].astype(str).str.strip()
-    sales_df["my_size"] = sales_df["my_size"].astype(str).str.strip()
-    sales_df["sku_id"] = sales_df["sku_key"] + "_" + sales_df["my_size"]
+    sales_df["_sku_id_issue"] = ""
+
+    def clean_string(val: object) -> str:
+        if val is None or (isinstance(val, float) and pd.isna(val)):
+            return ""
+        s = str(val).strip()
+        if not s or s.lower() in {"nan", "none", "null", "-", "_"}:
+            return ""
+        return s
+
+    sales_df["sku_key"] = sales_df["sku_key"].apply(clean_string)
+    sales_df["my_size"] = sales_df["my_size"].apply(normalize_size)
+
+    # Build sku_id only when sku_key is present; else mark issue
+    def build_sku_id(row: pd.Series) -> str:
+        key = row.get("sku_key", "")
+        size = row.get("my_size", "")
+        if not key:
+            row["_sku_id_issue"] = "missing_sku_key"
+            return ""
+        return f"{key}_{size}" if size else f"{key}_"
+
+    sales_df["sku_id"] = sales_df.apply(build_sku_id, axis=1)
 
 
 def enrich_with_sku_map(sales_df: pd.DataFrame, sku_map_df: Optional[pd.DataFrame]) -> pd.DataFrame:
@@ -170,28 +241,43 @@ def write_missing_skus_report(
     df["sku_id"] = df.get("sku_id", "").astype(str)
     df["sku_key"] = df.get("sku_key", "").astype(str)
     df["my_size"] = df.get("my_size", "").astype(str)
+    df["ksp_sku_id"] = df.get("ksp_sku_id", "").astype(str)
     qty_series = pd.to_numeric(df.get(qty_col, 1), errors="coerce").fillna(1)
     df["_qty_num"] = qty_series
 
+    # Determine membership in map
+    in_map = pd.Series([False] * len(df))
     if sku_map_df is not None and "sku_id" in sku_map_df.columns:
         sku_ids_in_map = set(sku_map_df["sku_id"].astype(str))
-        missing_df = df[~df["sku_id"].isin(sku_ids_in_map)].copy()
-    else:
-        missing_df = df
+        in_map = df["sku_id"].isin(sku_ids_in_map)
+
+    # Reasons
+    reasons = []
+    for _, r in df.iterrows():
+        sku_id = r["sku_id"].strip()
+        if not sku_id:
+            if str(r.get("_sku_id_issue", "")) == "missing_sku_key":
+                reasons.append("missing_sku_key")
+            else:
+                reasons.append("blank_sku_id")
+        elif not sku_id in sku_ids_in_map if (sku_map_df is not None and "sku_id" in sku_map_df.columns) else True:
+            reasons.append("not_in_map")
+        else:
+            reasons.append("")
+    df["reason"] = reasons
+
+    missing_df = df[(df["reason"] != "")].copy()
 
     if missing_df.empty:
         report_df = pd.DataFrame(columns=[
-            "sku_id",
-            "occurrences",
-            "total_qty",
-            "example_sku_key",
-            "example_my_size",
-            "example_store_name",
+            "sku_id", "ksp_sku_id", "occurrences", "total_qty",
+            "example_sku_key", "example_my_size", "example_store_name",
+            "has_ksp_id", "reason",
         ])
     else:
         report_df = (
             missing_df
-            .groupby("sku_id", dropna=False)
+            .groupby(["sku_id", "reason", "ksp_sku_id"], dropna=False)
             .agg(
                 occurrences=("sku_id", "size"),
                 total_qty=("_qty_num", "sum"),
@@ -200,12 +286,17 @@ def write_missing_skus_report(
                 example_store_name=("store_name", "first"),
             )
             .reset_index()
+            .assign(has_ksp_id=lambda d: d["ksp_sku_id"].astype(str).str.strip().ne(""))
             .sort_values(["total_qty", "occurrences"], ascending=[False, False])
         )
 
-    # Save report
+    # Save dated and latest
+    today = pd.Timestamp.utcnow().strftime("%Y%m%d")
+    dated_path = output_path.parent / f"missing_skus_{today}.csv"
+    latest_path = output_path
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    report_df.to_csv(output_path, index=False)
+    report_df.to_csv(dated_path, index=False)
+    report_df.to_csv(latest_path, index=False)
     return report_df
 
 
@@ -319,11 +410,24 @@ def update_stock(stock_df: pd.DataFrame, sales_df: pd.DataFrame, qty_col: str) -
     merged = stock_df.merge(sold_by_key, on="sku_key", how="left")
     merged["sold_qty"] = merged["sold_qty"].fillna(0)
     merged[stock_qty_col] = pd.to_numeric(merged[stock_qty_col], errors="coerce").fillna(0)
-    merged["updated_qty"] = (merged[stock_qty_col] - merged["sold_qty"]).clip(lower=0)
+    updated_raw = merged[stock_qty_col] - merged["sold_qty"]
+    merged["oversell"] = (-updated_raw).clip(lower=0)
+    merged["updated_qty"] = updated_raw.clip(lower=0)
 
     # Prefer to keep schema stable: write updated_qty and also overwrite the original qty column
     merged[stock_qty_col] = merged["updated_qty"]
     merged.drop(columns=["updated_qty"], inplace=True)
+
+    # Oversell report
+    total_oversell = int(merged["oversell"].sum())
+    if total_oversell > 0:
+        reports_dir = DATA_CRM_DIR / "reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        oversell_path = reports_dir / f"oversell_{RUN_DATE}.csv"
+        oversell_df = merged.loc[merged["oversell"] > 0, ["sku_key", stock_qty_col, "sold_qty", "oversell"]].copy()
+        oversell_df.rename(columns={stock_qty_col: "before_qty"}, inplace=True)
+        oversell_df.to_csv(oversell_path, index=False)
+        print(f"Oversell detected: total {total_oversell}. Details: {oversell_path}")
 
     return merged
 
@@ -387,17 +491,54 @@ def main() -> int:
 
     qty_col = choose_qty_column(sales_df)
 
+    # Dedupe before enrichment
+    reports_dir = DATA_CRM_DIR / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    duplicates_path = reports_dir / f"duplicates_{RUN_DATE}.csv"
+    before_count = len(sales_df)
+    # Natural key: (orderid, sku_id) if available; else fallback composite
+    if "orderid" in sales_df.columns and "sku_id" in sales_df.columns:
+        key_cols = ["orderid", "sku_id"]
+    else:
+        key_cols = [c for c in ["ksp_sku_id", "store_name", "sku_id", "date"] if c in sales_df.columns]
+    if key_cols:
+        # Identify perfect duplicates
+        sales_df["_dup_key"] = sales_df[key_cols].astype(str).agg("|".join, axis=1)
+        dup_counts = sales_df.groupby("_dup_key").size().reset_index(name="count")
+        dup_keys = set(dup_counts.loc[dup_counts["count"] > 1, "_dup_key"].astype(str))
+        removed_rows = sales_df[sales_df["_dup_key"].isin(dup_keys)].copy()
+        if not removed_rows.empty:
+            removed_rows.to_csv(duplicates_path, index=False)
+        # Keep first occurrence and sum qty for exact dupes
+        if "qty" in sales_df.columns:
+            aggregated = sales_df.groupby(list(set(key_cols + ["sku_key", "my_size", "store_name"])) , dropna=False, as_index=False).agg({
+                "qty": "sum"
+            })
+            # Merge back non-qty columns from first occurrence
+            firsts = sales_df.sort_index().drop_duplicates(subset=key_cols, keep="first")
+            sales_df = firsts.drop(columns=["qty"], errors="ignore").merge(aggregated, on=list(set(key_cols + ["sku_key", "my_size", "store_name"])), how="left")
+        else:
+            sales_df = sales_df.drop_duplicates(subset=key_cols, keep="first")
+        sales_df.drop(columns=["_dup_key"], inplace=True, errors="ignore")
+    after_count = len(sales_df)
+    if after_count < before_count:
+        print(f"Deduped sales: removed {before_count - after_count} rows → {duplicates_path}")
+
     enriched_df = enrich_with_sku_map(sales_df, maybe_sku_map_df)
 
-    # Update stock and write
+    # Update stock and write (dated + latest)
     updated_stock_df = update_stock(stock_df, sales_df, qty_col)
+    STOCK_DIR.mkdir(parents=True, exist_ok=True)
+    updated_stock_df.to_csv(STOCK_UPDATED_DATED, index=False)
     updated_stock_df.to_csv(STOCK_UPDATED_CSV, index=False)
-    print(f"Updated stock written: {STOCK_UPDATED_CSV}")
+    print(f"Updated stock written: {STOCK_UPDATED_CSV} and {STOCK_UPDATED_DATED}")
 
-    # Build normalized sales log and write
+    # Build normalized sales log and write (dated + latest)
     normalized_sales = make_normalized_sales_log(enriched_df, qty_col)
+    PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+    normalized_sales.to_csv(PROCESSED_SALES_DATED, index=False)
     normalized_sales.to_csv(PROCESSED_SALES_CSV, index=False)
-    print(f"Processed sales log written: {PROCESSED_SALES_CSV}")
+    print(f"Processed sales log written: {PROCESSED_SALES_CSV} and {PROCESSED_SALES_DATED}")
 
     # Missing SKU report
     missing_report_df = write_missing_skus_report(sales_df, maybe_sku_map_df, qty_col, MISSING_SKUS_CSV)
