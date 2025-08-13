@@ -76,3 +76,8 @@ group-labels:
 
 run-all:
 	INPUT_LABELS="$(INPUT)" OUT_DATE="$(OUT_DATE)" ./scripts/run_e2e.sh
+
+.PHONY: ci-sanity
+
+ci-sanity:
+	@./venv/bin/python scripts/ci_sanity.py --strict

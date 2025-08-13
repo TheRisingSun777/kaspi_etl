@@ -75,6 +75,16 @@ tasks:
       - sku_id now requires both sku_key and my_size
     pr: null
     commit: 222fdcb
+  - id: orders-paging
+    title: Orders ETL paging + status filter + staging outputs
+    status: done
+    notes:
+      - Adds page/size params with polite sleep and stop-on-empty
+      - Optional status filter via KASPI_ORDERS_STATUS
+      - Writes inputs/orders_active_YYYYMMDD.json and orders_api_latest.csv
+      - Make target respects env and uses venv python
+    pr: null
+    commit: 1c295c4
   - id: report-missing-maps
     title: Report missing KSP mappings (sku_key gaps)
     status: done

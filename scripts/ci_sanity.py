@@ -10,7 +10,10 @@ Strict checks:
 - orders_api_latest.csv: required columns present (orderid,ksp_sku_id,sku_key,my_size,qty,sell_price); non-null >= 95%.
 - processed_sales: prefer data_crm/processed_sales_latest.csv else latest under data_crm/processed/.
 - sku_id rule: in processed_sales, sku_id must equal f"{sku_key}_{my_size}" after normalization.
-- size-recs: data_crm/orders_kaspi_with_sizes.xlsx exists and rec_size non-null ratio >= 95%.
+- size-recs: data_crm/orders_kaspi_with_sizes.xlsx exists and rec_size non-null ratio >= 90% (null-rate < 10%).
+Additional gates:
+- orders_api_latest.csv exists and has at least 1 row
+- missing_ksp_mapping.csv row count == 0 OR < 5% of orders
 
 Also keeps earlier checks (KSP map schema presence, size grids present and non-empty).
 Prints one line per check and final PASS/FAIL.
@@ -64,6 +67,7 @@ def check_paths(strict: bool) -> Tuple[List[CheckResult], Dict[str, Path]]:
         "sizes_xlsx": DATA_CRM / "orders_kaspi_with_sizes.xlsx",
         "size_grid_all": DATA_CRM / "size_grid_all_models.xlsx",
         "size_grid_group": DATA_CRM / "size_grid_by_model_group.xlsx",
+        "missing_map": DATA_CRM / "reports" / "missing_ksp_mapping.csv",
     }
 
     results: List[CheckResult] = []
@@ -154,7 +158,7 @@ def processed_sku_id_rule_check(processed_csv: Path) -> List[CheckResult]:
 
 def size_recs_checks(path: Path, min_non_null_pct: float = 95.0) -> List[CheckResult]:
     results: List[CheckResult] = []
-    name = "size-recs: rec_size non-null >= 95%"
+    name = f"size-recs: rec_size non-null >= {min_non_null_pct:.0f}%"
     if not path.exists():
         results.append(CheckResult(name=name, ok=False, message="missing file", level="CHECK"))
         return results
@@ -225,10 +229,14 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     # Orders checks
     orders_csv = paths["orders_csv"]
+    orders_count: Optional[int] = None
     if orders_csv.exists():
         try:
             orders_df = pd.read_csv(orders_csv)
             orders_df.columns = [str(c).strip().lower().replace(" ", "_") for c in orders_df.columns]
+            # Gate: at least 1 row present
+            orders_count = len(orders_df)
+            overall_results.append(CheckResult(name="orders: non-empty (>=1 row)", ok=(orders_count >= 1), message=f"rows={orders_count}", level="CHECK"))
             overall_results.extend(validate_orders_schema(orders_df))
         except Exception as exc:
             overall_results.append(CheckResult(name="orders: readable", ok=False, message=str(exc), level="CHECK"))
@@ -242,8 +250,23 @@ def main(argv: Optional[List[str]] = None) -> int:
     else:
         overall_results.append(CheckResult(name="processed_sales: present", ok=False, message=str(processed_csv), level="CHECK"))
 
-    # Size recs checks
-    overall_results.extend(size_recs_checks(paths["sizes_xlsx"], min_non_null_pct=95.0))
+    # Size recs checks (null-rate < 10% => non-null >= 90%)
+    overall_results.extend(size_recs_checks(paths["sizes_xlsx"], min_non_null_pct=90.0))
+
+    # Missing KSP mapping gate: row count == 0 OR < 5% of orders
+    miss_path = paths.get("missing_map")
+    if miss_path and miss_path.exists():
+        try:
+            miss_df = pd.read_csv(miss_path)
+            miss_rows = len(miss_df)
+            denom = float(orders_count) if orders_count is not None and orders_count > 0 else 0.0
+            ratio = (miss_rows / denom * 100.0) if denom > 0 else (0.0 if miss_rows == 0 else 100.0)
+            ok_gate = (miss_rows == 0) or (ratio < 5.0)
+            overall_results.append(CheckResult(name="missing_ksp_mapping.csv: rows == 0 or <5% of orders", ok=ok_gate, message=f"rows={miss_rows}, ratio={ratio:.1f}%", level="CHECK"))
+        except Exception as exc:
+            overall_results.append(CheckResult(name="missing_ksp_mapping.csv: readable", ok=False, message=str(exc), level="CHECK"))
+    else:
+        overall_results.append(CheckResult(name="missing_ksp_mapping.csv: present", ok=False, message=str(miss_path), level="CHECK"))
 
     # KSP map schema + size grid presence
     overall_results.extend(ksp_map_checks(paths["ksp_map_xlsx"]))

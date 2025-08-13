@@ -89,3 +89,7 @@
 - 2025-08-14 — Orders ETL: real paging + filter + staging outputs.
   - `scripts/etl_orders_api.py` adds paging (page,size), optional status filter, polite sleep, first 5 ids/sku logs.
   - Saves raw JSON to `data_crm/inputs/orders_active_YYYYMMDD.json` and normalized to both dated + `orders_api_latest.csv`.
+
+- 2025-08-14 — CI: enforce size/mapping gates.
+  - `scripts/ci_sanity.py` checks: orders non-empty; size-recs null-rate <10%; missing_ksp_mapping rows == 0 or <5% of orders.
+  - Make `ci-sanity` runs strict mode.
