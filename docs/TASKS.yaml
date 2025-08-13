@@ -4,6 +4,14 @@ in_progress:
   - id: CRM-A.1
     started: true
     title: Add normalization rules (sizes, ignore prefixes)
+  - id: CRM-A.2
+    started: true
+    title: Implement repair script
+    description: |
+      Normalize my_size, derive sku_key from names, drop ignored prefixes, write fixed file and delta report.
+    AC:
+      - scripts/crm_repair_sales.py exists and runs
+      - data_crm/sales_ksp_crm_fixed.xlsx and data_crm/reports/repair_changes.csv written
     description: |
       Create size normalization CSV and ignore prefixes to filter non-clothing SKUs.
     AC:
