@@ -97,6 +97,7 @@ class KaspiAPI:
             params["include[orders]"] = "user"
 
         all_data: List[Dict[str, Any]] = []
+        all_included: List[Dict[str, Any]] = []
         total_pages: Optional[int] = None
         fetched_pages = 0
 
@@ -105,6 +106,9 @@ class KaspiAPI:
             payload = resp.json()
             data_chunk = payload.get("data", [])
             all_data.extend(data_chunk)
+            included_chunk = payload.get("included", []) or []
+            if included_chunk:
+                all_included.extend(included_chunk)
             fetched_pages += 1
             meta = payload.get("meta") or {}
             links = payload.get("links") or {}
@@ -118,6 +122,7 @@ class KaspiAPI:
 
         return {
             "data": all_data,
+            "included": all_included,
             "meta": {"totalPages": total_pages or 1, "fetchedPages": fetched_pages},
             "range": {"from": date_from, "to": date_to},
             "state": state,
