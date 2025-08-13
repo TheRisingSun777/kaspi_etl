@@ -52,3 +52,8 @@
 - 2025-08-14 — Strict processed_sales schema.
   - `join_api_orders_to_sales.py` enforces canonical header; writes `data_crm/reports/schema_diff.txt` on mismatch.
   - Processed/stock regenerated from cached JSON; coverage updated.
+
+- 2025-08-14 — size-recs runs off processed sales; non-null rec_size.
+  - Updated `scripts/link_orders_and_sizes.py` to prioritize processed sales, derive `model_group`, normalize sizes, and use grid/engine defaults.
+  - Wrote `data_crm/orders_kaspi_with_sizes.xlsx` with [orderid, date, ksp_sku_id, sku_key, store_name, qty, height, weight, rec_size, model_group].
+  - Sample run: rec_size counts show non-null values (defaults to M where needed).

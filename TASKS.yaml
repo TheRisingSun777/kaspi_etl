@@ -1,6 +1,6 @@
 version: 1
 updated: 2025-08-14
-branch: kaspi-api-integration
+branch: crm-api-join
 milestone: "zip for review"
 tasks:
   - id: bundle-setup
@@ -33,10 +33,10 @@ tasks:
     title: Link API orders to size recommendations
     status: done
     notes:
-      - Added scripts/link_orders_and_sizes.py and Makefile `size-recs`
-      - Size grids present; generated orders_kaspi_with_sizes.xlsx
+      - Updated to prioritize processed sales; derive model_group; normalize sizes
+      - Uses grid defaults/engine; non-null rec_size; writes orders_kaspi_with_sizes.xlsx
     pr: null
-    commit: 74ba615
+    commit: fe4f0e6
   - id: exports-pack-pdfs
     title: Generate grouped packing PDFs and zip
     status: done
