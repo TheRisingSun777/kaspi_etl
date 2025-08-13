@@ -1,7 +1,7 @@
 {
   "active_branch": "crm-system",
   "phase": "phase2",
-  "last_run": null,
+  "last_run": "2025-08-13T06:27:31Z",
   "flags": {
     "use_fixed_sales": true,
     "dry_run": true,

@@ -1,16 +1,6 @@
 version: 1
 
 in_progress:
-  - id: CRM-A.1
-  - id: CRM-B.1
-    started: true
-    title: WhatsApp API client integration
-    description: Add Twilio/360dialog client with dry-run
-    started: true
-    title: Add normalization rules (sizes, ignore prefixes)
-  - id: CRM-A.2
-    started: true
-    title: Implement repair script
   - id: CRM-A.3
     started: true
     title: Rebuild mappings/outputs and add coverage report
@@ -75,14 +65,18 @@ backlog:
   - id: CORE-LOOP-004
 done:
   - id: PH1-REPAIR
+    title: Phase 1 - Repair sales file
+    description: Normalize sizes, derive sku_key, drop ignored prefixes; write fixed and delta report
+    completed: true
   - id: CRM-C.1
     title: WA inbound webhook service
     completed: true
   - id: CRM-C.2
     title: WA webhook runner script
     completed: true
-    title: Phase 1 - Repair sales file
-    description: Normalize sizes, derive sku_key, drop ignored prefixes; write fixed and delta report
+  - id: CRM-B.1
+    title: WhatsApp API client integration
+    description: Add Twilio/360dialog client with dry-run
     completed: true
   - id: PH1-PDFS
     title: Phase 1 - PDFs/labels pipeline

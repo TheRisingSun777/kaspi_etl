@@ -11,3 +11,4 @@ Pivot to core repricing loop: After days of effort fighting the seller/opponent 
 - 2025-08-13 10:45 UTC: E.1–E.2 Add daily orchestrator and run script; logs directory initialized (crm-system)
 - 2025-08-13 10:58 UTC: B.1 Added WhatsApp API client (Twilio/360dialog) and .env.sample (crm-system)
 - 2025-08-13 11:05 UTC: C.1–C.2 WA inbound webhook (FastAPI) + runner; docs updated (crm-system)
+ - 2025-08-13 06:27 UTC: Checkpoint & rotate; Phase2 dry-run pipeline, planning/apply shells, alerts and reports in place (crm-system)
