@@ -66,6 +66,13 @@ tasks:
       - Playwright-based; filters by statuses; cookie auth from .env.local
     pr: null
     commit: 559d014
+  - id: size-recs-pref-strong
+    title: Size-recs prefer API CSV, stronger model inference
+    status: done
+    notes:
+      - sku_key fill fallback and improved model_group parsing
+    pr: null
+    commit: 705e91c
   - id: labels-grouping
     title: Automate PDF label grouping by SKU and size
     status: done

@@ -46,3 +46,8 @@
 - 2025-08-14 — Waybills fetcher (Merchant Cabinet) with Playwright.
   - Added `scripts/fetch_waybills_mc.py` using cookie auth; `make fetch-waybills` target.
   - Saves ZIP under `data_crm/labels_inbox/YYYY-MM-DD/waybill-*.zip`.
+
+- 2025-08-14 — Size linker prefers API CSV; stronger model inference.
+  - `link_orders_and_sizes.py` prioritizes `orders_api_latest.csv`, then newest `active_orders_*`.
+  - Fills `sku_key` from `product_master_code`, then `ksp_sku_id`; improved `model_group` inference.
+  - Top 20 preview prints `[orderid, sku_key, height, weight, rec_size]`.
