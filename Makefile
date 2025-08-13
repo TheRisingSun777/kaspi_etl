@@ -1,4 +1,4 @@
-.PHONY: repair process labels loaddb daily picklist exportbm validate
+.PHONY: repair process labels loaddb daily picklist exportbm validate test
 
 PY=./venv/bin/python
 
@@ -25,5 +25,8 @@ exportbm:
 
 validate:
 	$(PY) scripts/validate_phase1_data.py
+
+test:
+	pytest -q
 
 

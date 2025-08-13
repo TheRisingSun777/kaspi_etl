@@ -10,3 +10,5 @@ uvicorn
 pypdf
 pyyaml
 python-dotenv
+pydantic
+pytest
