@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+
 import pandas as pd
 
-import sys
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from scripts.crm_config import REPO_ROOT, get_run_date
-
 
 RUN_DATE = get_run_date(pd.Timestamp.utcnow().strftime("%Y%m%d"))
 DATA_CRM = REPO_ROOT / "data_crm"

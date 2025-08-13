@@ -3,12 +3,12 @@
 Enhanced Catalog Parser with Data Validation and Kaspi API Mapping
 Handles M02_SKU_CATALOG with Russian columns and comma-separated weights
 """
-import pandas as pd
-import sqlite3
-import pathlib
 import logging
-from typing import Dict, List, Optional, Tuple
+import pathlib
 import re
+import sqlite3
+
+import pandas as pd
 
 # Setup paths
 RAW_DIR = pathlib.Path(__file__).resolve().parents[1] / "data_raw"
@@ -24,7 +24,7 @@ class CatalogDataValidator:
     """Validates and cleans catalog data for Kaspi API integration"""
     
     @staticmethod
-    def clean_weight(weight_str: str) -> Optional[float]:
+    def clean_weight(weight_str: str) -> float | None:
         """Convert weight from '0,95' format to 0.95 float"""
         if not weight_str or pd.isna(weight_str):
             return None
@@ -40,7 +40,7 @@ class CatalogDataValidator:
             return None
     
     @staticmethod
-    def clean_price(price_str: str) -> Optional[int]:
+    def clean_price(price_str: str) -> int | None:
         """Clean price string and convert to integer KZT"""
         if not price_str or pd.isna(price_str):
             return None
@@ -104,7 +104,7 @@ class KaspiApiMapper:
     }
     
     @classmethod
-    def map_to_api_format(cls, row: pd.Series) -> Dict:
+    def map_to_api_format(cls, row: pd.Series) -> dict:
         """Convert catalog row to Kaspi API format"""
         validator = CatalogDataValidator()
         
@@ -166,7 +166,7 @@ class EnhancedCatalogParser:
             logger.error(f"Error loading catalog: {e}")
             raise
     
-    def validate_catalog(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str], List[str]]:
+    def validate_catalog(self, df: pd.DataFrame) -> tuple[pd.DataFrame, list[str], list[str]]:
         """Validate catalog data and return cleaned DataFrame with errors/warnings"""
         cleaned_df = df.copy()
         errors = []
@@ -219,7 +219,7 @@ class EnhancedCatalogParser:
         
         return cleaned_df, errors, warnings
     
-    def prepare_for_api(self, df: pd.DataFrame) -> List[Dict]:
+    def prepare_for_api(self, df: pd.DataFrame) -> list[dict]:
         """Prepare catalog data for Kaspi API calls"""
         api_products = []
         
@@ -260,7 +260,7 @@ class EnhancedCatalogParser:
         finally:
             con.close()
     
-    def generate_report(self, df: pd.DataFrame, api_products: List[Dict]) -> Dict:
+    def generate_report(self, df: pd.DataFrame, api_products: list[dict]) -> dict:
         """Generate processing report"""
         report = {
             'total_products': len(df),
@@ -319,7 +319,7 @@ def main():
         print(f"💰 Products with prices: {report['products_with_prices']}")
         print(f"📦 Products with stock: {report['products_with_stock']}")
         
-        print(f"\n🏪 Products by store:")
+        print("\n🏪 Products by store:")
         for store, count in report['products_by_store'].items():
             print(f"   {store}: {count}")
         

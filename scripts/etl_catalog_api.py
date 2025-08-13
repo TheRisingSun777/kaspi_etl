@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 # --- ETL FOR KASPI CATALOG API (v2025‑08‑05) --------------------------------
-import pandas as pd
-import sqlite3
-import pathlib
-import httpx
+import logging
 import os
+import pathlib
+import sqlite3
+
+import httpx
+import pandas as pd
 from dotenv import load_dotenv
 from tenacity import retry, stop_after_attempt, wait_exponential
-import json
-from typing import Dict, List, Optional
-import logging
 
 # Load environment variables
 load_dotenv()
@@ -37,7 +36,7 @@ class KaspiAPI:
         }
     
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    async def get_products(self) -> List[Dict]:
+    async def get_products(self) -> list[dict]:
         """GET /shop/api/v2/products to verify token and get existing products"""
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -51,7 +50,7 @@ class KaspiAPI:
             return data.get('data', [])
     
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    async def create_product(self, product_data: Dict) -> Dict:
+    async def create_product(self, product_data: dict) -> dict:
         """POST /shop/api/v2/products/create for new/changed SKUs"""
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -136,7 +135,7 @@ def create_products_table():
     con.close()
     logger.info("✅ Products table created/verified")
 
-def save_to_database(catalog_df: pd.DataFrame, kaspi_products: List[Dict]):
+def save_to_database(catalog_df: pd.DataFrame, kaspi_products: list[dict]):
     """Save catalog data and Kaspi API data to database"""
     con = sqlite3.connect(DB_PATH)
     
@@ -187,7 +186,7 @@ def save_to_database(catalog_df: pd.DataFrame, kaspi_products: List[Dict]):
     
     logger.info(f"✅ Saved {len(catalog_df)} products to database")
 
-def prepare_product_for_api(row: pd.Series) -> Dict:
+def prepare_product_for_api(row: pd.Series) -> dict:
     """Prepare a catalog row for Kaspi API product creation"""
     # Basic product structure for Kaspi API
     product_data = {
@@ -259,7 +258,7 @@ async def main():
         logger.info("💾 Saving data to database...")
         save_to_database(catalog_df, kaspi_products)
         
-        logger.info(f"🎉 ETL completed successfully!")
+        logger.info("🎉 ETL completed successfully!")
         logger.info(f"   - Catalog products: {len(catalog_df)}")
         logger.info(f"   - Existing Kaspi products: {len(kaspi_products)}")
         logger.info(f"   - New products created: {created_count}")

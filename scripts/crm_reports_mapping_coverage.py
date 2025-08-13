@@ -26,11 +26,10 @@ Run:
 from __future__ import annotations
 
 import glob
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, Set, Tuple
 
 import pandas as pd
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_CRM = REPO_ROOT / "data_crm"
@@ -51,14 +50,14 @@ def read_sales(path: Path) -> pd.DataFrame:
     return df
 
 
-def load_mapping_sets() -> Tuple[Set[str], Set[str]]:
+def load_mapping_sets() -> tuple[set[str], set[str]]:
     """Return (mapped_sku_keys, mapped_sku_ids) from any present mapping files.
 
     This function best-effort reads mapping files with unknown schemas. It looks
     for columns named like 'sku_key' and 'sku_id'.
     """
-    mapped_keys: Set[str] = set()
-    mapped_ids: Set[str] = set()
+    mapped_keys: set[str] = set()
+    mapped_ids: set[str] = set()
 
     def harvest(df: pd.DataFrame) -> None:
         _lower_columns_inplace(df)
@@ -100,7 +99,7 @@ def is_known_sku_id(sku_id: object) -> bool:
     return True
 
 
-def compute_coverage(df: pd.DataFrame, mapped_keys: Set[str], mapped_ids: Set[str]) -> pd.DataFrame:
+def compute_coverage(df: pd.DataFrame, mapped_keys: set[str], mapped_ids: set[str]) -> pd.DataFrame:
     # Base known flag from sku_id
     known = df["sku_id"].apply(is_known_sku_id)
 
@@ -154,7 +153,7 @@ def compute_coverage(df: pd.DataFrame, mapped_keys: Set[str], mapped_ids: Set[st
     ])
 
 
-def write_missing_by_store(df: pd.DataFrame, mapped_keys: Set[str], mapped_ids: Set[str]) -> pd.DataFrame:
+def write_missing_by_store(df: pd.DataFrame, mapped_keys: set[str], mapped_ids: set[str]) -> pd.DataFrame:
     known = df["sku_id"].apply(is_known_sku_id)
     if "sku_key" in df.columns and mapped_keys:
         known = known | df["sku_key"].astype(str).isin(mapped_keys)

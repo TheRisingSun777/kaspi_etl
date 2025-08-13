@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # --- TEST SCRIPT FOR KASPI CATALOG API (v2025‑08‑05) ------------------------
-import pandas as pd
-import pathlib
 import os
+import pathlib
+
+import pandas as pd
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -73,7 +74,7 @@ def test_database_connection():
             tables = cur.fetchall()
             con.close()
             
-            print(f"✅ Database connected successfully")
+            print("✅ Database connected successfully")
             print(f"   Tables found: {[t[0] for t in tables]}")
             return True
         else:

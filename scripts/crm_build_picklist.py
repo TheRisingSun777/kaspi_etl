@@ -19,7 +19,6 @@ from pathlib import Path
 
 import pandas as pd
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 INPUT_CSV = REPO_ROOT / "data_crm" / "processed_sales_20250813.csv"
 PICKLIST_ROOT = REPO_ROOT / "data_crm" / "picklist"

@@ -13,12 +13,10 @@ from __future__ import annotations
 
 import glob
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 import pandas as pd
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = REPO_ROOT / "db" / "erp.db"
@@ -27,7 +25,7 @@ STATUS_MD = REPO_ROOT / "docs" / "STATUS.md"
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def parse_iso_utc(s: str | None) -> datetime | None:
@@ -39,19 +37,19 @@ def parse_iso_utc(s: str | None) -> datetime | None:
         # Parse naive then set UTC
         dt = datetime.fromisoformat(s)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone(timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
+        return dt.astimezone(UTC)
     except Exception:
         return None
 
 
-def get_state_counts(conn: sqlite3.Connection) -> Dict[str, int]:
+def get_state_counts(conn: sqlite3.Connection) -> dict[str, int]:
     cur = conn.cursor()
     cur.execute("SELECT state, COUNT(*) FROM workflows GROUP BY state")
     return {state or "": int(cnt) for state, cnt in cur.fetchall()}
 
 
-def get_waiting(conn: sqlite3.Connection) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def get_waiting(conn: sqlite3.Connection) -> tuple[pd.DataFrame, pd.DataFrame]:
     cur = conn.cursor()
     cur.execute(
         "SELECT order_id, state, updated_at, store_name FROM workflows WHERE state IN ('WAITING_SIZE_INFO','WAITING_CONFIRM')"
@@ -94,8 +92,8 @@ def load_low_stock_top10() -> pd.DataFrame:
     return df2[cols].sort_values(["reorder_qty", "velocity_14d"], ascending=[False, False]).head(10)
 
 
-def write_status_md(state_counts: Dict[str, int], w3: pd.DataFrame, w1: pd.DataFrame, low_stock: pd.DataFrame) -> None:
-    lines: List[str] = []
+def write_status_md(state_counts: dict[str, int], w3: pd.DataFrame, w1: pd.DataFrame, low_stock: pd.DataFrame) -> None:
+    lines: list[str] = []
     lines.append(f"## Status — {utcnow().isoformat(timespec='seconds')}")
     lines.append("")
     lines.append("### Workflow counts")

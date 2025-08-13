@@ -17,7 +17,6 @@ from pathlib import Path
 
 from scripts.kaspi_api import KaspiAPI
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = REPO_ROOT / "data_crm" / "api_cache"
 

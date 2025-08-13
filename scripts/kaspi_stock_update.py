@@ -20,11 +20,10 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import httpx
 import pandas as pd
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PAYLOAD_PATH = REPO_ROOT / "data_crm" / "reports" / "kaspi_stock_update_payload.json"
@@ -39,13 +38,13 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def load_payload(path: Path) -> Dict[str, Any]:
+def load_payload(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise FileNotFoundError(f"Missing payload JSON: {path}")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def send_with_retries(url: str, headers: Dict[str, str], body: Dict[str, Any], max_retries: int = 5) -> httpx.Response:
+def send_with_retries(url: str, headers: dict[str, str], body: dict[str, Any], max_retries: int = 5) -> httpx.Response:
     last_exc: Exception | None = None
     for attempt in range(1, max_retries + 1):
         try:
@@ -64,8 +63,8 @@ def send_with_retries(url: str, headers: Dict[str, str], body: Dict[str, Any], m
     raise last_exc
 
 
-def to_rows_from_payload(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
-    rows: List[Dict[str, Any]] = []
+def to_rows_from_payload(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
     for item in payload.get("data", []):
         rows.append(
             {
@@ -82,7 +81,7 @@ def main() -> int:
     rows = to_rows_from_payload(payload)
     RESULTS_CSV.parent.mkdir(parents=True, exist_ok=True)
 
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
 
     if not args.apply:
         for r in rows:

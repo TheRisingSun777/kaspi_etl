@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # ----------  ETL FOR PHYSICAL STOCK SNAPSHOT ----------
-import pandas as pd, sqlite3, pathlib, sys
+import pathlib
+import sqlite3
+import sys
+
+import pandas as pd
 
 ROOT     = pathlib.Path(__file__).resolve().parents[1]
 RAW_DIR  = ROOT / "data_raw"

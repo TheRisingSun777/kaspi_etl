@@ -29,7 +29,6 @@ from pathlib import Path
 
 import pandas as pd
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = REPO_ROOT / "db" / "erp.db"
 SALES_SQL = "SELECT date, sku_id, sku_key, qty FROM sales"

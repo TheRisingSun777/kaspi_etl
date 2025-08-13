@@ -17,11 +17,10 @@ Notes:
 - No credentials are needed. All processing is local.
 """
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pandas as pd
-
 
 DATA_DIR = Path("data_crm")
 MAPPINGS_DIR = DATA_DIR / "mappings"

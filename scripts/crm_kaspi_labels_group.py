@@ -23,13 +23,10 @@ import csv
 import re
 import zipfile
 from collections import defaultdict
-from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
 
 import pandas as pd
 from pypdf import PdfReader, PdfWriter
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_CRM = REPO_ROOT / "data_crm"
@@ -45,7 +42,7 @@ COLOR_TOKENS = {
 }
 
 
-def _infer_date_dir(cli_date: Optional[str]) -> Path:
+def _infer_date_dir(cli_date: str | None) -> Path:
     if cli_date:
         return LABELS_DIR / cli_date
     # Pick latest YYYY-MM-DD directory
@@ -55,9 +52,9 @@ def _infer_date_dir(cli_date: Optional[str]) -> Path:
     return sorted(candidates, key=lambda p: p.name)[-1]
 
 
-def _extract_zips(zip_dir: Path, work_dir: Path) -> List[Path]:
+def _extract_zips(zip_dir: Path, work_dir: Path) -> list[Path]:
     work_dir.mkdir(parents=True, exist_ok=True)
-    pdfs: List[Path] = []
+    pdfs: list[Path] = []
     for z in sorted(zip_dir.glob("*.zip")):
         try:
             with zipfile.ZipFile(z) as zf:
@@ -73,12 +70,12 @@ def _extract_zips(zip_dir: Path, work_dir: Path) -> List[Path]:
     return pdfs
 
 
-def _extract_orderid_from_filename(path: Path) -> Optional[str]:
+def _extract_orderid_from_filename(path: Path) -> str | None:
     m = ORDERID_RE.search(path.stem)
     return m.group(1) if m else None
 
 
-def _extract_orderid_from_pdf(path: Path) -> Optional[str]:
+def _extract_orderid_from_pdf(path: Path) -> str | None:
     try:
         reader = PdfReader(str(path))
         text = "\n".join(page.extract_text() or "" for page in reader.pages)
@@ -106,8 +103,8 @@ def _load_processed_sales() -> pd.DataFrame:
     return df
 
 
-def _build_orderid_map(df: pd.DataFrame) -> Dict[str, Tuple[str, str]]:
-    mapping: Dict[str, Tuple[str, str]] = {}
+def _build_orderid_map(df: pd.DataFrame) -> dict[str, tuple[str, str]]:
+    mapping: dict[str, tuple[str, str]] = {}
     if "orderid" not in df.columns:
         return mapping
     for _, row in df.iterrows():
@@ -121,7 +118,7 @@ def _build_orderid_map(df: pd.DataFrame) -> Dict[str, Tuple[str, str]]:
     return mapping
 
 
-def _merge_pdfs(sources: List[Path], dest: Path) -> None:
+def _merge_pdfs(sources: list[Path], dest: Path) -> None:
     writer = PdfWriter()
     for src in sources:
         try:
@@ -135,7 +132,7 @@ def _merge_pdfs(sources: List[Path], dest: Path) -> None:
         writer.write(f)
 
 
-def group_labels_for_date(date_str: Optional[str] = None) -> Tuple[int, Path]:
+def group_labels_for_date(date_str: str | None = None) -> tuple[int, Path]:
     date_dir = _infer_date_dir(date_str)
     out_dir = GROUPED_DIR / date_dir.name
     work_dir = date_dir / "_extracted"
@@ -148,7 +145,7 @@ def group_labels_for_date(date_str: Optional[str] = None) -> Tuple[int, Path]:
     processed_df = _load_processed_sales()
     order_map = _build_orderid_map(processed_df)
 
-    groups: Dict[Tuple[str, str, str], List[Tuple[str, Path]]] = defaultdict(list)
+    groups: dict[tuple[str, str, str], list[tuple[str, Path]]] = defaultdict(list)
 
     for pdf in pdfs:
         orderid = _extract_orderid_from_filename(pdf)
@@ -164,7 +161,7 @@ def group_labels_for_date(date_str: Optional[str] = None) -> Tuple[int, Path]:
         groups[(sku_key, size, color)].append((orderid, pdf))
 
     # Write grouped PDFs and manifest
-    manifest_rows: List[Dict[str, str]] = []
+    manifest_rows: list[dict[str, str]] = []
     for (sku_key, size, color), items in sorted(groups.items()):
         items_sorted = sorted(items, key=lambda t: t[0])
         target_pdf = out_dir / f"{sku_key}_{size}_{color}.pdf"

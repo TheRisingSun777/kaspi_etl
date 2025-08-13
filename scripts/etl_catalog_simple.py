@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # --- SIMPLE ETL FOR KASPI CATALOG (v2025‑08‑05) --------------------------------
-import pandas as pd
-import sqlite3
-import pathlib
 import logging
+import pathlib
+import sqlite3
+
+import pandas as pd
 
 # Setup paths
 RAW_DIR = pathlib.Path(__file__).resolve().parents[1] / "data_raw"
@@ -136,18 +137,18 @@ def show_summary(catalog_df: pd.DataFrame):
     
     # Count by brand
     brand_counts = catalog_df['Brend'].value_counts()
-    print(f"\n   Products by brand:")
+    print("\n   Products by brand:")
     for brand, count in brand_counts.head(5).items():
         print(f"     {brand}: {count}")
     
     # Count by product type
     type_counts = catalog_df['Product_Type'].value_counts()
-    print(f"\n   Products by type:")
+    print("\n   Products by type:")
     for ptype, count in type_counts.head(5).items():
         print(f"     {ptype}: {count}")
     
     # Show some sample products
-    print(f"\n   Sample products:")
+    print("\n   Sample products:")
     sample = catalog_df[['SKU_ID', 'Kaspi_name_core', 'Brend', 'Model']].head(3)
     for _, row in sample.iterrows():
         name = row['Kaspi_name_core'] if row['Kaspi_name_core'] else row['SKU_ID']

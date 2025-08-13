@@ -18,13 +18,11 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from integrations.whatsapp_api import send_message
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = REPO_ROOT / "db" / "erp.db"
@@ -38,7 +36,7 @@ STATE_WAITING_CONFIRM = "WAITING_CONFIRM"
 STATE_CONFIRMED = "CONFIRMED"
 
 
-def load_flags() -> Dict[str, Any]:
+def load_flags() -> dict[str, Any]:
     try:
         return json.loads(STATE_PATH.read_text(encoding="utf-8")).get("flags", {})
     except Exception:
@@ -49,14 +47,14 @@ def now_iso() -> str:
     return datetime.utcnow().isoformat(timespec="seconds") + "Z"
 
 
-def get_customer_phone(conn: sqlite3.Connection, order_id: str) -> Optional[str]:
+def get_customer_phone(conn: sqlite3.Connection, order_id: str) -> str | None:
     cur = conn.cursor()
     cur.execute("SELECT phone FROM customers WHERE id=?", (order_id,))
     row = cur.fetchone()
     return row[0] if row and row[0] else None
 
 
-def get_sku_key(conn: sqlite3.Connection, order_id: str) -> Optional[str]:
+def get_sku_key(conn: sqlite3.Connection, order_id: str) -> str | None:
     cur = conn.cursor()
     cur.execute("SELECT sku_key FROM sales WHERE orderid=? LIMIT 1", (order_id,))
     row = cur.fetchone()
@@ -69,7 +67,7 @@ def wa_outbox_sent(conn: sqlite3.Connection, order_id: str, template: str) -> bo
     return cur.fetchone() is not None
 
 
-def find_latest_inbox_with_measurements(conn: sqlite3.Connection, phone: str) -> Optional[Dict[str, Any]]:
+def find_latest_inbox_with_measurements(conn: sqlite3.Connection, phone: str) -> dict[str, Any] | None:
     cur = conn.cursor()
     cur.execute(
         "SELECT text, parsed_json, created_at FROM wa_inbox WHERE from_phone=? ORDER BY created_at DESC LIMIT 50",
@@ -86,7 +84,7 @@ def find_latest_inbox_with_measurements(conn: sqlite3.Connection, phone: str) ->
     return None
 
 
-def find_latest_confirmation(conn: sqlite3.Connection, phone: str) -> Optional[str]:
+def find_latest_confirmation(conn: sqlite3.Connection, phone: str) -> str | None:
     cur = conn.cursor()
     cur.execute(
         "SELECT parsed_json FROM wa_inbox WHERE from_phone=? ORDER BY created_at DESC LIMIT 50",
@@ -103,7 +101,7 @@ def find_latest_confirmation(conn: sqlite3.Connection, phone: str) -> Optional[s
     return None
 
 
-def compute_recommendation(height_cm: int, weight_kg: int, sku_key: Optional[str]) -> Tuple[str, float]:
+def compute_recommendation(height_cm: int, weight_kg: int, sku_key: str | None) -> tuple[str, float]:
     # Heuristic mapping from sku_key prefix; defaults
     gender = "Men"
     product_type = "CL"
@@ -117,7 +115,7 @@ def compute_recommendation(height_cm: int, weight_kg: int, sku_key: Optional[str
         return "M", 0.2
 
 
-def upsert_size_reco(conn: sqlite3.Connection, order_id: str, rec_size: str, confidence: float, height: int, weight: int, final_size: Optional[str] = None) -> None:
+def upsert_size_reco(conn: sqlite3.Connection, order_id: str, rec_size: str, confidence: float, height: int, weight: int, final_size: str | None = None) -> None:
     cur = conn.cursor()
     cur.execute(
         """
@@ -135,7 +133,7 @@ def update_workflow_state(conn: sqlite3.Connection, order_id: str, new_state: st
     conn.commit()
 
 
-def process_once() -> Dict[str, int]:
+def process_once() -> dict[str, int]:
     flags = load_flags()
     dry_run = bool(flags.get("dry_run", True))
     counts = {STATE_NEW: 0, STATE_WAITING_SIZE_INFO: 0, STATE_PROPOSING_SIZE: 0, STATE_WAITING_CONFIRM: 0, STATE_CONFIRMED: 0}

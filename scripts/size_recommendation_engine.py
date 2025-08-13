@@ -12,12 +12,10 @@ Usage examples:
 """
 import argparse
 import json
+import logging
+import pathlib
 import re
 import sqlite3
-import pathlib
-import logging
-from datetime import datetime, timezone
-from typing import Dict, Optional, Tuple, List
 from dataclasses import dataclass
 
 # Setup paths
@@ -134,7 +132,7 @@ class SizeRecommendationEngine:
                       weight_kg: int, 
                       gender: str, 
                       product_type: str,
-                      age: Optional[int] = None) -> SizeRecommendation:
+                      age: int | None = None) -> SizeRecommendation:
         """
         Recommend size based on customer measurements
         
@@ -172,7 +170,7 @@ class SizeRecommendationEngine:
         else:
             return self._recommend_adult_size(height_cm, weight_kg, size_chart)
     
-    def _recommend_adult_size(self, height_cm: int, weight_kg: int, size_chart: Dict) -> SizeRecommendation:
+    def _recommend_adult_size(self, height_cm: int, weight_kg: int, size_chart: dict) -> SizeRecommendation:
         """Recommend size for adults based on height/weight matrix"""
         
         best_match = None
@@ -236,7 +234,7 @@ class SizeRecommendationEngine:
             alternative_sizes=["S", "L", "XL"]
         )
     
-    def _recommend_kids_size(self, height_cm: int, age: Optional[int], size_chart: Dict) -> SizeRecommendation:
+    def _recommend_kids_size(self, height_cm: int, age: int | None, size_chart: dict) -> SizeRecommendation:
         """Recommend size for kids based on height and age"""
         
         if age:
@@ -381,7 +379,7 @@ _H_RE = re.compile(r"(\d{2,3})\s*(см|cm)", re.IGNORECASE)
 _W_RE = re.compile(r"(\d{2,3})\s*(кг|kg)", re.IGNORECASE)
 
 
-def _extract_hw(text: str, parsed_json: Optional[str]) -> Tuple[Optional[int], Optional[int]]:
+def _extract_hw(text: str, parsed_json: str | None) -> tuple[int | None, int | None]:
     h = w = None
     if parsed_json:
         try:
@@ -441,7 +439,7 @@ def _count_recs(order_id: str) -> int:
         con.close()
 
 
-def run_scan_inbox(limit: Optional[int] = None) -> int:
+def run_scan_inbox(limit: int | None = None) -> int:
     con = sqlite3.connect(DB_PATH)
     try:
         cur = con.cursor()

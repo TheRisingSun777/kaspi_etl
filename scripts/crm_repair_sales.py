@@ -18,10 +18,8 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
 
 import pandas as pd
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_CRM = REPO_ROOT / "data_crm"
@@ -44,8 +42,8 @@ def _lower_columns_inplace(df: pd.DataFrame) -> None:
     df.columns = [str(c).strip().lower() for c in df.columns]
 
 
-def load_size_rules(path: Path) -> Dict[str, str]:
-    mapping: Dict[str, str] = {}
+def load_size_rules(path: Path) -> dict[str, str]:
+    mapping: dict[str, str] = {}
     if not path.exists():
         return mapping
     rules_df = pd.read_csv(path, comment="#", dtype=str)
@@ -58,7 +56,7 @@ def load_size_rules(path: Path) -> Dict[str, str]:
     return mapping
 
 
-def load_ignore_prefixes(path: Path) -> List[str]:
+def load_ignore_prefixes(path: Path) -> list[str]:
     if not path.exists():
         return []
     prefixes = []
@@ -122,7 +120,7 @@ def derive_sku_key(row: pd.Series) -> str:
     return ""
 
 
-def normalize_my_size(val: object, rules: Dict[str, str]) -> str:
+def normalize_my_size(val: object, rules: dict[str, str]) -> str:
     if pd.isna(val):
         return ""
     raw = str(val).strip()

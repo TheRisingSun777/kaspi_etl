@@ -14,7 +14,6 @@ from pathlib import Path
 
 import pandas as pd
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = REPO_ROOT / "db" / "erp.db"
 OUT_ROOT = REPO_ROOT / "data_crm" / "labels"

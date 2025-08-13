@@ -23,24 +23,25 @@ Outputs:
 from __future__ import annotations
 
 import os
-from pathlib import Path
-import sys
 import re
-from typing import Iterable, List, Optional
+import sys
+from collections.abc import Iterable
+from pathlib import Path
 
 import pandas as pd
+
 # Ensure project root on sys.path for imports like `utils.phones`
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from utils.phones import parse_kz_phone
 import json
 import time
-from utils.validation import validate_df, DEFAULT_RULES
-from utils.aliases import alias_candidates
 
+from utils.aliases import alias_candidates
+from utils.phones import parse_kz_phone
+from utils.validation import DEFAULT_RULES, validate_df
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 try:
-    from scripts.crm_config import load_crm_config, get_run_date
+    from scripts.crm_config import get_run_date, load_crm_config
     CFG = load_crm_config()
     RUN_DATE = get_run_date(pd.Timestamp.utcnow().strftime("%Y%m%d"))
 except Exception:
@@ -73,7 +74,7 @@ def _lower_columns_inplace(df: pd.DataFrame) -> None:
     df.columns = [str(c).strip().lower() for c in df.columns]
 
 
-def _read_excel(path: Path, required_cols: Optional[list[str]] = None) -> pd.DataFrame:
+def _read_excel(path: Path, required_cols: list[str] | None = None) -> pd.DataFrame:
     # Try specified engine, fall back to default
     try:
         xls = pd.ExcelFile(path, engine="openpyxl")
@@ -92,7 +93,7 @@ def _read_excel(path: Path, required_cols: Optional[list[str]] = None) -> pd.Dat
     return df
 
 
-def _choose_first_existing(df: pd.DataFrame, candidates: Iterable[str]) -> Optional[str]:
+def _choose_first_existing(df: pd.DataFrame, candidates: Iterable[str]) -> str | None:
     for name in candidates:
         if name in df.columns:
             return name
@@ -147,10 +148,10 @@ def normalize_size(value: object) -> str:
     return upper
 
 
-def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, Optional[pd.DataFrame], pd.DataFrame]:
+def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame | None, pd.DataFrame]:
     # Prefer fixed file if present
     # Discover latest files if explicit ones missing
-    def discover_latest(pattern: str, base: Path) -> Optional[Path]:
+    def discover_latest(pattern: str, base: Path) -> Path | None:
         matches = sorted(base.glob(pattern))
         return matches[-1] if matches else None
 
@@ -179,7 +180,7 @@ def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, Optional[pd.DataFrame], p
     ksp_map_df = _read_excel(ksp_map_path)
     _lower_columns_inplace(ksp_map_df)
 
-    sku_map_df: Optional[pd.DataFrame]
+    sku_map_df: pd.DataFrame | None
     if SKU_MAP_XLSX.exists():
         sku_map_df = _read_excel(SKU_MAP_XLSX)
         _lower_columns_inplace(sku_map_df)
@@ -242,7 +243,7 @@ def compute_sku_id_inplace(sales_df: pd.DataFrame) -> None:
     sales_df["sku_id"] = sales_df.apply(build_sku_id, axis=1)
 
 
-def enrich_with_sku_map(sales_df: pd.DataFrame, sku_map_df: Optional[pd.DataFrame]) -> pd.DataFrame:
+def enrich_with_sku_map(sales_df: pd.DataFrame, sku_map_df: pd.DataFrame | None) -> pd.DataFrame:
     if sku_map_df is None or "sku_id" not in sku_map_df.columns:
         print("Proceeding without SKU map enrichment (file missing or lacks 'sku_id').")
         return sales_df.copy()
@@ -262,7 +263,7 @@ def enrich_with_sku_map(sales_df: pd.DataFrame, sku_map_df: Optional[pd.DataFram
 
 def write_missing_skus_report(
     sales_df: pd.DataFrame,
-    sku_map_df: Optional[pd.DataFrame],
+    sku_map_df: pd.DataFrame | None,
     qty_col: str,
     output_path: Path,
 ) -> pd.DataFrame:
@@ -293,7 +294,7 @@ def write_missing_skus_report(
                 reasons.append("missing_sku_key")
             else:
                 reasons.append("blank_sku_id")
-        elif not sku_id in sku_ids_in_map if (sku_map_df is not None and "sku_id" in sku_map_df.columns) else True:
+        elif sku_id not in sku_ids_in_map if (sku_map_df is not None and "sku_id" in sku_map_df.columns) else True:
             reasons.append("not_in_map")
         else:
             reasons.append("")

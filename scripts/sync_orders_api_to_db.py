@@ -20,10 +20,9 @@ import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from scripts.kaspi_api import KaspiAPI
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = REPO_ROOT / "data_crm" / "api_cache"
@@ -79,7 +78,7 @@ def ensure_tables(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def extract_customer_phone(included: List[Dict[str, Any]], rel: Dict[str, Any]) -> Optional[str]:
+def extract_customer_phone(included: list[dict[str, Any]], rel: dict[str, Any]) -> str | None:
     # JSON:API include for user may have phone
     try:
         user_ref = (rel.get("user") or {}).get("data") or {}
@@ -92,7 +91,7 @@ def extract_customer_phone(included: List[Dict[str, Any]], rel: Dict[str, Any]) 
     return None
 
 
-def upsert_order_rows(conn: sqlite3.Connection, payload: Dict[str, Any]) -> int:
+def upsert_order_rows(conn: sqlite3.Connection, payload: dict[str, Any]) -> int:
     cur = conn.cursor()
     data = payload.get("data") or []
     included = payload.get("included") or []

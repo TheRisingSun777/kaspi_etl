@@ -15,10 +15,8 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
-from typing import List, Tuple
 
 import pandas as pd
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = REPO_ROOT / "db" / "erp.db"
@@ -133,7 +131,7 @@ def write_sales_table(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
     cur.execute("DROP TABLE IF EXISTS sales")
     cur.execute(SALES_SCHEMA_SQL)
 
-    rows: List[Tuple] = list(df.itertuples(index=False, name=None))
+    rows: list[tuple] = list(df.itertuples(index=False, name=None))
     cur.executemany(
         "INSERT INTO sales (orderid, date, sku_id, store_name, qty, sell_price, customer_height, customer_weight, ksp_sku_id, sku_key, my_size)\n"
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",

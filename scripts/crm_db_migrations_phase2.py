@@ -18,7 +18,6 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = REPO_ROOT / "db" / "erp.db"
 

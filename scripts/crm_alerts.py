@@ -12,12 +12,10 @@ from __future__ import annotations
 
 import glob
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import List
 
 import pandas as pd
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = REPO_ROOT / "db" / "erp.db"
@@ -26,7 +24,7 @@ ALERTS_DIR = REPO_ROOT / "alerts"
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def parse_iso_utc(s: str | None) -> datetime | None:
@@ -37,8 +35,8 @@ def parse_iso_utc(s: str | None) -> datetime | None:
             s = s[:-1]
         dt = datetime.fromisoformat(s)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone(timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
+        return dt.astimezone(UTC)
     except Exception:
         return None
 
@@ -86,7 +84,7 @@ def write_alerts(stuck: pd.DataFrame, low_stock: pd.DataFrame) -> Path:
     ALERTS_DIR.mkdir(parents=True, exist_ok=True)
     ts = utcnow().strftime("%Y%m%d_%H%M")
     out_path = ALERTS_DIR / f"{ts}.md"
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append(f"# Alerts — {utcnow().isoformat(timespec='seconds')}")
     lines.append("")
     lines.append("## Stuck orders (>12h in WAITING_SIZE_INFO)")

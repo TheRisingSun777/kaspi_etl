@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 # ----------  Streamlit mini‑dashboard ----------
-import streamlit as st, pandas as pd, sqlite3, pathlib, altair as alt, numpy as np
+import pathlib
+import sqlite3
+
+import altair as alt
+import numpy as np
+import pandas as pd
+import streamlit as st
 
 DB = pathlib.Path(__file__).parents[1] / "db" / "erp.db"
 

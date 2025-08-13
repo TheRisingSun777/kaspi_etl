@@ -18,10 +18,8 @@ from __future__ import annotations
 import csv
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
 
 import pandas as pd
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_CRM = REPO_ROOT / "data_crm"
@@ -44,7 +42,7 @@ def choose_first_name(name: str | None) -> str:
 
 
 def build_message(row: pd.Series, template: str) -> str:
-    context: Dict[str, str] = {
+    context: dict[str, str] = {
         "first_name": choose_first_name(row.get("customer_name") if "customer_name" in row else None),
         "product_name": str(row.get("sku_key", "")).replace("_", " "),
         "store_name": str(row.get("store_name", "")),
@@ -87,7 +85,7 @@ def main() -> int:
             existing_df = pd.read_csv(out_csv)
             existing_df.columns = [c.strip().lower() for c in existing_df.columns]
             if {"orderid", "template"}.issubset(existing_df.columns):
-                existing_keys = set(zip(existing_df["orderid"].astype(str), existing_df["template"].astype(str)))
+                existing_keys = set(zip(existing_df["orderid"].astype(str), existing_df["template"].astype(str), strict=False))
         except Exception:
             existing_keys = set()
 

@@ -22,7 +22,6 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 STATE_PATH = REPO_ROOT / "STATE.json"
 LOGS_DIR = REPO_ROOT / "logs" / "daily"

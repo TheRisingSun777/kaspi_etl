@@ -17,13 +17,11 @@ Selection rules for a given (store_name, sku_key):
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
+from collections.abc import Iterable, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 import pandas as pd
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_CRM = REPO_ROOT / "data_crm"
@@ -41,7 +39,7 @@ def _lower_columns_inplace(df: pd.DataFrame) -> None:
     df.columns = [str(c).strip().lower() for c in df.columns]
 
 
-def _choose_first_existing(df: pd.DataFrame, candidates: Iterable[str]) -> Optional[str]:
+def _choose_first_existing(df: pd.DataFrame, candidates: Iterable[str]) -> str | None:
     for name in candidates:
         if name in df.columns:
             return name
@@ -73,7 +71,7 @@ def load_ksp_map() -> pd.DataFrame:
         cols = keep_cols
     df = df[cols].copy()
     # Normalize column names to canonical
-    rename_map: Dict[str, str] = {}
+    rename_map: dict[str, str] = {}
     for c in df.columns:
         if c in {"store", "merchant", "shop"}:
             rename_map[c] = "store_name"
@@ -122,8 +120,8 @@ def save_usage_state(df: pd.DataFrame) -> None:
     df.to_csv(USAGE_STATE_CSV, index=False)
 
 
-def build_candidates_map(ksp_map: pd.DataFrame) -> Dict[Tuple[str, str], List[str]]:
-    candidates: Dict[Tuple[str, str], List[str]] = {}
+def build_candidates_map(ksp_map: pd.DataFrame) -> dict[tuple[str, str], list[str]]:
+    candidates: dict[tuple[str, str], list[str]] = {}
     # Two levels: with store, and without store (fallback)
     for _, row in ksp_map.iterrows():
         store = str(row.get("store_name", "")).strip()
@@ -144,7 +142,7 @@ def build_candidates_map(ksp_map: pd.DataFrame) -> Dict[Tuple[str, str], List[st
     return candidates
 
 
-def choose_candidate(store: str, sku_key: str, options: Sequence[str], usage_state: pd.DataFrame) -> Tuple[Optional[str], str]:
+def choose_candidate(store: str, sku_key: str, options: Sequence[str], usage_state: pd.DataFrame) -> tuple[str | None, str]:
     if not options:
         return None, "no_candidates"
     if len(options) == 1:
@@ -181,7 +179,7 @@ def choose_candidate(store: str, sku_key: str, options: Sequence[str], usage_sta
 
 
 def update_usage_state(usage_state: pd.DataFrame, store: str, sku_key: str, ksp_id: str) -> pd.DataFrame:
-    now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    now_iso = datetime.now(UTC).isoformat(timespec="seconds")
     key_mask = (
         (usage_state["store_name"].astype(str) == str(store))
         & (usage_state["sku_key"].astype(str) == str(sku_key))
@@ -224,7 +222,7 @@ def main() -> int:
     # Determine result column
     sales_df["ksp_sku_id_final"] = ""
 
-    conflicts: List[Dict[str, str]] = []
+    conflicts: list[dict[str, str]] = []
 
     # Identify store/sku columns in sales
     store_col = _choose_first_existing(sales_df, ["store_name", "store", "merchant"]) or "store_name"

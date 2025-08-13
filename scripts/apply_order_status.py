@@ -15,11 +15,10 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import httpx
 import pandas as pd
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REPORTS_DIR = REPO_ROOT / "data_crm" / "reports"
@@ -34,7 +33,7 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def send_with_retries(url: str, headers: Dict[str, str], body: Dict[str, Any], max_retries: int = 5) -> httpx.Response:
+def send_with_retries(url: str, headers: dict[str, str], body: dict[str, Any], max_retries: int = 5) -> httpx.Response:
     last_exc: Exception | None = None
     for attempt in range(1, max_retries + 1):
         try:
@@ -59,7 +58,7 @@ def main() -> int:
         raise SystemExit(f"Missing plan: {PLAN_CSV}")
     plan = pd.read_csv(PLAN_CSV)
 
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
 
     if not args.apply:
         for _, r in plan.iterrows():

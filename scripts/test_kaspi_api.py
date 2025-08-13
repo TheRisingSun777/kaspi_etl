@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # --- TEST KASPI API CONNECTION (v2025‑08‑05) --------------------------------
-import httpx
-import os
-from dotenv import load_dotenv
 import asyncio
 import logging
+import os
+
+import httpx
+from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
@@ -41,7 +42,7 @@ async def test_api_connection():
             if response.status_code == 200:
                 data = response.json()
                 products_count = len(data.get('data', []))
-                logger.info(f"✅ API connection successful!")
+                logger.info("✅ API connection successful!")
                 logger.info(f"   Found {products_count} existing products in your store")
                 return True
             else:
@@ -87,7 +88,7 @@ async def test_simple_product_creation():
             
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"✅ Test product created successfully!")
+                logger.info("✅ Test product created successfully!")
                 logger.info(f"   Product ID: {data.get('id', 'Unknown')}")
                 return True
             else:

@@ -19,10 +19,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_CRM = REPO_ROOT / "data_crm"
@@ -75,7 +73,7 @@ def load_stock() -> pd.DataFrame:
     return df
 
 
-def load_missing_skus() -> Optional[pd.DataFrame]:
+def load_missing_skus() -> pd.DataFrame | None:
     if not MISSING_SKUS_CSV.exists():
         return None
     df = pd.read_csv(MISSING_SKUS_CSV)

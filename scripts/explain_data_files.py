@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # --- EXPLAIN DATA FILES (v2025‑08‑05) --------------------------------
-import pandas as pd
 import pathlib
 import sqlite3
+
+import pandas as pd
 
 # Setup paths
 RAW_DIR = pathlib.Path(__file__).resolve().parents[1] / "data_raw"
@@ -21,7 +22,7 @@ def explain_catalog_file():
         
         # Count by store
         store_counts = df['Store_name'].value_counts()
-        print(f"\n🏪 Products by store:")
+        print("\n🏪 Products by store:")
         for store, count in store_counts.items():
             print(f"   {store}: {count} products")
         
@@ -31,7 +32,7 @@ def explain_catalog_file():
         print(f"   Products without Kaspi codes: {(~with_codes).sum()}")
         
         # Show sample
-        print(f"\n📋 Sample products:")
+        print("\n📋 Sample products:")
         sample = df[['SKU_ID', 'Kaspi_name_core', 'Store_name', 'Kaspi_art_1']].head(3)
         for _, row in sample.iterrows():
             name = row['Kaspi_name_core'] if row['Kaspi_name_core'] else row['SKU_ID']
@@ -43,7 +44,7 @@ def explain_catalog_file():
 
 def explain_stock_file():
     """Explain the stock file"""
-    print(f"\n📦 stock_on_hand.csv")
+    print("\n📦 stock_on_hand.csv")
     print("=" * 50)
     
     try:
@@ -53,7 +54,7 @@ def explain_stock_file():
         total_stock = df['qty_on_hand'].sum()
         print(f"   Total quantity in stock: {total_stock}")
         
-        print(f"\n📋 Sample stock items:")
+        print("\n📋 Sample stock items:")
         for _, row in df.head(3).iterrows():
             print(f"   {row['sku_key']}: {row['qty_on_hand']} units")
             
@@ -62,7 +63,7 @@ def explain_stock_file():
 
 def explain_orders():
     """Explain the orders files"""
-    print(f"\n🛒 Orders Files")
+    print("\n🛒 Orders Files")
     print("=" * 50)
     
     # Check active orders
@@ -87,7 +88,7 @@ def explain_orders():
 
 def explain_purchases():
     """Explain the purchase file"""
-    print(f"\n📋 Purchase inquiry made by me.xlsx")
+    print("\n📋 Purchase inquiry made by me.xlsx")
     print("=" * 50)
     
     purchase_file = RAW_DIR / "Purchase inquiry made by me.xlsx"
@@ -101,7 +102,7 @@ def explain_purchases():
 
 def show_database_status():
     """Show what's in the database"""
-    print(f"\n💾 Database Status (db/erp.db)")
+    print("\n💾 Database Status (db/erp.db)")
     print("=" * 50)
     
     try:
@@ -112,7 +113,7 @@ def show_database_status():
         cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tables = cur.fetchall()
         
-        print(f"✅ Tables in database:")
+        print("✅ Tables in database:")
         for table in tables:
             table_name = table[0]
             cur.execute(f"SELECT COUNT(*) FROM {table_name}")
@@ -135,7 +136,7 @@ def main():
     explain_purchases()
     show_database_status()
     
-    print(f"\n" + "=" * 60)
+    print("\n" + "=" * 60)
     print("💡 SUMMARY:")
     print("   • Catalog file = Your product master list")
     print("   • Stock file = Current inventory levels")

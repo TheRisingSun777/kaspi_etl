@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # --- ETL FOR KASPI ORDERS  (v2025‑08‑03) -----------------------------------
-import pandas as pd, sqlite3, pathlib, re
+import pathlib
+import re
+import sqlite3
+
+import pandas as pd
 
 RAW_DIR  = pathlib.Path(__file__).resolve().parents[1] / "data_raw"
 DB_PATH  = pathlib.Path(__file__).resolve().parents[1] / "db" / "erp.db"

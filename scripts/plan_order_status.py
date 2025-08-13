@@ -18,10 +18,8 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict
 
 import pandas as pd
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = REPO_ROOT / "db" / "erp.db"
@@ -64,7 +62,7 @@ def label_ready(store_name: str) -> bool:
 
 
 def build_plan(df: pd.DataFrame) -> pd.DataFrame:
-    rows: List[Dict] = []
+    rows: list[dict] = []
     for _, r in df.iterrows():
         order_id = str(r.get("order_id"))
         status = (r.get("current_status") or "").upper()

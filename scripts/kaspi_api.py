@@ -14,10 +14,9 @@ Notes:
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import httpx
-
 
 DEFAULT_BASE = "https://kaspi.kz"
 DEFAULT_SHOP_API = "/shop/api/v2"
@@ -28,7 +27,7 @@ class KaspiAPI:
         self,
         token: str,
         base: str = DEFAULT_BASE,
-        shop_api: Optional[str] = None,
+        shop_api: str | None = None,
         timeout_seconds: float = 30.0,
         max_retries: int = 5,
     ) -> None:
@@ -50,8 +49,8 @@ class KaspiAPI:
             },
         )
 
-    def _get(self, path: str, params: Dict[str, Any]) -> httpx.Response:
-        last_exc: Optional[Exception] = None
+    def _get(self, path: str, params: dict[str, Any]) -> httpx.Response:
+        last_exc: Exception | None = None
         for attempt in range(1, self.max_retries + 1):
             try:
                 response = self.client.get(path, params=params)
@@ -81,11 +80,11 @@ class KaspiAPI:
         self,
         date_from: str,
         date_to: str,
-        state: Optional[str] = None,
+        state: str | None = None,
         page_size: int = 100,
         include_user: bool = True,
-    ) -> Dict[str, Any]:
-        params: Dict[str, Any] = {
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {
             "filter[orders][creationDate][$ge]": self._normalize_date(date_from, end=False),
             "filter[orders][creationDate][$le]": self._normalize_date(date_to, end=True),
             "page[number]": 1,
@@ -96,9 +95,9 @@ class KaspiAPI:
         if include_user:
             params["include[orders]"] = "user"
 
-        all_data: List[Dict[str, Any]] = []
-        all_included: List[Dict[str, Any]] = []
-        total_pages: Optional[int] = None
+        all_data: list[dict[str, Any]] = []
+        all_included: list[dict[str, Any]] = []
+        total_pages: int | None = None
         fetched_pages = 0
 
         while True:
@@ -128,10 +127,10 @@ class KaspiAPI:
             "state": state,
         }
 
-    def get_products(self, page_size: int = 100) -> Dict[str, Any]:
-        params: Dict[str, Any] = {"page[number]": 1, "page[size]": page_size}
-        all_data: List[Dict[str, Any]] = []
-        total_pages: Optional[int] = None
+    def get_products(self, page_size: int = 100) -> dict[str, Any]:
+        params: dict[str, Any] = {"page[number]": 1, "page[size]": page_size}
+        all_data: list[dict[str, Any]] = []
+        total_pages: int | None = None
         fetched_pages = 0
         while True:
             resp = self._get("/products", params=params)
