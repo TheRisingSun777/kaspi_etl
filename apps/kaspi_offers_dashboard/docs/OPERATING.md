@@ -49,6 +49,7 @@ When the chat approaches 80 % of the token limit, checkpoint your work to PROG
 ### Watchers
  - Price Watch (`scripts/price_watch.ts`): calls `/api/pricebot/run?dry=true` for due SKUs by `intervalMin`.
    - Usage: `pnpm tsx apps/kaspi_offers_dashboard/scripts/price_watch.ts --merchantId=30141222 --city=710000000 --pollSec=60`
+   - Env: `PRICEBOT_API_BASE` (default `http://localhost:3001`), `PRICE_WATCH_POLL_SEC`.
    - Logs proposals like: `[run][30141222] SKU123: our=1099 → target=1050 (undercut)`
 
 ## UI Notes

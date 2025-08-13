@@ -128,15 +128,6 @@ backlog:
     labels: [ui, ux]
 
 in_progress:
-  - id: CORE-LOOP-004
-    title: Create price watch scheduler script
-    desc: Add script that periodically calls run endpoint to compute proposals for due SKUs.
-    ac:
-      - Node script `scripts/price_watch.ts` reads settings and calls `/api/pricebot/run?dry=true` for each due SKU based on interval.
-      - Accepts env variables for merchantId, storeId, and watch interval; logs proposals to console.
-      - Document usage in docs/OPERATING.md under "Watchers" section.
-    estimate: 3h
-    labels: [core, scheduler]
 
 done:
   - id: TEST-001
@@ -188,6 +179,12 @@ done:
       - Accepts merchantId and storeId; reads settings v2 for min/max/step/interval.
       - Target price uses step increments/decrements and is clamped within [min,max].
       - UI confirm modal shows proposal; no price is applied when dry=true.
+  - id: CORE-LOOP-004
+    title: Create price watch scheduler script
+    ac:
+      - Node script `scripts/price_watch.ts` reads settings and calls `/api/pricebot/run?dry=true` for each due SKU based on interval.
+      - Accepts env variables for merchantId, storeId, and watch interval; logs proposals to console.
+      - Document usage in docs/OPERATING.md under "Watchers" section.
   - id: EXP-001
     title: Merchant-aware export/import (schema v2)
     ac:

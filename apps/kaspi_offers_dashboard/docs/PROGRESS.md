@@ -24,6 +24,7 @@
 - 2025-08-13 01:10 UTC — CORE-LOOP-002: Offers now default to `withOpponents=false`; route returns `ourPrice`, `active`, `min`, `max`, `step`, `interval` top-level; store requests without opponents by default.
 - 2025-08-13 01:20 UTC — CORE-LOOP-003: Run route computes proposals ignoring opponents (using guardrails only); returns `proposals[]` plus backward-compatible `proposal` for single SKU; apply path restricted to single SKU.
 - 2025-08-13 01:30 UTC — CORE-LOOP-004: Reworked `scripts/price_watch.ts` to read v2 settings and call `/api/pricebot/run?dry=true` for due SKUs; added usage docs under Watchers.
+- 2025-08-13 01:38 UTC — CORE-LOOP-004: Accept env overrides for poll interval and API base; added in-memory last-run tracking to avoid over-triggering; advanced STATE to UI-002.
 
 - 2025-08-11 10:22 UTC — Added repo memory scaffold (OPERATING.md, TASKS.yaml, PROGRESS.md, STATE.json, DECISIONS.md). No app code changed.
 - 2025-08-11 10:22 UTC — Defaults set: storeId=30141222, cityId=710000000 (adjust if needed).
