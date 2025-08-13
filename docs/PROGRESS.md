@@ -18,3 +18,7 @@ Pivot to core repricing loop: After days of effort fighting the seller/opponent 
 - 2025-08-13 11:05 UTC: C.1–C.2 WA inbound webhook (FastAPI) + runner; docs updated (crm-system)
  - 2025-08-13 06:27 UTC: Checkpoint & rotate; Phase2 dry-run pipeline, planning/apply shells, alerts and reports in place (crm-system)
 \- 2025-08-13 13:10 UTC: Checkpoint — processing hardened (aliases, discovery, validation, dedupe, oversell), mart + KPI generated, anomalies/exports ready; CI + pre-commit live. (crm-system)
+
+- 2025-08-13 — Prepared safe env for Kaspi API: venv+deps, pyproject, .env.example, .gitignore logs/, pre-commit; formatted scripts. (crm-system)
+
+- 2025-08-13 — Prepared safe env for Kaspi API: venv+deps, pyproject, .env.example, .gitignore logs/, pre-commit; formatted scripts. (crm-system)
