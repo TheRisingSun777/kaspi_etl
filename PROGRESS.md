@@ -93,3 +93,7 @@
 - 2025-08-14 — CI: enforce size/mapping gates.
   - `scripts/ci_sanity.py` checks: orders non-empty; size-recs null-rate <10%; missing_ksp_mapping rows == 0 or <5% of orders.
   - Make `ci-sanity` runs strict mode.
+
+- 2025-08-14 — Waybills downloader (cookie-based).
+  - Added `scripts/kaspi_waybills_download.py` using KASPI_MERCHANT_COOKIE; saves `data_crm/inputs/waybill_YYYYMMDD.zip`.
+  - Make `waybills` target added.

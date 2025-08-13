@@ -81,3 +81,8 @@ run-all:
 
 ci-sanity:
 	@./venv/bin/python scripts/ci_sanity.py --strict
+
+.PHONY: waybills
+
+waybills:
+	@./venv/bin/python scripts/kaspi_waybills_download.py --date "$(DATE)"
