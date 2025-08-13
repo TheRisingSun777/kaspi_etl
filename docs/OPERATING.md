@@ -24,7 +24,9 @@ Phase 1 Operations (CRM)
 
 - Webhook (inbound WhatsApp)
   - Start locally: `./scripts/run_wa_webhook.sh` (listens on http://127.0.0.1:8787)
-  - Expose with ngrok (quick test): `ngrok http 8787` then set webhook URL to `https://<your-id>.ngrok-free.app/wa/inbound`
+  - Expose with ngrok (quick test): `ngrok http 8787`
+    - Set vendor webhook URL to `https://<your-id>.ngrok-free.app/wa/inbound`
+    - Health-check: `curl -X POST http://127.0.0.1:8787/wa/inbound -d 'From=whatsapp:+77701234567&Body=178/82'`
 
 - Checkpoint / rotate
   - Append a short summary to `docs/PROGRESS.md`
