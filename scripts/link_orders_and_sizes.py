@@ -55,15 +55,27 @@ def extract_size_token(*texts: str) -> Optional[str]:
 
 
 def infer_model_group(text: str) -> Optional[str]:
+    """Infer model group from sku_key.
+
+    Rules:
+    - If '_' present, take prefix before first '_'.
+    - Else strip common color tokens at the end and non-alnum separators.
+    - Keep alphanumerics (letters+digits), uppercase result.
+    """
     if not text:
         return None
-    s = str(text)
-    s = s.replace(" ", "_")
-    for delim in ("-", "_", "/"):
-        if delim in s:
-            s = s.split(delim)[0]
-            break
-    s = re.sub(r"[^A-Za-z]+", "", s)
+    s = str(text).strip()
+    if "_" in s:
+        s = s.split("_", 1)[0]
+    else:
+        # remove trailing color names
+        colors = (
+            "BLACK|WHITE|BLUE|RED|GREEN|GREY|GRAY|BEIGE|BROWN|NAVY|PINK|PURPLE|ORANGE|YELLOW|KHAKI|MAROON"
+        )
+        s = re.sub(rf"\b({colors})\b$", "", s, flags=re.IGNORECASE)
+        s = s.replace("-", " ").replace("/", " ")
+        s = s.split()[0] if s.split() else s
+    s = re.sub(r"[^A-Za-z0-9]+", "", s)
     if not s:
         return None
     return s.upper()
@@ -113,14 +125,17 @@ def main() -> Tuple[Path, pd.DataFrame]:
         if col not in df.columns:
             df[col] = None
 
-    # If sku_key is empty but product_master_code exists, use it
-    if "product_master_code" in df.columns:
+    # Populate missing sku_key: product_master_code -> ksp_sku_id
+    if "product_master_code" in df.columns or "ksp_sku_id" in df.columns:
         def _fill_sku(row):
             val = str(row.get("sku_key", "") or "").strip()
             if val:
                 return val
             pmc = str(row.get("product_master_code", "") or "").strip()
-            return pmc if pmc else None
+            if pmc:
+                return pmc
+            ksp = str(row.get("ksp_sku_id", "") or "").strip()
+            return ksp if ksp else None
         df["sku_key"] = df.apply(_fill_sku, axis=1)
 
     df["model_group"] = df["sku_key"].fillna("").map(infer_model_group)
@@ -160,7 +175,8 @@ def main() -> Tuple[Path, pd.DataFrame]:
     out_df.to_excel(OUTPUT_XLSX, index=False)
     logger.info("Wrote %s", OUTPUT_XLSX)
 
-    print(out_df.head(20).to_string(index=False))
+    preview_cols = [c for c in ["orderid", "sku_key", "height", "weight", "rec_size"] if c in out_df.columns]
+    print(out_df[preview_cols].head(20).to_string(index=False))
 
     return OUTPUT_XLSX, out_df
 
