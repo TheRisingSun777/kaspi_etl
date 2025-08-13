@@ -7,9 +7,9 @@ bundle:
 
 orders:
 	@echo "Running ETL for active orders..."
-	@python scripts/etl_orders_api.py
-	@python scripts/api_orders_to_csv.py
-	@python scripts/join_api_orders_to_sales.py
+	@./venv/bin/python scripts/etl_orders_api.py
+	@./venv/bin/python scripts/api_orders_to_csv.py
+	@./venv/bin/python scripts/join_api_orders_to_sales.py
 
 .PHONY: group-labels
 
