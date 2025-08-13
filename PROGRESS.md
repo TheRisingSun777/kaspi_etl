@@ -36,3 +36,19 @@
 - 2025-08-14 — Reports: missing KSP mapping.
   - Added `scripts/report_missing_ksp_mapping.py` and `make report-missing-maps`.
   - Generated `data_crm/reports/missing_ksp_mapping.csv` (empty headers if no gaps).
+
+- 2025-08-14 — Exports: grouped packing PDFs.
+  - Added `scripts/crm_group_pdfs.py` and `make pack-pdfs`; produced per-group CSV/PDF and `pack_all_groups.pdf`.
+  - Added `zip-exports` target → `outbox/exports_YYYYMMDD_HHMM.zip`.
+
+- 2025-08-14 — WhatsApp Web helper (semi-auto).
+  - Added `services/whatsapp_web.py` and `make wa-open`.
+  - Opens chat and prompts to drag ZIP/PDF; no auto-upload.
+
+- 2025-08-14 — Webhook stub service.
+  - Added FastAPI `services/api_server.py` with `/health` and `/orders/ingest` (saves to `data_crm/api_cache/`).
+  - `make serve` starts on port 3801.
+
+- 2025-08-14 — Strict processed_sales schema.
+  - `join_api_orders_to_sales.py` enforces canonical header; writes `data_crm/reports/schema_diff.txt` on mismatch.
+  - Processed/stock regenerated from cached JSON; coverage updated.

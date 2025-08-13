@@ -7,7 +7,13 @@
     "orders_intake": "4e378f5",
     "size_link": "74ba615",
     "api_orders_staging": "f7ed1eb",
-    "report_missing_maps": "844113d"
+    "report_missing_maps": "844113d",
+    "exports_group_pdfs": "c1dec88",
+    "zip_exports": "03b5f89",
+    "wa_helper": "197279a",
+    "schema_strict": "bc5a1d6",
+    "daily_runner": "1fbda3d",
+    "webhook_stub": "a2f6080"
   },
   "flags": {
     "bundle_ready": true,
@@ -17,11 +23,15 @@
     "api_token_present": false,
     "orders_etl_ready": true,
     "orders_api_timeout": true,
-    "size_grids_present": false,
+    "size_grids_present": true,
     "size_link_ready": true,
     "missing_maps_report_ready": true,
     "api_orders_staging_ready": true,
-    "data_crm_present": true
+    "data_crm_present": true,
+    "exports_ready": true,
+    "zip_ready": true,
+    "wa_helper_ready": true,
+    "webhook_stub_ready": true
   },
-  "checkpoint": "2025-08-14T00:00:00Z"
+  "checkpoint": "2025-08-14T16:00:00Z"
 }

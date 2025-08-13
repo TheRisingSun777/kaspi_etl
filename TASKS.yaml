@@ -31,12 +31,41 @@ tasks:
     commit: 4e378f5
   - id: size-link
     title: Link API orders to size recommendations
-    status: in-progress
+    status: done
     notes:
       - Added scripts/link_orders_and_sizes.py and Makefile `size-recs`
-      - Missing size grid files; defaults to M when not derivable
+      - Size grids present; generated orders_kaspi_with_sizes.xlsx
     pr: null
     commit: 74ba615
+  - id: exports-pack-pdfs
+    title: Generate grouped packing PDFs and zip
+    status: done
+    notes:
+      - Added scripts/crm_group_pdfs.py; make pack-pdfs
+      - make zip-exports creates outbox zip
+    pr: null
+    commit: c1dec88
+  - id: wa-helper
+    title: WhatsApp Web helper (semi-auto)
+    status: done
+    notes:
+      - services/whatsapp_web.py; make wa-open
+    pr: null
+    commit: 197279a
+  - id: webhook-stub
+    title: Webhook stub service
+    status: done
+    notes:
+      - services/api_server.py; make serve
+    pr: null
+    commit: a2f6080
+  - id: schema-strict
+    title: Enforce strict processed_sales schema
+    status: done
+    notes:
+      - join_api_orders_to_sales.py writes schema_diff on mismatch
+    pr: null
+    commit: bc5a1d6
   - id: report-missing-maps
     title: Report missing KSP mappings (sku_key gaps)
     status: done
