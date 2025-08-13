@@ -12,6 +12,16 @@ Phase 1 Operations (CRM)
   - Build labels (if applicable):
     `./scripts/run_build_labels.sh`
 
+- Makefile shortcuts
+  - `make repair` → repair sales
+  - `make process` → process sales
+  - `make labels` → build labels
+  - `make loaddb` → load to SQLite (erp.db)
+  - `make daily` → run full daily orchestrator
+  - `make picklist` → generate warehouse picklist (CSV/PDF)
+  - `make exportbm` → export CSV for business_model.xlsm
+  - `make validate` → run validation suite
+
 - Checkpoint / rotate
   - Append a short summary to `docs/PROGRESS.md`
   - Persist run state to `STATE.json`
