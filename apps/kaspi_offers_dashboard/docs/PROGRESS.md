@@ -22,6 +22,7 @@
 
 - 2025-08-13 01:00 UTC — CORE-LOOP-001: Adjusted `PricebotPanel` Save to POST `/api/pricebot/settings` (schema-compliant). Confirmed inline table edits persist to `server/db/pricebot.settings.json` v2 and reload correctly. Advanced task to next.
 - 2025-08-13 01:10 UTC — CORE-LOOP-002: Offers now default to `withOpponents=false`; route returns `ourPrice`, `active`, `min`, `max`, `step`, `interval` top-level; store requests without opponents by default.
+- 2025-08-13 01:20 UTC — CORE-LOOP-003: Run route computes proposals ignoring opponents (using guardrails only); returns `proposals[]` plus backward-compatible `proposal` for single SKU; apply path restricted to single SKU.
 
 - 2025-08-11 10:22 UTC — Added repo memory scaffold (OPERATING.md, TASKS.yaml, PROGRESS.md, STATE.json, DECISIONS.md). No app code changed.
 - 2025-08-11 10:22 UTC — Defaults set: storeId=30141222, cityId=710000000 (adjust if needed).

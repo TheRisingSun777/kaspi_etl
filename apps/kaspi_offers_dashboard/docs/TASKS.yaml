@@ -20,16 +20,7 @@ backlog:
     estimate: 2h
     labels: [core, settings, v2]
   
-  - id: CORE-LOOP-003
-    title: Implement run proposals (dry-run) ignoring opponents
-    desc: For each active SKU, compute a target price using current settings; ignore opponents if not available.
-    ac:
-      - POST /api/pricebot/run returns proposals array with sku, ourPrice, targetPrice, delta, and reason.
-      - Accepts merchantId and storeId; reads settings v2 for min/max/step/interval.
-      - Target price uses step increments/decrements and is clamped within [min,max].
-      - UI confirm modal shows proposal; no price is applied when dry=true.
-    estimate: 3h
-    labels: [core, run]
+  
   - id: CORE-LOOP-004
     title: Create price watch scheduler script
     desc: Add script that periodically calls run endpoint to compute proposals for due SKUs.
@@ -181,6 +172,13 @@ done:
       - GET returns items array with fields: productId, sku, name, ourPrice, stock, active, min, max, step, interval.
       - Accepts storeId and merchantId; uses merchant cookie to call merchant API.
       - UI table populates with our SKUs; Sellers column may show 0 but must not block other columns.
+  - id: CORE-LOOP-003
+    title: Implement run proposals (dry-run) ignoring opponents
+    ac:
+      - POST /api/pricebot/run returns proposals array with sku, ourPrice, targetPrice, delta, and reason.
+      - Accepts merchantId and storeId; reads settings v2 for min/max/step/interval.
+      - Target price uses step increments/decrements and is clamped within [min,max].
+      - UI confirm modal shows proposal; no price is applied when dry=true.
   - id: EXP-001
     title: Merchant-aware export/import (schema v2)
     ac:
