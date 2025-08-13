@@ -42,3 +42,9 @@ zip-exports:
 wa-open:
 	@echo "Opening WhatsApp Web to target chat..."
 	@./venv/bin/python -m services.whatsapp_web --to "$(TO)" --attach "$(ATTACH)"
+
+.PHONY: show-schedule
+
+show-schedule:
+	@echo 'Save as ~/Library/LaunchAgents/com.kaspi.etl.daily.plist:'
+	@cat docs/OPERATING.md | sed -n '/^```xml/,/^```/p' | sed '1d;$d'
