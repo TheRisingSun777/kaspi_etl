@@ -74,6 +74,13 @@ tasks:
       - Writes data_crm/reports/missing_ksp_mapping.csv
     pr: null
     commit: 844113d
+  - id: L7
+    title: Harden the orders→sales join
+    status: done
+    notes:
+      - Added tolerant mapping order and missing mapping report with guessed model group
+    pr: null
+    commit: TBD
   - id: api-orders-staging
     title: Parse API orders → staging CSV
     status: done

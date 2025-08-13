@@ -12,11 +12,6 @@ logger = logging.getLogger(__name__)
 
 DATA_CRM = Path("data_crm")
 OUTPUT_XLSX = DATA_CRM / "orders_kaspi_with_sizes.xlsx"
-<<<<<<< HEAD
-
-
-def find_latest_orders_file() -> Optional[Path]:
-=======
 ORDERS_STAGING = DATA_CRM / "orders_api_latest.csv"
 PROCESSED_LATEST = DATA_CRM / "processed_sales_latest.csv"
 
@@ -30,7 +25,6 @@ def find_orders() -> Optional[Path]:
     if PROCESSED_LATEST.exists():
         return PROCESSED_LATEST
     processed_dir = DATA_CRM / "processed"
->>>>>>> fec4309 (size-recs: use processed sales; derive model_group; compute rec_size with grid/defaults)
     candidates: List[Path] = []
     candidates.extend(sorted(processed_dir.glob("processed_sales_*.csv")))
     if candidates:
@@ -71,25 +65,6 @@ def extract_size_token(*texts: str) -> Optional[str]:
 
 
 def infer_model_group(text: str) -> Optional[str]:
-<<<<<<< HEAD
-    if not text:
-        return None
-    s = str(text)
-    # Take first alpha chunk before delimiter
-    s = s.replace(" ", "_")
-    for delim in ("-", "_", "/"):
-        if delim in s:
-            s = s.split(delim)[0]
-            break
-    s = re.sub(r"[^A-Za-z]+", "", s)
-    if not s:
-        return None
-    return s.upper()
-
-
-def load_group_defaults() -> Optional[pd.DataFrame]:
-    # Try various possible filenames
-=======
     """Take token before first underscore; uppercase; alnum only."""
     if not text:
         return None
@@ -101,7 +76,6 @@ def load_group_defaults() -> Optional[pd.DataFrame]:
 
 def load_group_defaults() -> Optional[pd.DataFrame]:
     # Prefer by-model-group, then all-models
->>>>>>> fec4309 (size-recs: use processed sales; derive model_group; compute rec_size with grid/defaults)
     for pattern in [
         DATA_CRM / "size_grid_by_model_group.xlsx",
         DATA_CRM / "size_grid_by_model_group.csv",
@@ -154,9 +128,9 @@ def _apply_size_norm(val: Optional[str], mapping: Optional[dict]) -> Optional[st
 
 
 def main() -> Tuple[Path, pd.DataFrame]:
-    orders_path = find_latest_orders_file()
+    orders_path = find_orders()
     if not orders_path:
-        raise SystemExit("No active_orders_* CSV/XLSX found in data_crm/")
+        raise SystemExit("No orders staging/processed file found in data_crm/")
 
     logger.info("Using orders file: %s", orders_path)
 
@@ -172,14 +146,6 @@ def main() -> Tuple[Path, pd.DataFrame]:
         if col not in df.columns:
             df[col] = None
 
-<<<<<<< HEAD
-    # Optional columns
-    for col in ["height", "weight"]:
-        if col not in df.columns:
-            df[col] = None
-
-    # Derive model_group and rec_size
-=======
     # Map processed sales customer fields to unified names
     if "customer_height" in df.columns and "height" not in df.columns:
         df["height"] = df["customer_height"]
@@ -203,7 +169,6 @@ def main() -> Tuple[Path, pd.DataFrame]:
         df["sku_key"] = df.apply(_fill_sku, axis=1)
 
     # model_group from sku_key or product_master_code
->>>>>>> fec4309 (size-recs: use processed sales; derive model_group; compute rec_size with grid/defaults)
     df["model_group"] = df["sku_key"].fillna("").map(infer_model_group)
     if df["model_group"].isna().any() and "product_master_code" in df.columns:
         mask = df["model_group"].isna() | (df["model_group"] == "")
@@ -211,13 +176,6 @@ def main() -> Tuple[Path, pd.DataFrame]:
             df.loc[mask, "product_master_code"].fillna("").map(infer_model_group)
         )
 
-<<<<<<< HEAD
-    # Try to extract size token from identifiers first
-    df["rec_size"] = [
-        extract_size_token(ksp, sku)
-        for ksp, sku in zip(df["ksp_sku_id"].astype(str), df["sku_key"].astype(str))
-    ]
-=======
     # rec_size via engine if height & weight present, else grid default, else M
     rec_size: List[Optional[str]] = [None] * len(df)
     size_norm_map = _load_size_normalization()
@@ -229,7 +187,6 @@ def main() -> Tuple[Path, pd.DataFrame]:
         engine_recommend = getattr(sre, "recommend", None)
     except Exception:
         engine_recommend = None
->>>>>>> fec4309 (size-recs: use processed sales; derive model_group; compute rec_size with grid/defaults)
 
     # Fallback to group defaults if available
     group_defaults = load_group_defaults()
@@ -239,9 +196,6 @@ def main() -> Tuple[Path, pd.DataFrame]:
         else {}
     )
 
-<<<<<<< HEAD
-    # Final fallback
-=======
     for idx, row in df.iterrows():
         h = row.get("height", None)
         w = row.get("weight", None)
@@ -267,7 +221,6 @@ def main() -> Tuple[Path, pd.DataFrame]:
     df["rec_size"] = rec_size
 
     # Ensure non-null rec_size
->>>>>>> fec4309 (size-recs: use processed sales; derive model_group; compute rec_size with grid/defaults)
     df["rec_size"] = df["rec_size"].fillna("M")
 
     # Prepare output view
@@ -291,10 +244,6 @@ def main() -> Tuple[Path, pd.DataFrame]:
     out_df.to_excel(OUTPUT_XLSX, index=False)
     logger.info("Wrote %s", OUTPUT_XLSX)
 
-<<<<<<< HEAD
-    # Print top 20 recommendations
-    print(out_df.head(20).to_string(index=False))
-=======
     preview_cols = [c for c in ["orderid", "sku_key", "height", "weight", "rec_size", "model_group"] if c in out_df.columns]
     print(out_df[preview_cols].head(20).to_string(index=False))
     # Value counts of rec_size
@@ -302,7 +251,6 @@ def main() -> Tuple[Path, pd.DataFrame]:
         print("\nrec_size counts:\n" + out_df["rec_size"].value_counts(dropna=False).to_string())
     except Exception:
         pass
->>>>>>> fec4309 (size-recs: use processed sales; derive model_group; compute rec_size with grid/defaults)
 
     return OUTPUT_XLSX, out_df
 
