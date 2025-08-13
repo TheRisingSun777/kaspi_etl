@@ -22,11 +22,11 @@ tasks:
     commit: 774493d
   - id: orders-intake
     title: API → CRM intake for active orders
-    status: in-progress
+    status: blocked
     notes:
       - Added scripts/etl_orders_api.py (JSON + CSV/XLSX)
       - Added Makefile target `orders`
-      - Awaiting token to execute successfully
+      - Token set; endpoint timing out (ReadTimeout/ReadError). Added retries/paging/headers.
     pr: null
     commit: 4e378f5
   - id: size-link

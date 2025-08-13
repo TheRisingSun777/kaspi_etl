@@ -28,3 +28,7 @@
   - No cache files present yet; script no-ops safely.
 
 - 2025-08-14 — P-FIX-1: Verified `data_crm` present in `crm-api-join`; no checkout required.
+
+- 2025-08-14 — P-RUN-A: Smoke run attempted; API orders step timing out.
+  - Added retries, headers, paging (size=25). Still ReadTimeout/ReadError from Kaspi orders endpoint.
+  - Next: retry with `KASPI_ORDERS_STATUS=ACCEPTED_BY_MERCHANT` and smaller size (e.g., 5), or use cached JSON.
