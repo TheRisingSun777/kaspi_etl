@@ -37,6 +37,14 @@ tasks:
       - Missing size grid files; defaults to M when not derivable
     pr: null
     commit: 74ba615
+  - id: report-missing-maps
+    title: Report missing KSP mappings (sku_key gaps)
+    status: done
+    notes:
+      - Added script and Make target
+      - Writes data_crm/reports/missing_ksp_mapping.csv
+    pr: null
+    commit: 844113d
   - id: api-orders-staging
     title: Parse API orders → staging CSV
     status: done

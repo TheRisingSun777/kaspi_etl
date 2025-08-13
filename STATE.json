@@ -6,7 +6,8 @@
     "env_bootstrap": "774493d",
     "orders_intake": "4e378f5",
     "size_link": "74ba615",
-    "api_orders_staging": "f7ed1eb"
+    "api_orders_staging": "f7ed1eb",
+    "report_missing_maps": "844113d"
   },
   "flags": {
     "bundle_ready": true,
@@ -18,6 +19,7 @@
     "orders_api_timeout": true,
     "size_grids_present": false,
     "size_link_ready": true,
+    "missing_maps_report_ready": true,
     "api_orders_staging_ready": true,
     "data_crm_present": true
   },

@@ -32,3 +32,7 @@
 - 2025-08-14 — P-RUN-A: Smoke run attempted; API orders step timing out.
   - Added retries, headers, paging (size=25). Still ReadTimeout/ReadError from Kaspi orders endpoint.
   - Next: retry with `KASPI_ORDERS_STATUS=ACCEPTED_BY_MERCHANT` and smaller size (e.g., 5), or use cached JSON.
+
+- 2025-08-14 — Reports: missing KSP mapping.
+  - Added `scripts/report_missing_ksp_mapping.py` and `make report-missing-maps`.
+  - Generated `data_crm/reports/missing_ksp_mapping.csv` (empty headers if no gaps).
