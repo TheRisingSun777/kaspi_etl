@@ -51,3 +51,8 @@
   - `link_orders_and_sizes.py` prioritizes `orders_api_latest.csv`, then newest `active_orders_*`.
   - Fills `sku_key` from `product_master_code`, then `ksp_sku_id`; improved `model_group` inference.
   - Top 20 preview prints `[orderid, sku_key, height, weight, rec_size]`.
+
+- 2025-08-14 — Checkpoint & rotate.
+  - API staging/join solid with fallbacks; size-link prints valid previews.
+  - Labels grouping produces grouped PDFs + manifest; outbox bundler zips for handoff.
+  - CI sanity target verifies critical files quickly. Proceed to next thread.

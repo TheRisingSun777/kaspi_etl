@@ -27,7 +27,7 @@ tasks:
       - Emitted missing mapping report; added orders-from-cache + sanity targets
       - Ran with cached JSON through join, size-recs, picklist
     pr: null
-    commit: pending
+    commit: cd81b64
   - id: ci-sanity
     title: Add CI sanity checks
     status: done
@@ -81,4 +81,4 @@ tasks:
       - Added Makefile target group-labels
       - Writes grouped PDFs and manifest under data_crm/labels_grouped/DATE
     pr: null
-    commit: pending
+    commit: de51c04
