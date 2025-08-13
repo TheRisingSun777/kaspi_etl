@@ -47,6 +47,8 @@ def build_message(row: pd.Series, template: str) -> str:
     context: Dict[str, str] = {
         "first_name": choose_first_name(row.get("customer_name") if "customer_name" in row else None),
         "product_name": str(row.get("sku_key", "")).replace("_", " "),
+        "store_name": str(row.get("store_name", "")),
+        "orderid": str(row.get("orderid", "")),
     }
     try:
         return template.format(**context)
@@ -77,12 +79,30 @@ def main() -> int:
     day_dir.mkdir(parents=True, exist_ok=True)
 
     out_rows = []
+    # Read existing outbox CSV for dedupe by (orderid, template)
+    out_csv = OUTBOX_DIR / "whatsapp_messages.csv"
+    existing_keys = set()
+    if out_csv.exists():
+        try:
+            existing_df = pd.read_csv(out_csv)
+            existing_df.columns = [c.strip().lower() for c in existing_df.columns]
+            if {"orderid", "template"}.issubset(existing_df.columns):
+                existing_keys = set(zip(existing_df["orderid"].astype(str), existing_df["template"].astype(str)))
+        except Exception:
+            existing_keys = set()
+
+    template_name = TEMPLATE_PATH.name
+
     for _, row in candidates.iterrows():
         orderid = str(row.get("orderid", ""))
         phone = str(row.get("phone", "")) if "phone" in row else ""
         sku_key = str(row.get("sku_key", ""))
         my_size = str(row.get("my_size", ""))
         message_text = build_message(row, template)
+
+        # Dedupe by (orderid, template)
+        if (orderid, template_name) in existing_keys:
+            continue
 
         filename = f"{orderid or 'no-order'}_{sku_key or 'sku'}_size_check.txt"
         safe_filename = filename.replace("/", "-")
@@ -99,14 +119,14 @@ def main() -> int:
         })
 
     # Append to outbox CSV (create header if not exists)
-    out_csv = OUTBOX_DIR / "whatsapp_messages.csv"
     OUTBOX_DIR.mkdir(parents=True, exist_ok=True)
     write_header = not out_csv.exists()
     with out_csv.open("a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["orderid", "phone", "store_name", "sku_key", "my_size", "message_path"])
+        writer = csv.DictWriter(f, fieldnames=["orderid", "phone", "store_name", "sku_key", "my_size", "message_path", "template"])
         if write_header:
             writer.writeheader()
         for r in out_rows:
+            r["template"] = template_name
             writer.writerow(r)
 
     print(f"Generated {len(out_rows)} WhatsApp messages in {day_dir}")

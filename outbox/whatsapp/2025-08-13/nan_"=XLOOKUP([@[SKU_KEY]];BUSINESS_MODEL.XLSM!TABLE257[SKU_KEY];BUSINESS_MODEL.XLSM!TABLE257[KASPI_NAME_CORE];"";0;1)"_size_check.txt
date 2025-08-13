@@ -1,3 +1,1 @@
-Здравствуйте, ! Вы заказали "=XLOOKUP([@[SKU KEY]];BUSINESS MODEL.XLSM!TABLE257[SKU KEY];BUSINESS MODEL.XLSM!TABLE257[KASPI NAME CORE];"";0;1)". 
-Чтобы подобрать размер, пожалуйста, напишите ваш рост (см) и вес (кг).
-
+Здравствуйте! Это nan. По заказу nan подскажите, пожалуйста, рост/вес, чтобы подобрать лучший размер для "=XLOOKUP([@[SKU KEY]];BUSINESS MODEL.XLSM!TABLE257[SKU KEY];BUSINESS MODEL.XLSM!TABLE257[KASPI NAME CORE];"";0;1)". Ответьте в формате: 178/82.

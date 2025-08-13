@@ -5,6 +5,7 @@ Pivot to core repricing loop: After days of effort fighting the seller/opponent 
 \- 2025-08-13: A.2 Add sales repair script to normalize sizes, derive sku_key, drop ignored prefixes (crm-system)
 - 2025-08-13: A.3 Update processing to prefer fixed sales, regenerate outputs, add coverage report (crm-system)
 \- 2025-08-13 12:20 UTC: PH1-REPAIR finalized — added size normalization (44–64, S–4XL), ignore prefixes (ELS_, PRINTER_, CARTRIDGE_, PAPER_), ran repair to produce fixed sales and delta report; counts and top dropped prefixes captured. (crm-system)
+\- 2025-08-13 12:35 UTC: WA size-check outbox generated (dry-run) with template; deduped, wrote texts and whatsapp_messages.csv. (crm-system)
 - 2025-08-13 10:35 UTC: C.1 Add STATE.json and OPERATING.md (crm-system)
 - 2025-08-13 10:36 UTC: C.2 Refresh TASKS.yaml with PH1 tasks (done/todo) (crm-system)
 - 2025-08-13 10:37 UTC: C.3 Commit updates for state, ops, tasks, progress (crm-system)
