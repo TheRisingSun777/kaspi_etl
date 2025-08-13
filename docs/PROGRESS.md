@@ -7,3 +7,4 @@ Pivot to core repricing loop: After days of effort fighting the seller/opponent 
 - 2025-08-13 10:35 UTC: C.1 Add STATE.json and OPERATING.md (crm-system)
 - 2025-08-13 10:36 UTC: C.2 Refresh TASKS.yaml with PH1 tasks (done/todo) (crm-system)
 - 2025-08-13 10:37 UTC: C.3 Commit updates for state, ops, tasks, progress (crm-system)
+- 2025-08-13 10:41 UTC: D.1–D.3 Add DB loader, views, and CLI; committed and pushed (crm-system)
