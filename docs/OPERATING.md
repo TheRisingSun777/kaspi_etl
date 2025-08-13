@@ -1,5 +1,25 @@
 ## Schedule
 
+## Daily 16:30 cutoff workflow
+
+- At 16:30 local time, freeze intake and run the end-to-end pipeline for the day.
+- Sequence: orders → join → size‑recs → waybills → group‑labels → outbox
+
+Quick command:
+
+```bash
+source venv/bin/activate
+OUT_DATE=$(date +%F) INPUT="/abs/path/to/waybill.zip" make run-all
+```
+
+Artifacts:
+- Orders CSV: `data_crm/orders_api_latest.csv`
+- Processed sales: `data_crm/processed_sales_latest.csv`
+- Size recommendations: `data_crm/orders_kaspi_with_sizes.xlsx`
+- Waybills ZIP (downloaded): `data_crm/inputs/waybill_YYYYMMDD.zip`
+- Grouped labels: `data_crm/labels_grouped/${OUT_DATE}/`
+- Outbox for WhatsApp send: `outbox/${OUT_DATE}/`
+
 ## End-to-end run
 
 To run the full pipeline in one command (orders → join → size-recs → labels → WhatsApp send):
@@ -30,6 +50,25 @@ make serve-webhook
    - Subscribe to message status updates.
 
 3) Receipts will be appended to `data_crm/reports/wa_receipts.jsonl`.
+
+## Troubleshooting
+
+- API 401/403
+  - Ensure `.env.local` has valid tokens: `KASPI_TOKEN` (or `X_AUTH_TOKEN`), and for WhatsApp: `WA_TOKEN`, `WA_PHONE_NUMBER_ID`.
+  - If WhatsApp returns 401/403: check App and Business verification, permissions, or phone number setup.
+
+- API timeouts
+  - Orders ETL uses paging and retries with backoff. Re-run `make orders` with `KASPI_ORDERS_SIZE=10` and a specific `KASPI_ORDERS_STATUS`.
+
+- Mapping gaps (missing sku_key)
+  - The join step is tolerant: maps by `(ksp_sku_id, store)` → `(product_master_code, store)` → `ksp_sku_id` → `product_master_code`.
+  - Gaps are written to `data_crm/reports/missing_ksp_mapping.csv`; keep this under 5% of orders (`make ci-sanity`).
+  - Update `data_crm/mappings/ksp_sku_map_updated.xlsx` to improve coverage and re-run join.
+
+- Waybills download issues (401/403)
+  - Update `KASPI_MERCHANT_COOKIE` in `.env.local` from browser DevTools (copy full `Cookie` header).
+  - Ensure `KASPI_WAYBILLS_URL` is the exact URL used by "Распечатать все накладные".
+
 
 
 This project includes a local daily runner for macOS using a shell script and an example LaunchAgent.

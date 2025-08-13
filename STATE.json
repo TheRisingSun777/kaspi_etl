@@ -23,7 +23,7 @@
     "outbox_pack": "5a9ec47",
     "waba_sender": "d90de23",
     "pipeline_run_all": "3c41d60",
-    "wa_webhook": ""
+    "wa_webhook": "191caeb"
   },
   "flags": {
     "bundle_ready": true,
@@ -45,5 +45,5 @@
     "webhook_stub_ready": true,
     "size_recs_ready": true
   },
-  "checkpoint": "2025-08-14T18:10:00Z"
+  "checkpoint": "2025-08-14T18:12:00Z"
 }

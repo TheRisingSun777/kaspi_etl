@@ -93,7 +93,7 @@ tasks:
       - scripts/wa_send_outbox_waba.py sends grouped PDFs; template gate for 24h window; logs CSV
       - Make targets: wa-send, wa-template; PY autodetection
     pr: null
-    commit: pending
+    commit: d90de23
   - id: wa-webhook
     title: WhatsApp webhook receiver + receipts log
     status: done
@@ -102,7 +102,51 @@ tasks:
       - Logs statuses to data_crm/reports/wa_receipts.jsonl
       - Make serve-webhook target; docs updated for Meta config
     pr: null
-    commit: pending
+    commit: 191caeb
+  - id: labels-grouping
+    title: Group labels by (sku_key,my_size) and write manifest
+    status: done
+    notes:
+      - Extract order id from filename digits; map via orders staging
+      - Merge PDFs per group; write manifest and unmatched
+    pr: null
+    commit: b244704
+  - id: size-recs-update
+    title: Size-recs honors my_size and regex model_group; strict null gate
+    status: done
+    notes:
+      - Input priority prefers API CSV; uses engine or grid defaults
+      - Fails if rec_size null-rate >10%
+    pr: null
+    commit: 5cf9c93
+  - id: ci-gates
+    title: CI sanity: orders non-empty, size null gate, mapping gaps threshold
+    status: done
+    notes:
+      - Adds checks for orders >=1 row, rec_size >=90%, missing map <5%
+    pr: null
+    commit: 878a9a3
+  - id: waybills-downloader
+    title: Cookie-based waybills downloader
+    status: done
+    notes:
+      - Downloads waybills ZIP using Cookie header and DevTools URL
+    pr: null
+    commit: e88dde2
+  - id: outbox-pack
+    title: Pack grouped PDFs to outbox and write summary
+    status: done
+    notes:
+      - Copies grouped PDFs; writes OUTBOX_README.txt counts
+    pr: null
+    commit: 5a9ec47
+  - id: pipeline-run-all
+    title: Run-all meta target for e2e pipeline
+    status: done
+    notes:
+      - Chains orders→join→sizes→labels→wa with up-to-date checks
+    pr: null
+    commit: 3c41d60
   - id: report-missing-maps
     title: Report missing KSP mappings (sku_key gaps)
     status: done
