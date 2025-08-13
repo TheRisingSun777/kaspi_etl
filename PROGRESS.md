@@ -61,3 +61,7 @@
 - 2025-08-14 — CI strict checks updated and run.
   - Strict: orders required columns + >=95% non-null; processed sku_id rule; size-recs rec_size >=95%; KSP map schema; size grids presence.
   - Result: PASS except size grids missing in this branch (expected); overall ❌ due to grids absence.
+
+- 2025-08-14 — Added end-to-end runner.
+  - `scripts/run_e2e.sh` with orders → join → size-recs → (labels if INPUT) → picklist.
+  - Make `run-all`: `make run-all INPUT=~/Downloads/waybill-327.zip OUT_DATE=$(date +%F)`

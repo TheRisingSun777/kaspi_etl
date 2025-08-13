@@ -65,7 +65,7 @@ tasks:
     notes:
       - join_api_orders_to_sales.py writes schema_diff on mismatch
     pr: null
-    commit: bc5a1d6
+    commit: 18b5da0
   - id: report-missing-maps
     title: Report missing KSP mappings (sku_key gaps)
     status: done
