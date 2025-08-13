@@ -18,3 +18,7 @@
   - Added `scripts/etl_orders_api.py` to pull active orders and normalize to CSV/XLSX.
   - Added `make orders` target.
   - First run pending token in `.env.local`.
+
+- 2025-08-14 — Link API orders to size recommendations (commit 74ba615).
+  - Added `scripts/link_orders_and_sizes.py` and `make size-recs` target.
+  - Outputs `data_crm/orders_kaspi_with_sizes.xlsx` (currently defaults due to missing grids and sparse source columns).

@@ -29,6 +29,14 @@ tasks:
       - Awaiting token to execute successfully
     pr: null
     commit: 4e378f5
+  - id: size-link
+    title: Link API orders to size recommendations
+    status: in-progress
+    notes:
+      - Added scripts/link_orders_and_sizes.py and Makefile `size-recs`
+      - Missing size grid files; defaults to M when not derivable
+    pr: null
+    commit: 74ba615
   - id: crm-import
     title: Bring CRM folder and scripts from crm-system into API worktree
     status: done
