@@ -14,3 +14,9 @@ orders:
 size-recs:
 	@echo "Linking orders with size recommendations..."
 	@python scripts/link_orders_and_sizes.py
+
+.PHONY: report-missing-maps
+
+report-missing-maps:
+	@echo "Reporting missing KSP mappings (sku_key gaps)..."
+	@python scripts/report_missing_ksp_mapping.py
