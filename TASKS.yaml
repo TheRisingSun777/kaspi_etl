@@ -44,6 +44,21 @@ tasks:
       - Fills sku_key from product_master_code; prints preview
     pr: null
     commit: e33cb7b
+  - id: labels-robust
+    title: Label grouping resilient matching + manifest
+    status: done
+    notes:
+      - Extract orderid from filename or first-page text; fallback mapping via API orders
+      - Writes manifest with per-file rows and grouped PDF
+    pr: null
+    commit: de51c04
+  - id: outbox-bundle
+    title: Outbox bundler for fulfillment zip
+    status: done
+    notes:
+      - Packs grouped labels, manifest, picklist.pdf, and orders_with_sizes into outbox/DATE zip
+    pr: null
+    commit: 4ebf766
   - id: labels-grouping
     title: Automate PDF label grouping by SKU and size
     status: done

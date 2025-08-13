@@ -33,3 +33,12 @@
   - `link_orders_and_sizes.py`: prefer `data_crm/orders_api_latest.csv`, fallback to newest `active_orders_*`.
   - Fills `sku_key` from `product_master_code` when missing; ensures output columns.
   - Make `size-recs` uses venv python and prints a CSV preview of the first 20 rows.
+
+- 2025-08-14 — Labels grouping resilient; manifest embedded.
+  - `crm_kaspi_labels_group.py`: extracts orderid from filename or PDF text (7+ digits), maps via processed then API orders.
+  - Groups to `{sku_key}_{my_size or UNK}.pdf`; writes `manifest.csv` with [pdf_file, orderid, sku_key, my_size, group_file].
+  - Make `group-labels` prints first 30 manifest rows.
+
+- 2025-08-14 — Outbox bundler for fulfillment handoff.
+  - Added `scripts/outbox_pack.py` and `make outbox`.
+  - Produces `outbox/YYYY-MM-DD/bundle_YYYY-MM-DD.zip` with grouped labels, picklist.pdf, and README.txt.
