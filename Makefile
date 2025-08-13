@@ -41,6 +41,14 @@ PY
 group-labels:
 	@echo "Grouping Kaspi label PDFs by SKU and size..."
 	@./venv/bin/python scripts/crm_kaspi_labels_group.py --input "$(INPUT)" $(if $(PROCESSED),--processed "$(PROCESSED)") $(if $(OUT_DATE),--out-date "$(OUT_DATE)")
+	@outdir=$$(dirname $$(./venv/bin/python - <<'PY'
+from pathlib import Path
+import sys
+p=Path('data_crm/labels_grouped');
+print(p)
+PY
+)); man=$$(ls -t $$outdir/*/manifest.csv 2>/dev/null | head -n1); \
+		if [ -f "$$man" ]; then echo "--- manifest preview (first 30 rows) ---"; tail -n +2 "$$man" | head -n 30; else echo "manifest.csv not found"; fi
 
 .PHONY: size-recs
 

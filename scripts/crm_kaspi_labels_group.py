@@ -48,15 +48,27 @@ def _safe_slug(text: str) -> str:
 
 
 def _extract_orderid_from_name(name: str) -> Optional[str]:
-    """Extract order id from a label file name like 'KASPI_SHOP-12345.pdf'.
+    """Extract order id from a label filename using 7+ digit sequence.
 
-    Strategy: pick the last 4+ digit run.
+    Example: KASPI_SHOP-611444195.pdf -> 611444195
     """
     base = Path(name).stem
-    matches = re.findall(r"(\d{4,})", base)
+    matches = re.findall(r"(\d{7,})", base)
     if not matches:
         return None
     return matches[-1]
+
+
+def _extract_orderid_from_pdf_text(pdf_path: Path) -> Optional[str]:
+    try:
+        reader = PdfReader(str(pdf_path))
+        if len(reader.pages) == 0:
+            return None
+        text = reader.pages[0].extract_text() or ""
+        m = re.search(r"(\d{7,})", text)
+        return m.group(1) if m else None
+    except Exception:
+        return None
 
 
 def _find_processed_csv(default_path: Path) -> Path:
@@ -101,6 +113,39 @@ def load_order_group_mapping(processed_csv: Path) -> Dict[str, Tuple[str, str]]:
     return mapping
 
 
+def load_api_orders_mapping() -> Dict[str, Tuple[str, str]]:
+    """Best-effort mapping from orders_api_latest.csv when processed missing.
+
+    Returns orderid -> (sku_key, my_size)
+    """
+    api_csv = DATA_CRM / "orders_api_latest.csv"
+    if not api_csv.exists():
+        return {}
+    try:
+        df = pd.read_csv(api_csv)
+    except Exception:
+        return {}
+    _lower_columns_inplace(df)
+    for col in ["orderid", "sku_key", "my_size", "product_master_code"]:
+        if col not in df.columns:
+            df[col] = ""
+    df["orderid"] = df["orderid"].astype(str).str.replace(".0", "", regex=False).str.strip()
+    df["sku_key"] = df["sku_key"].astype(str).str.strip()
+    df["my_size"] = df["my_size"].astype(str).str.strip()
+    # If sku_key empty but product_master_code present, use it
+    df["sku_key"] = df.apply(
+        lambda r: r["sku_key"] if str(r["sku_key"]).strip() else str(r.get("product_master_code", "")).strip(),
+        axis=1,
+    )
+    mapping: Dict[str, Tuple[str, str]] = {}
+    for _, r in df.iterrows():
+        oid = r.get("orderid", "")
+        if not oid or oid.lower() in {"nan", "none", "null"}:
+            continue
+        mapping[str(oid)] = (str(r.get("sku_key", "") or ""), str(r.get("my_size", "") or ""))
+    return mapping
+
+
 @dataclass
 class GroupEntry:
     sku_key: str
@@ -133,6 +178,11 @@ def group_labels(
 ) -> Tuple[Path, List[GroupEntry], Path]:
     processed_csv = _find_processed_csv(processed_csv)
     order_to_group = load_order_group_mapping(processed_csv)
+    # Enrich with API orders mapping for any missing orderids
+    api_map = load_api_orders_mapping()
+    for oid, tup in api_map.items():
+        if oid not in order_to_group:
+            order_to_group[oid] = tup
     if not order_to_group:
         logger.warning("Processed sales CSV has no mapping rows: %s", processed_csv)
 
@@ -153,12 +203,12 @@ def group_labels(
     group_map: Dict[Tuple[str, str], List[Path]] = {}
     unmatched: List[Path] = []
     for pdf in pdfs:
-        oid = _extract_orderid_from_name(pdf.name)
+        oid = _extract_orderid_from_name(pdf.name) or _extract_orderid_from_pdf_text(pdf)
         if not oid or oid not in order_to_group:
             unmatched.append(pdf)
             continue
         sku_key, my_size = order_to_group[oid]
-        key = (sku_key or "UNKNOWN", my_size or "")
+        key = (sku_key or "UNKNOWN", (my_size or "UNK"))
         group_map.setdefault(key, []).append(pdf)
 
     # Output directory
@@ -169,30 +219,27 @@ def group_labels(
     # Merge and record manifest
     groups: List[GroupEntry] = []
     manifest_rows: List[Dict[str, str]] = []
-    for (sku_key, my_size), paths in sorted(group_map.items(), key=lambda kv: (kv[0][0], kv[0][1])):
-        safe_name = f"{_safe_slug(sku_key)}_{_safe_slug(my_size)}".strip("_")
+    for (sku_key, my_size_key), paths in sorted(group_map.items(), key=lambda kv: (kv[0][0], kv[0][1])):
+        safe_name = f"{_safe_slug(sku_key)}_{_safe_slug(my_size_key)}".strip("_")
         output_pdf = out_dir / f"{safe_name}.pdf"
         merge_group_to_pdf(paths, output_pdf)
-        groups.append(GroupEntry(sku_key=sku_key, my_size=my_size, pdf_paths=paths))
-        manifest_rows.append(
-            {
-                "sku_key": sku_key,
-                "my_size": my_size,
-                "count": str(len(paths)),
-                "output_pdf": str(output_pdf.relative_to(REPO_ROOT)),
-                "orderids": ",".join(
-                    [
-                        _extract_orderid_from_name(p.name) or ""
-                        for p in paths
-                    ]
-                ),
-            }
-        )
+        groups.append(GroupEntry(sku_key=sku_key, my_size=my_size_key, pdf_paths=paths))
+        for p in paths:
+            oid = _extract_orderid_from_name(p.name) or _extract_orderid_from_pdf_text(p) or ""
+            manifest_rows.append(
+                {
+                    "pdf_file": str(p.relative_to(REPO_ROOT)) if p.is_relative_to(REPO_ROOT) else str(p),
+                    "orderid": oid,
+                    "sku_key": sku_key,
+                    "my_size": my_size_key if my_size_key else "UNK",
+                    "group_file": str(output_pdf.relative_to(REPO_ROOT)),
+                }
+            )
 
     # Write manifest
     manifest_csv = out_dir / "manifest.csv"
     with manifest_csv.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["sku_key", "my_size", "count", "output_pdf", "orderids"])
+        writer = csv.DictWriter(f, fieldnames=["pdf_file", "orderid", "sku_key", "my_size", "group_file"])
         writer.writeheader()
         for row in manifest_rows:
             writer.writerow(row)
