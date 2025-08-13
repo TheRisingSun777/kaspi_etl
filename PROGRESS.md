@@ -28,3 +28,8 @@
     - CRITICAL missing: mappings/ksp_sku_map_updated.xlsx
     - IMPORTANT ok: processed_sales_latest.csv, orders_kaspi_with_sizes.xlsx
     - Non-null/format checks: PASS (100% non-null, 0 mismatches)
+
+- 2025-08-14 — size-recs prefers API orders; robust input + columns.
+  - `link_orders_and_sizes.py`: prefer `data_crm/orders_api_latest.csv`, fallback to newest `active_orders_*`.
+  - Fills `sku_key` from `product_master_code` when missing; ensures output columns.
+  - Make `size-recs` uses venv python and prints a CSV preview of the first 20 rows.

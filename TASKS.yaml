@@ -36,6 +36,14 @@ tasks:
       - Validates critical/important files and order columns; quality metrics
     pr: null
     commit: 5d0b3d8
+  - id: size-recs-pref
+    title: Size-recs prefer API orders; robust input + columns
+    status: done
+    notes:
+      - Prefer orders_api_latest.csv; fallback newest active_orders_*
+      - Fills sku_key from product_master_code; prints preview
+    pr: null
+    commit: e33cb7b
   - id: labels-grouping
     title: Automate PDF label grouping by SKU and size
     status: done
