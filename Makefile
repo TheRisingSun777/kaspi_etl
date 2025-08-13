@@ -26,3 +26,13 @@ report-missing-maps:
 pack-pdfs:
 	@echo "Generating grouped packing PDFs and manifest..."
 	@./venv/bin/python scripts/crm_group_pdfs.py
+
+.PHONY: zip-exports
+
+zip-exports:
+	@echo "Zipping data_crm/exports to outbox/ ..."
+	@mkdir -p outbox
+	@stamp=$$(date +%Y%m%d_%H%M); out="outbox/exports_$${stamp}.zip"; \
+		echo "Creating $$out"; \
+		zip -r "$$out" data_crm/exports >/dev/null; \
+		echo "$$out"
