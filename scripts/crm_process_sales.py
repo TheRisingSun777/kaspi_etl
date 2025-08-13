@@ -32,6 +32,9 @@ import pandas as pd
 # Ensure project root on sys.path for imports like `utils.phones`
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils.phones import parse_kz_phone
+import json
+import time
+from utils.validation import validate_df, DEFAULT_RULES
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -62,6 +65,7 @@ SALES_FIXED_XLSX = DATA_CRM_DIR / "sales_ksp_crm_fixed.xlsx"
 ORDERS_CSV = DATA_CRM_DIR / "orders_clean_preview.csv"
 ORDERS_XLSX = DATA_CRM_DIR / "orders_kaspi_with_sizes.xlsx"
 ORDERS_NORMALIZED_CSV = DATA_CRM_DIR / "orders_with_sizes_normalized.csv"
+ORDERS_NORMALIZED_DATED = DATA_CRM_DIR / f"orders_with_sizes_normalized_{RUN_DATE}.csv"
 
 
 def _lower_columns_inplace(df: pd.DataFrame) -> None:
@@ -347,8 +351,13 @@ def load_orders_with_sizes() -> pd.DataFrame | None:
     odf.columns = [str(c).strip().lower() for c in odf.columns]
 
     order_col = _choose_col(odf, ["orderid", "order_id", "id_order", "заказ", "номер заказа"])
+    date_col = _choose_col(odf, ["date", "order_date", "дата"])
     h_col = _choose_col(odf, ["рост", "рост, см", "рост (см)", "height", "customer_height"])
     w_col = _choose_col(odf, ["вес", "вес, кг", "вес (кг)", "weight", "customer_weight"])
+    sku_col = _choose_col(odf, ["sku_key", "sku", "model", "товар", "product"])
+    size_col = _choose_col(odf, ["my_size", "size", "размер"])
+    qty_col = _choose_col(odf, ["qty", "quantity", "кол-во", "количество"])
+    price_col = _choose_col(odf, ["sell_price", "price", "цена"])
 
     if not order_col:
         print("Warning: orders-with-sizes file lacks an order id column; skipping enrichment.")
@@ -356,13 +365,19 @@ def load_orders_with_sizes() -> pd.DataFrame | None:
 
     out = pd.DataFrame()
     out["orderid"] = odf[order_col].astype(str).str.strip()
+    out["date"] = odf[date_col].astype(str).str.strip() if date_col else pd.NA
     out["customer_height"] = odf[h_col].map(_normalize_height_cm) if h_col else pd.NA
     out["customer_weight"] = odf[w_col].map(_normalize_weight_kg) if w_col else pd.NA
+    out["sku_key"] = odf[sku_col].astype(str).str.strip() if sku_col else pd.NA
+    out["my_size"] = odf[size_col].astype(str).map(normalize_size) if size_col else pd.NA
+    out["qty"] = pd.to_numeric(odf[qty_col], errors="coerce") if qty_col else pd.NA
+    out["sell_price"] = pd.to_numeric(odf[price_col], errors="coerce") if price_col else pd.NA
 
-    # Drop exact dupes by orderid keeping first
+    # Drop dupes by orderid keeping first
     out = out.drop_duplicates(subset=["orderid"])
     out.to_csv(ORDERS_NORMALIZED_CSV, index=False)
-    print(f"Orders-with-sizes normalized: {ORDERS_NORMALIZED_CSV} ({len(out)} rows)")
+    out.to_csv(ORDERS_NORMALIZED_DATED, index=False)
+    print(f"Orders-with-sizes normalized: {ORDERS_NORMALIZED_DATED} ({len(out)} rows)")
     return out
 
 
@@ -479,9 +494,18 @@ def make_normalized_sales_log(df: pd.DataFrame, qty_col: str) -> pd.DataFrame:
 def main() -> int:
     # Ensure output directory exists
     DATA_CRM_DIR.mkdir(parents=True, exist_ok=True)
+    runlog_dir = DATA_CRM_DIR / "state"
+    runlog_dir.mkdir(parents=True, exist_ok=True)
+    runlog_path = runlog_dir / f"runlog_{RUN_DATE}.jsonl"
+
+    def log_step(step: str, status: str, **fields) -> None:
+        rec = {"ts": pd.Timestamp.utcnow().isoformat(), "step": step, "status": status}
+        rec.update(fields)
+        with runlog_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
     sales_df, ksp_map_df, maybe_sku_map_df, stock_df = load_inputs()
-    orders_sizes_df = load_orders_with_sizes()
+    t0 = time.time(); orders_sizes_df = load_orders_with_sizes(); log_step("orders_enrich", "ok", duration_ms=int((time.time()-t0)*1000), rows=int(0 if orders_sizes_df is None else len(orders_sizes_df)))
 
     # ensure 'orderid' exists in sales_df for merge
     if "orderid" not in sales_df.columns:
@@ -493,9 +517,13 @@ def main() -> int:
     if orders_sizes_df is not None and "orderid" in sales_df.columns:
         sales_df = sales_df.merge(orders_sizes_df, on="orderid", how="left")
 
-    compute_sku_id_inplace(sales_df)
+    # Validate inputs early
+    validate_df("stock", stock_df, DEFAULT_RULES["stock"], RUN_DATE, DATA_CRM_DIR / "reports")
+    validate_df("sales", sales_df, DEFAULT_RULES["sales"], RUN_DATE, DATA_CRM_DIR / "reports")
 
-    qty_col = choose_qty_column(sales_df)
+    t0 = time.time(); compute_sku_id_inplace(sales_df); log_step("compute_sku_id", "ok", duration_ms=int((time.time()-t0)*1000))
+
+    qty_col = choose_qty_column(sales_df); log_step("choose_qty", "ok", column=qty_col)
 
     # Dedupe before enrichment
     reports_dir = DATA_CRM_DIR / "reports"
@@ -529,25 +557,26 @@ def main() -> int:
     after_count = len(sales_df)
     if after_count < before_count:
         print(f"Deduped sales: removed {before_count - after_count} rows → {duplicates_path}")
+        log_step("dedupe", "ok", removed=int(before_count - after_count), output=str(duplicates_path))
 
-    enriched_df = enrich_with_sku_map(sales_df, maybe_sku_map_df)
+    t0 = time.time(); enriched_df = enrich_with_sku_map(sales_df, maybe_sku_map_df); log_step("enrich_sku_map", "ok", duration_ms=int((time.time()-t0)*1000))
 
     # Update stock and write (dated + latest)
-    updated_stock_df = update_stock(stock_df, sales_df, qty_col)
+    updated_stock_df = update_stock(stock_df, sales_df, qty_col); log_step("update_stock", "ok", output_latest=str(STOCK_UPDATED_CSV), output_dated=str(STOCK_UPDATED_DATED))
     STOCK_DIR.mkdir(parents=True, exist_ok=True)
     updated_stock_df.to_csv(STOCK_UPDATED_DATED, index=False)
     updated_stock_df.to_csv(STOCK_UPDATED_CSV, index=False)
     print(f"Updated stock written: {STOCK_UPDATED_CSV} and {STOCK_UPDATED_DATED}")
 
     # Build normalized sales log and write (dated + latest)
-    normalized_sales = make_normalized_sales_log(enriched_df, qty_col)
+    normalized_sales = make_normalized_sales_log(enriched_df, qty_col); log_step("write_sales", "ok", output_latest=str(PROCESSED_SALES_CSV), output_dated=str(PROCESSED_SALES_DATED))
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     normalized_sales.to_csv(PROCESSED_SALES_DATED, index=False)
     normalized_sales.to_csv(PROCESSED_SALES_CSV, index=False)
     print(f"Processed sales log written: {PROCESSED_SALES_CSV} and {PROCESSED_SALES_DATED}")
 
     # Missing SKU report
-    missing_report_df = write_missing_skus_report(sales_df, maybe_sku_map_df, qty_col, MISSING_SKUS_CSV)
+    missing_report_df = write_missing_skus_report(sales_df, maybe_sku_map_df, qty_col, MISSING_SKUS_CSV); log_step("missing_skus", "ok", rows=int(len(missing_report_df)))
     print(
         f"Missing SKU report written: {MISSING_SKUS_CSV} (unique missing sku_id: {len(missing_report_df)})"
     )
