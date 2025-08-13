@@ -1,3 +1,5 @@
+PY?=$(shell [ -x venv/bin/python ] && echo venv/bin/python || which python3)
+
 .PHONY: bundle
 
 bundle:
@@ -44,6 +46,16 @@ zip-exports:
 wa-open:
 	@echo "Opening WhatsApp Web to target chat..."
 	@./venv/bin/python -m services.whatsapp_web --to "$(TO)" --attach "$(ATTACH)"
+
+.PHONY: wa-send
+
+wa-send:
+	@$(PY) scripts/wa_send_outbox_waba.py
+
+.PHONY: wa-template
+
+wa-template:
+	@$(PY) -c "from services.waba_client import send_template; import os; print(send_template(os.environ['WA_TO_EMPLOYEE'], os.environ.get('WA_TEMPLATE_LABELS','labels_ready'), 'ru', [{'type':'body','parameters':[{'type':'text','text':'$(shell date +%Y-%m-%d)'},{'type':'text','text':'0'}]}]))"
 
 .PHONY: show-schedule
 

@@ -20,7 +20,8 @@
     "orders_paging": "1c295c4",
     "ci_sanity": "878a9a3",
     "waybills_downloader": "e88dde2",
-    "outbox_pack": ""
+    "outbox_pack": "5a9ec47",
+    "waba_sender": ""
   },
   "flags": {
     "bundle_ready": true,
@@ -42,5 +43,5 @@
     "webhook_stub_ready": true,
     "size_recs_ready": true
   },
-  "checkpoint": "2025-08-14T17:48:00Z"
+  "checkpoint": "2025-08-14T17:55:00Z"
 }

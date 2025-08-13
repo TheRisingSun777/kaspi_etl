@@ -85,6 +85,15 @@ tasks:
       - Make target respects env and uses venv python
     pr: null
     commit: 1c295c4
+  - id: waba-sender
+    title: WABA Cloud API client and outbox sender
+    status: done
+    notes:
+      - services/waba_client.py with robust client (template, media upload, document, text)
+      - scripts/wa_send_outbox_waba.py sends grouped PDFs; template gate for 24h window; logs CSV
+      - Make targets: wa-send, wa-template; PY autodetection
+    pr: null
+    commit: pending
   - id: report-missing-maps
     title: Report missing KSP mappings (sku_key gaps)
     status: done

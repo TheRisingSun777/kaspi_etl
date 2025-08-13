@@ -101,3 +101,8 @@
 - 2025-08-14 — Outbox packer.
   - Added `scripts/crm_outbox_pack.py` to copy grouped PDFs to `outbox/${OUT_DATE}/` and write counts summary.
   - Make `outbox` now packs from labels_grouped.
+
+- 2025-08-14 — WABA sender connected.
+  - Added `services/waba_client.py` (template/text/document send, media upload, retries).
+  - Added `scripts/wa_send_outbox_waba.py` to send grouped PDFs; logs to `data_crm/reports/wa_send_log.csv` with idempotency.
+  - Make targets: `wa-send`, `wa-template`; `PY?` autodetects venv.
