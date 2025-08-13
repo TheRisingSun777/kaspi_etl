@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Tuple
 import httpx
 import pandas as pd
 from dotenv import load_dotenv
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 # Load environment (.env.local preferred, then .env)
 load_dotenv(".env.local", override=False)
@@ -35,6 +36,7 @@ def _today_stamp() -> str:
     return dt.datetime.now().strftime("%Y%m%d")
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=30))
 async def fetch_active_orders() -> Dict[str, Any]:
     if not KASPI_TOKEN:
         raise RuntimeError("Missing API token. Set KASPI_TOKEN/X_AUTH_TOKEN/KASPI_API_TOKEN in env")
@@ -44,7 +46,7 @@ async def fetch_active_orders() -> Dict[str, Any]:
     url = f"{KASPI_BASE}/orders"
     logger.info("Fetching active orders from %s", url)
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(180.0)) as client:
         response = await client.get(url, headers=headers)
         response.raise_for_status()
         return response.json()
