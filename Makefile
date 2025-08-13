@@ -69,6 +69,12 @@ serve:
 	@echo "Starting webhook stub service on http://127.0.0.1:3801 ..."
 	@./venv/bin/uvicorn services.api_server:app --reload --port 3801
 
+.PHONY: serve-webhook
+
+serve-webhook:
+	@echo "Starting WA webhook on http://127.0.0.1:3901 ..."
+	@./venv/bin/uvicorn services.wa_webhook:app --reload --port 3901
+
 .PHONY: outbox
 
 outbox:

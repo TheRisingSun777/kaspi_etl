@@ -110,3 +110,7 @@
 - 2025-08-14 — Pipeline meta target.
   - Make `run-all` chains orders → join → size-recs → group-labels → wa-send with up-to-date checks.
   - Docs updated: `docs/OPERATING.md` shows one-command run.
+
+- 2025-08-14 — WA webhook receiver + receipts log.
+  - Added `services/wa_webhook.py` (verify + POST handler); logs statuses to `data_crm/reports/wa_receipts.jsonl`.
+  - Make `serve-webhook` starts on port 3901; docs updated with Meta setup steps.

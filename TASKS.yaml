@@ -94,6 +94,15 @@ tasks:
       - Make targets: wa-send, wa-template; PY autodetection
     pr: null
     commit: pending
+  - id: wa-webhook
+    title: WhatsApp webhook receiver + receipts log
+    status: done
+    notes:
+      - services/wa_webhook.py with GET verify and POST receipts handler
+      - Logs statuses to data_crm/reports/wa_receipts.jsonl
+      - Make serve-webhook target; docs updated for Meta config
+    pr: null
+    commit: pending
   - id: report-missing-maps
     title: Report missing KSP mappings (sku_key gaps)
     status: done

@@ -14,6 +14,24 @@ Notes:
 - WhatsApp Cloud API requires env set in `.env.local` (WA_TOKEN, WA_PHONE_NUMBER_ID, WA_TO_EMPLOYEE, WA_TEMPLATE_LABELS).
 - For labels grouping, ensure waybills ZIP or folder is available; grouped PDFs and `manifest.csv` will be created under `data_crm/labels_grouped/${OUT_DATE}/`.
 
+## Webhook setup (WhatsApp Cloud API)
+
+1) Run the webhook receiver locally:
+
+```bash
+source venv/bin/activate
+export WA_VERIFY_TOKEN="choose-a-secret"
+make serve-webhook
+```
+
+2) In Meta Developers → WhatsApp → Webhooks:
+   - Callback URL: `http://your-public-tunnel-or-host:3901/webhooks/whatsapp`
+   - Verify Token: copy the value of `WA_VERIFY_TOKEN`
+   - Subscribe to message status updates.
+
+3) Receipts will be appended to `data_crm/reports/wa_receipts.jsonl`.
+
+
 This project includes a local daily runner for macOS using a shell script and an example LaunchAgent.
 
 Script:
