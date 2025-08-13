@@ -24,9 +24,13 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import sys
 from typing import Iterable, List, Optional
 
 import pandas as pd
+# Ensure project root on sys.path for imports like `utils.phones`
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from utils.phones import parse_kz_phone
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -265,6 +269,7 @@ def make_normalized_sales_log(df: pd.DataFrame, qty_col: str) -> pd.DataFrame:
     orderid_col = _choose_first_existing(df, ["orderid", "order_id", "id_order", "order no", "order_no", "order number"])
     date_col = _choose_first_existing(df, ["date", "order_date", "created_at", "order_datetime", "order_date_time"]) 
     price_col = _choose_first_existing(df, ["sell_price", "price", "unit_price", "price_total", "amount"])
+    phone_col = _choose_first_existing(df, ["phone", "customer_phone", "phone_number"]) 
     height_col = _choose_first_existing(df, ["customer_height", "height"]) 
     weight_col = _choose_first_existing(df, ["customer_weight", "weight"]) 
 
@@ -282,6 +287,16 @@ def make_normalized_sales_log(df: pd.DataFrame, qty_col: str) -> pd.DataFrame:
     out["ksp_sku_id"] = df.get("ksp_sku_id", pd.NA)
     out["sku_key"] = df.get("sku_key", pd.NA)
     out["my_size"] = df.get("my_size", pd.NA)
+
+    # Normalized phone
+    if phone_col:
+        out["normalized_phone"] = df[phone_col].apply(parse_kz_phone)
+        # Warn on invalid phones
+        invalid_count = int((out["normalized_phone"] == "").sum())
+        if invalid_count > 0:
+            print(f"Warning: {invalid_count} rows have invalid/unparseable phone numbers")
+    else:
+        out["normalized_phone"] = ""
 
     return out
 
