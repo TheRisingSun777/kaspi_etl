@@ -18,6 +18,15 @@ tasks:
     notes: []
     pr: null
     commit: null
+  - id: orders-pipeline
+    title: Get real API data flowing end-to-end
+    status: in-progress
+    notes:
+      - Restored api_orders_to_csv.py and join_api_orders_to_sales.py
+      - Updated link_orders_and_sizes.py to use orders_api_latest.csv
+      - Make orders chains ETL → staging → join
+    pr: null
+    commit: pending
   - id: labels-grouping
     title: Automate PDF label grouping by SKU and size
     status: done

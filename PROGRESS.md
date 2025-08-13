@@ -9,3 +9,8 @@
   - Added `scripts/crm_kaspi_labels_group.py` using processed sales mapping.
   - New Makefile target `group-labels`.
   - Outputs under `data_crm/labels_grouped/YYYY-MM-DD/` with `manifest.csv`.
+
+- 2025-08-14 — Restored API orders staging/join pipeline and updated size-link.
+  - Restored `scripts/api_orders_to_csv.py`, `scripts/join_api_orders_to_sales.py`, `scripts/link_orders_and_sizes.py`.
+  - Make `orders` now chains ETL → staging → join.
+  - `link_orders_and_sizes.py` prefers `data_crm/orders_api_latest.csv` and writes real `rec_size`.

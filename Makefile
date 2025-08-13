@@ -3,6 +3,14 @@
 bundle:
 	./scripts/make_repo_bundle.sh
 
+.PHONY: orders
+
+orders:
+	@echo "Running ETL for active orders..."
+	@python scripts/etl_orders_api.py
+	@python scripts/api_orders_to_csv.py
+	@python scripts/join_api_orders_to_sales.py
+
 .PHONY: group-labels
 
 group-labels:
