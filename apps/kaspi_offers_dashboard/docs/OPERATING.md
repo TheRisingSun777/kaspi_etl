@@ -42,7 +42,7 @@ When the chat approaches 80 % of the token limit, checkpoint your work to PROG
 - `GET|POST /api/pricebot/settings` — persists in `server/db/pricebot.settings.json` (v2).
 - `GET /api/pricebot/export?format=csv|xlsx`
 - `POST /api/pricebot/import` — validate with zod; preview mode supported.
-- `POST /api/pricebot/run` — single SKU (dry by default).
+ - `POST /api/pricebot/run` — single SKU (dry by default). Use `dry=false` to apply.
 - `POST /api/pricebot/bulk` — chunked multi‑SKU runs (dry by default).
 - `GET /api/pricebot/stats` — KPIs for dashboard tiles.
  
@@ -51,6 +51,42 @@ When the chat approaches 80 % of the token limit, checkpoint your work to PROG
    - Usage: `pnpm tsx apps/kaspi_offers_dashboard/scripts/price_watch.ts --merchantId=30141222 --city=710000000 --pollSec=60`
    - Env: `PRICEBOT_API_BASE` (default `http://localhost:3001`), `PRICE_WATCH_POLL_SEC`.
    - Logs proposals like: `[run][30141222] SKU123: our=1099 → target=1050 (undercut)`
+
+## Operations Guide
+
+### Cookie refresh (merchant session)
+- Preferred: headless login script
+  1) Terminal: `node apps/kaspi_offers_dashboard/server/scripts/login.mjs <merchantId>`
+  2) Verify: `POST /api/auth/cookie-status` returns `{ ok:true }`
+  3) Cookie is saved to `apps/kaspi_offers_dashboard/server/merchant/<merchantId>.cookie.json` (ignored by git).
+- Alternate: quick grab from an existing Chrome profile (CDP)
+  1) Launch Chrome with remote debugging (see Safety section above)
+  2) Run: `pnpm cookies:collect` (or `pnpm cookies:collect:profile2`)
+  3) Verify via `POST /api/auth/cookie-status`
+
+Notes:
+- Never commit cookies; `server/merchant/*.cookie.json` is in `.gitignore`.
+- For apply in dev without cookie file, you can set env `KASPI_MERCHANT_COOKIE` (session string). Prefer file-based for safety.
+
+### Bulk best practices
+- Always start with dry-run (default). Inspect proposals before apply.
+- Scope bulk by store and, if needed, by filtered SKU list to limit blast radius.
+- Use moderate chunk sizes (≤200) to avoid rate limits and keep UI responsive.
+- Watch progress and review the summary; cancel if upstream errors spike.
+- Avoid running apply during peak hours.
+
+### Safe apply checklist
+- Cookie present and fresh: `POST /api/auth/cookie-status`.
+- Guardrails sane: `minPrice ≤ ourPrice ≤ maxPrice`, step reasonable.
+- Start with a single SKU via `/api/pricebot/run` (confirm modal in UI).
+- For bulk, do a small filtered subset first, then scale.
+- If you only want to test payloads, set `DRY_RUN=true` on the server (no HTTP request is sent to Kaspi; payload logged).
+
+### Rollback notes
+- Export current prices first: `GET /api/pricebot/export?format=csv&storeId=...`.
+- To rollback individual SKUs, run `/api/pricebot/run` with `dry=false` and the previous price as the target (or temporarily set `min=max=prevPrice` then apply, then restore guardrails).
+- To rollback many SKUs, edit the exported CSV to previous prices and re-import via `/api/pricebot/import` (validate in preview) and apply.
+- All apply attempts are logged locally in `server/db/pricebot.runs.json`; use this for quick audits.
 
 ## UI Notes
 - `PricebotTable` scopes calls by selected `storeId`.
