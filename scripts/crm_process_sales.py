@@ -222,8 +222,8 @@ def _normalize_height_cm(val) -> float | None:
     n = _first_number(val)
     if n is None:
         return None
-    # Treat 1.4–2.3 as meters; else assume centimeters
-    if 1.4 <= n <= 2.3:
+    # Treat 1.5–2.2 as meters; else assume centimeters
+    if 1.5 <= n <= 2.2:
         return round(n * 100)
     return round(n)
 
