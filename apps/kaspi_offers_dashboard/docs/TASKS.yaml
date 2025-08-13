@@ -126,6 +126,8 @@ in_progress:
       - Header shows merchantId + storeId selector(s); selecting updates table, export links, and stats.
       - Persist last chosen merchant/store to localStorage and `STATE.json`.
       - Sticky header with export/import buttons and bulk actions visible on scroll.
+    progress:
+      - 2025-08-13: Hardened opponents route & added fallbacks; robust seller extraction. Pending: validate storefront session for merchant and refine mapping for specific SKUs.
     estimate: 3h
     labels: [ui, ux]
 

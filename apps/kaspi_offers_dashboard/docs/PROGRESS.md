@@ -1,3 +1,4 @@
+- 2025-08-13 02:10 UTC — Checkpoint: Opponents route hardened (env storefront cookie, sec-ch headers, JSON-LD + optional Playwright fallbacks) and more robust seller extraction. Some SKUs still return empty due to upstream/session; next thread will validate storefront cookie/session and refine extraction.
 - 2025-08-12 10:05 UTC — UI-002: Opponents modal loader now reads `items` only and sorts by price; opponents count typing/consistency fixed in store; curl verification steps documented.
 - 2025-08-12 10:30 UTC — UI-002: Fixed stores route file path to merchants.json and ensured it returns items; dev server command corrected.
 - 2025-08-12 21:45 UTC — OPP-002: Added storefront env cookie support, sec-ch headers, HTML JSON-LD scrape, and optional Playwright fallback; robust seller extraction so modal shows names/prices even if IDs vary.

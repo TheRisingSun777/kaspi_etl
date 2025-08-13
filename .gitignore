@@ -225,3 +225,9 @@ apps/kaspi_offers_dashboard/server/db/merchants/*.json
 # Assistant bundles (big + churny)
 assistant_bundles/
 apps/**/assistant_bundles/
+server/merchant/*.cookie.json
+.tmp_assistant_bundle_*/
+server/merchant/*.cookie.json
+.env
+.env.*
+**/.env*

@@ -1,0 +1,50 @@
+version: 1
+
+in_progress:
+  - id: CORE-LOOP-001
+    started: true
+    title: Ensure settings v2 persist correctly
+    description: >
+      Verify that editing min/max/step/interval in the UI persists to server/db/pricebot.settings.json
+      via the settings endpoint. The UI should reflect updated values after reload.
+    AC:
+      - Editing settings saves to server/db/pricebot.settings.json
+      - GET /api/pricebot/pricebot/settings returns new values
+      - UI reload shows updated values
+
+backlog:
+  - id: UI-002
+    title: Improve OpponentsPanel integration
+    description: |
+      Refactor seller loading so it is optional and does not block the main pricing loop.
+      Once the core pricing loop is complete, revisit seller scraping. Opponents should be cached per (productId, cityId)
+      and load asynchronously. Failures should fall back gracefully.
+    AC:
+      - Opponents list loads separately from offers and does not block UI
+      - Failures show fallback message instead of blocking
+      - Caching respects TTL and merchant city
+
+  - id: CORE-LOOP-002
+    title: Return offers without opponents
+    description: |
+      Ensure GET /api/pricebot/pricebot/offers?withOpponents=false returns valid JSON of own SKUs, prices, and stock.
+      Do not attempt to fetch opponents in this task.
+    AC:
+      - Endpoint returns a JSON array of SKUs with price and stock
+      - Response is valid even if opponents route fails
+
+  - id: CORE-LOOP-003
+    title: Compute dry-run proposals
+    description: |
+      Implement dry-run logic for proposals ignoring opponents. Use settings (min/max/step/interval) and current price/stock.
+    AC:
+      - POST /api/pricebot/pricebot/run?merchantId=...&dry=true returns proposals array
+      - Each proposal includes sku, current price, and target price within min/max
+
+  - id: CORE-LOOP-004
+    title: Add price-watch scheduler script
+    description: |
+      Create a Node/TypeScript script that runs /api/pricebot/pricebot/run?dry=true on a schedule (e.g. every 10 minutes).
+    AC:
+      - Script can be started via pnpm (e.g. pnpm ts-node scripts/price_watch.ts)
+      - Script logs results and schedules itself repeatedly

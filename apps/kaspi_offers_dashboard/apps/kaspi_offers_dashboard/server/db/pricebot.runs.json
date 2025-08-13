@@ -1,4 +1,195 @@
 {
+  "30141222": [
+    {
+      "ts": "2025-08-13T03:02:43.563Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 0,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:02:43.660Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 0,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:02:43.772Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 11500,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:02:43.893Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 11500,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:02:44.005Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 0,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:02:44.107Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 14990,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:02:44.219Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 8800,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:02:46.247Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 0,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:02:46.341Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 0,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:02:46.456Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 11500,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:02:46.581Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 11500,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:02:46.691Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 0,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:02:46.797Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 14990,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:02:46.903Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 8800,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:03:05.618Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 0,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:03:05.724Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 0,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:03:05.842Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 11500,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:03:05.981Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 11500,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:03:06.102Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 0,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:03:06.215Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 14990,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T03:03:06.319Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 8800,
+      "applied": true
+    }
+  ],
   "test-store": [
     {
       "ts": "2025-08-11T12:34:18.536Z",

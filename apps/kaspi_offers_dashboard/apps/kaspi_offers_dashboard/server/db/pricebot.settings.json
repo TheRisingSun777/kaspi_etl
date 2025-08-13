@@ -25,6 +25,20 @@
         "minPrice": 11500,
         "maxPrice": 11500,
         "intervalMin": 4
+      },
+      "CL_OC_MEN_PRINT51_BLACK_112128130_60-6XL_(4XL)": {
+        "active": false
+      },
+      "CL_OC_MEN_PRINT51_BLACK_112128130_46-M_(L)": {
+        "active": true,
+        "minPrice": 14990,
+        "maxPrice": 14990,
+        "stepKzt": 1
+      },
+      "CL_OC_MEN_PRINT51_BLACK_109953019_48_(XL)": {
+        "active": true,
+        "minPrice": 8800,
+        "maxPrice": 8850
       }
     }
   },
