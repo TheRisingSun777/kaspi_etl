@@ -2,11 +2,15 @@
   "branch": "crm-api-join",
   "last_commits": {
     "bundle_setup": "bed9d9f",
-    "crm_import": "bc47e1b"
+    "crm_import": "bc47e1b",
+    "env_bootstrap": "774493d"
   },
   "flags": {
     "bundle_ready": true,
-    "crm_paths_brought_in": true
+    "crm_paths_brought_in": true,
+    "env_local_present": true,
+    "api_test_ran": true,
+    "api_token_present": false
   },
   "checkpoint": "2025-08-14T00:00:00Z"
 }

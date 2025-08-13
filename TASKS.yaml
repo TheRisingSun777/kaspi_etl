@@ -14,10 +14,12 @@ tasks:
     commit: bed9d9f
   - id: api-integration-basics
     title: Prepare API client scaffolding and env
-    status: todo
-    notes: []
+    status: in-progress
+    notes:
+      - .env.example updated; .env.local created locally
+      - test runner loads .env.local and multiple token vars
     pr: null
-    commit: null
+    commit: 774493d
   - id: crm-import
     title: Bring CRM folder and scripts from crm-system into API worktree
     status: done
