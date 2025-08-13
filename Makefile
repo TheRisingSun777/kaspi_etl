@@ -13,7 +13,7 @@ orders:
 
 size-recs:
 	@echo "Linking orders with size recommendations..."
-	@python scripts/link_orders_and_sizes.py
+	@./venv/bin/python scripts/link_orders_and_sizes.py
 
 .PHONY: report-missing-maps
 
@@ -25,4 +25,4 @@ report-missing-maps:
 
 pack-pdfs:
 	@echo "Generating grouped packing PDFs and manifest..."
-	@python scripts/crm_group_pdfs.py
+	@./venv/bin/python scripts/crm_group_pdfs.py
