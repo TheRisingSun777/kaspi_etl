@@ -20,3 +20,9 @@ size-recs:
 report-missing-maps:
 	@echo "Reporting missing KSP mappings (sku_key gaps)..."
 	@python scripts/report_missing_ksp_mapping.py
+
+.PHONY: pack-pdfs
+
+pack-pdfs:
+	@echo "Generating grouped packing PDFs and manifest..."
+	@python scripts/crm_group_pdfs.py
