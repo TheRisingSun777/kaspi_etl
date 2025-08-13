@@ -218,21 +218,29 @@ def main() -> int:
         orders["store_name"] = orders["store_name"].astype(str).str.strip().str.upper()
         # First try match on (ksp_sku_id, store_name)
         if store_col:
+            right_cols = (
+                kmap[[ksp_col, store_col, key_col]]
+                .drop_duplicates()
+                .rename(columns={key_col: "_mapped_sku_key"})
+            )
             merged = orders.merge(
-                kmap[[ksp_col, store_col, key_col]].drop_duplicates(),
+                right_cols,
                 left_on=["ksp_sku_id", "store_name"],
                 right_on=[ksp_col, store_col],
                 how="left",
             )
-            orders["sku_key"] = orders["sku_key"].fillna(merged[key_col])
+            orders["sku_key"] = orders["sku_key"].fillna(merged["_mapped_sku_key"])
         # Fallback: match only on ksp_sku_id
+        right_cols2 = (
+            kmap[[ksp_col, key_col]].drop_duplicates().rename(columns={key_col: "_mapped_sku_key"})
+        )
         merged2 = orders.merge(
-            kmap[[ksp_col, key_col]].drop_duplicates(),
+            right_cols2,
             left_on="ksp_sku_id",
             right_on=ksp_col,
             how="left",
         )
-        orders["sku_key"] = orders["sku_key"].fillna(merged2[key_col])
+        orders["sku_key"] = orders["sku_key"].fillna(merged2["_mapped_sku_key"])
 
     # Optional enrichment with SKU map (not required for basic processed log)
     # Build sku_id
