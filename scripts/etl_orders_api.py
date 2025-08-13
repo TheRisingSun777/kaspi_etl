@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Tuple
 import httpx
 import pandas as pd
 from dotenv import load_dotenv
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 # Load environment (.env.local preferred, then .env)
 load_dotenv(".env.local", override=False)
@@ -24,6 +24,9 @@ KASPI_BASE = (
     os.getenv("KASPI_BASE") or os.getenv("KASPI_API_BASE_URL") or "https://kaspi.kz/shop/api/v2"
 )
 KASPI_TOKEN = os.getenv("KASPI_TOKEN") or os.getenv("X_AUTH_TOKEN") or os.getenv("KASPI_API_TOKEN")
+KASPI_ORDERS_STATUS = os.getenv("KASPI_ORDERS_STATUS", "ACCEPTED_BY_MERCHANT").strip()
+KASPI_ORDERS_SIZE = int(os.getenv("KASPI_ORDERS_SIZE", "50"))
+KASPI_ORDERS_PAGES = int(os.getenv("KASPI_ORDERS_PAGES", "5"))
 
 DATA_CRM_DIR = Path("data_crm")
 INPUTS_DIR = DATA_CRM_DIR / "inputs"
@@ -36,8 +39,15 @@ def _today_stamp() -> str:
     return dt.datetime.now().strftime("%Y%m%d")
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=30))
-async def fetch_active_orders() -> Dict[str, Any]:
+def _is_retryable(exc: Exception) -> bool:
+    if isinstance(exc, httpx.HTTPStatusError):
+        code = exc.response.status_code
+        return code == 429 or 500 <= code < 600
+    return isinstance(exc, (httpx.ReadTimeout, httpx.ConnectTimeout, httpx.TransportError))
+
+
+@retry(retry=retry_if_exception(_is_retryable), stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=1, max=30), reraise=True)
+async def fetch_orders_page(page: int, size: int, status: str) -> Dict[str, Any]:
     if not KASPI_TOKEN:
         raise RuntimeError("Missing API token. Set KASPI_TOKEN/X_AUTH_TOKEN/KASPI_API_TOKEN in env")
 
@@ -49,19 +59,19 @@ async def fetch_active_orders() -> Dict[str, Any]:
     }
 
     url = f"{KASPI_BASE}/orders"
-    # Allow paging/filters via env (fallback to small page to reduce load/timeouts)
-    page = int(os.getenv("KASPI_ORDERS_PAGE", "0"))
-    size = int(os.getenv("KASPI_ORDERS_SIZE", "50"))
-    status = os.getenv("KASPI_ORDERS_STATUS", "")  # e.g., ACCEPTED_BY_MERCHANT
-    params = {"page": page, "size": size}
+    params: Dict[str, Any] = {"page": page, "size": size}
     if status:
         params["status"] = status
-    logger.info("Fetching active orders from %s with params %s", url, params)
+    logger.info("Fetching orders: %s params=%s", url, params)
 
     async with httpx.AsyncClient(timeout=httpx.Timeout(180.0)) as client:
-        response = await client.get(url, headers=headers, params=params)
-        response.raise_for_status()
-        return response.json()
+        resp = await client.get(url, headers=headers, params=params)
+        try:
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            # Re-raise to trigger retry for 429/5xx; bubble others
+            raise
+        return resp.json()
 
 
 def normalize_orders(payload: Dict[str, Any]) -> pd.DataFrame:
@@ -141,6 +151,20 @@ def normalize_orders(payload: Dict[str, Any]) -> pd.DataFrame:
     return normalized
 
 
+def _extract_records(payload: Any) -> List[Dict[str, Any]]:
+    if isinstance(payload, dict):
+        if "data" in payload and isinstance(payload["data"], list):
+            return payload["data"]
+        # first list in values
+        for v in payload.values():
+            if isinstance(v, list):
+                return v
+        return []
+    if isinstance(payload, list):
+        return payload
+    return []
+
+
 async def main() -> Tuple[Path, Path]:
     stamp = _today_stamp()
     json_path = INPUTS_DIR / f"orders_active_{stamp}.json"
@@ -148,23 +172,35 @@ async def main() -> Tuple[Path, Path]:
     csv_path = DATA_CRM_DIR / f"active_orders_{stamp}.csv"
     xlsx_path = DATA_CRM_DIR / f"active_orders_{stamp}.xlsx"
 
-    payload = await fetch_active_orders()
+    # Page loop
+    all_records: List[Dict[str, Any]] = []
+    fetched_pages = 0
+    for page in range(0, max(1, KASPI_ORDERS_PAGES)):
+        payload = await fetch_orders_page(page=page, size=KASPI_ORDERS_SIZE, status=KASPI_ORDERS_STATUS)
+        recs = _extract_records(payload)
+        if not recs:
+            break
+        all_records.extend(recs)
+        fetched_pages += 1
+        if page + 1 >= KASPI_ORDERS_PAGES:
+            break
 
     # Save raw JSON
+    merged_payload: Dict[str, Any] = {"data": all_records, "pages": fetched_pages}
     with json_path.open("w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
+        json.dump(merged_payload, f, ensure_ascii=False, indent=2)
     logger.info("Saved raw orders JSON to %s", json_path)
 
     # Also save a copy to api_cache for staging consumers
     try:
         with cache_copy.open("w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
+            json.dump(merged_payload, f, ensure_ascii=False, indent=2)
         logger.info("Saved cache copy to %s", cache_copy)
     except Exception as e:
         logger.warning("Could not save cache copy: %s", e)
 
     # Normalize and save CSV
-    df = normalize_orders(payload)
+    df = normalize_orders(merged_payload)
     df.to_csv(csv_path, index=False)
     # Optional XLSX for spreadsheet users
     try:
