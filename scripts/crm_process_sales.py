@@ -35,6 +35,7 @@ from utils.phones import parse_kz_phone
 import json
 import time
 from utils.validation import validate_df, DEFAULT_RULES
+from utils.aliases import alias_candidates
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -72,8 +73,23 @@ def _lower_columns_inplace(df: pd.DataFrame) -> None:
     df.columns = [str(c).strip().lower() for c in df.columns]
 
 
-def _read_excel(path: Path) -> pd.DataFrame:
-    return pd.read_excel(path, engine="openpyxl")
+def _read_excel(path: Path, required_cols: Optional[list[str]] = None) -> pd.DataFrame:
+    # Try specified engine, fall back to default
+    try:
+        xls = pd.ExcelFile(path, engine="openpyxl")
+    except Exception:
+        xls = pd.ExcelFile(path)
+    sheet_name = xls.sheet_names[0]
+    # Auto-detect sheet containing required columns if provided
+    if required_cols:
+        for s in xls.sheet_names:
+            df_tmp = xls.parse(s, nrows=5)
+            cols = [str(c).strip().lower() for c in df_tmp.columns]
+            if all(c in cols for c in required_cols):
+                sheet_name = s
+                break
+    df = xls.parse(sheet_name)
+    return df
 
 
 def _choose_first_existing(df: pd.DataFrame, candidates: Iterable[str]) -> Optional[str]:
@@ -133,12 +149,19 @@ def normalize_size(value: object) -> str:
 
 def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, Optional[pd.DataFrame], pd.DataFrame]:
     # Prefer fixed file if present
-    sales_path = SALES_FIXED_XLSX if SALES_FIXED_XLSX.exists() else SALES_XLSX
+    # Discover latest files if explicit ones missing
+    def discover_latest(pattern: str, base: Path) -> Optional[Path]:
+        matches = sorted(base.glob(pattern))
+        return matches[-1] if matches else None
+
+    sales_path = SALES_FIXED_XLSX if SALES_FIXED_XLSX.exists() else (SALES_XLSX if SALES_XLSX.exists() else discover_latest("sales_*_v1.xlsx", DATA_CRM_DIR))
     if not sales_path.exists():
         raise FileNotFoundError(f"Missing sales file: {sales_path}")
-    if not KSP_MAP_XLSX.exists():
+    ksp_map_path = KSP_MAP_XLSX if KSP_MAP_XLSX.exists() else discover_latest("ksp_sku_map_updated*.xlsx", DATA_CRM_DIR / "mappings")
+    if not ksp_map_path or not ksp_map_path.exists():
         raise FileNotFoundError(f"Missing KSP map: {KSP_MAP_XLSX}")
-    if not STOCK_CSV.exists():
+    stock_path = STOCK_CSV if STOCK_CSV.exists() else discover_latest("stock_on_hand*.csv", DATA_CRM_DIR)
+    if not stock_path or not stock_path.exists():
         raise FileNotFoundError(f"Missing stock file: {STOCK_CSV}")
 
     sales_df = _read_excel(sales_path)
@@ -153,7 +176,7 @@ def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, Optional[pd.DataFrame], p
         inplace=True,
     )
 
-    ksp_map_df = _read_excel(KSP_MAP_XLSX)
+    ksp_map_df = _read_excel(ksp_map_path)
     _lower_columns_inplace(ksp_map_df)
 
     sku_map_df: Optional[pd.DataFrame]
@@ -182,7 +205,7 @@ def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, Optional[pd.DataFrame], p
     else:
         sku_map_df = None
 
-    stock_df = pd.read_csv(STOCK_CSV)
+    stock_df = pd.read_csv(stock_path)
     _lower_columns_inplace(stock_df)
 
     return sales_df, ksp_map_df, sku_map_df, stock_df
@@ -455,12 +478,12 @@ def update_stock(stock_df: pd.DataFrame, sales_df: pd.DataFrame, qty_col: str) -
 
 def make_normalized_sales_log(df: pd.DataFrame, qty_col: str) -> pd.DataFrame:
     # Candidate source columns
-    orderid_col = _choose_first_existing(df, ["orderid", "order_id", "id_order", "order no", "order_no", "order number"])
-    date_col = _choose_first_existing(df, ["date", "order_date", "created_at", "order_datetime", "order_date_time"]) 
-    price_col = _choose_first_existing(df, ["sell_price", "price", "unit_price", "price_total", "amount"])
-    phone_col = _choose_first_existing(df, ["phone", "customer_phone", "phone_number"]) 
-    height_col = _choose_first_existing(df, ["customer_height", "height"]) 
-    weight_col = _choose_first_existing(df, ["customer_weight", "weight"]) 
+    orderid_col = _choose_first_existing(df, alias_candidates("orderid"))
+    date_col = _choose_first_existing(df, alias_candidates("date"))
+    price_col = _choose_first_existing(df, alias_candidates("price"))
+    phone_col = _choose_first_existing(df, alias_candidates("phone"))
+    height_col = _choose_first_existing(df, alias_candidates("height"))
+    weight_col = _choose_first_existing(df, alias_candidates("weight"))
 
     out = pd.DataFrame()
     out["orderid"] = df[orderid_col] if orderid_col else pd.NA
@@ -615,7 +638,10 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except Exception as exc:  # surface clear message
+    except Exception as exc:  # predictable failures
+        state_dir = DATA_CRM_DIR / "state"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        (state_dir / "last_error.txt").write_text(str(exc), encoding="utf-8")
         print(f"Error: {exc}")
         raise SystemExit(1)
 
