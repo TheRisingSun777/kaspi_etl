@@ -11,7 +11,7 @@
     "exports_group_pdfs": "c1dec88",
     "zip_exports": "03b5f89",
     "wa_helper": "197279a",
-    "schema_strict": "bc5a1d6",
+    "schema_strict": "18b5da0",
     "daily_runner": "1fbda3d",
     "webhook_stub": "a2f6080"
   },
@@ -23,7 +23,7 @@
     "api_token_present": false,
     "orders_etl_ready": true,
     "orders_api_timeout": true,
-    "size_grids_present": true,
+    "size_grids_present": false,
     "size_link_ready": true,
     "size_link_processed": true,
     "missing_maps_report_ready": true,

@@ -57,3 +57,7 @@
   - Updated `scripts/link_orders_and_sizes.py` to prioritize processed sales, derive `model_group`, normalize sizes, and use grid/engine defaults.
   - Wrote `data_crm/orders_kaspi_with_sizes.xlsx` with [orderid, date, ksp_sku_id, sku_key, store_name, qty, height, weight, rec_size, model_group].
   - Sample run: rec_size counts show non-null values (defaults to M where needed).
+
+- 2025-08-14 — CI strict checks updated and run.
+  - Strict: orders required columns + >=95% non-null; processed sku_id rule; size-recs rec_size >=95%; KSP map schema; size grids presence.
+  - Result: PASS except size grids missing in this branch (expected); overall ❌ due to grids absence.
