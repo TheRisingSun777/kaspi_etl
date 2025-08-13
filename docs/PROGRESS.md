@@ -9,3 +9,4 @@ Pivot to core repricing loop: After days of effort fighting the seller/opponent 
 - 2025-08-13 10:37 UTC: C.3 Commit updates for state, ops, tasks, progress (crm-system)
 - 2025-08-13 10:41 UTC: D.1–D.3 Add DB loader, views, and CLI; committed and pushed (crm-system)
 - 2025-08-13 10:45 UTC: E.1–E.2 Add daily orchestrator and run script; logs directory initialized (crm-system)
+- 2025-08-13 10:58 UTC: B.1 Added WhatsApp API client (Twilio/360dialog) and .env.sample (crm-system)

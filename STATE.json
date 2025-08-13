@@ -4,7 +4,8 @@
   "last_run": null,
   "flags": {
     "use_fixed_sales": true,
-    "dry_run": true
+    "dry_run": true,
+    "whatsapp_vendor": "d360"
   }
 }
 

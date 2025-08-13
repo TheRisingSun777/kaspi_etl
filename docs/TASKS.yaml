@@ -2,6 +2,10 @@ version: 1
 
 in_progress:
   - id: CRM-A.1
+  - id: CRM-B.1
+    started: true
+    title: WhatsApp API client integration
+    description: Add Twilio/360dialog client with dry-run
     started: true
     title: Add normalization rules (sizes, ignore prefixes)
   - id: CRM-A.2
