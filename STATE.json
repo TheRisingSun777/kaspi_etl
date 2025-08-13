@@ -1,0 +1,12 @@
+{
+  "branch": "crm-api-join",
+  "last_commits": {
+    "bundle_setup": "bed9d9f",
+    "crm_import": "bc47e1b"
+  },
+  "flags": {
+    "bundle_ready": true,
+    "crm_paths_brought_in": true
+  },
+  "checkpoint": "2025-08-14T00:00:00Z"
+}
