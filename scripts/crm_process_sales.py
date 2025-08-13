@@ -35,7 +35,13 @@ from utils.phones import parse_kz_phone
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-RUN_DATE = os.environ.get("RUN_DATE", pd.Timestamp.utcnow().strftime("%Y%m%d"))
+try:
+    from scripts.crm_config import load_crm_config, get_run_date
+    CFG = load_crm_config()
+    RUN_DATE = get_run_date(pd.Timestamp.utcnow().strftime("%Y%m%d"))
+except Exception:
+    CFG = {}
+    RUN_DATE = os.environ.get("RUN_DATE", pd.Timestamp.utcnow().strftime("%Y%m%d"))
 DATA_CRM_DIR = REPO_ROOT / "data_crm"
 SALES_XLSX = DATA_CRM_DIR / "sales_ksp_crm_20250813_v1.xlsx"
 KSP_MAP_XLSX = DATA_CRM_DIR / "mappings" / "ksp_sku_map_updated.xlsx"

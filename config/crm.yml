@@ -1,0 +1,32 @@
+paths:
+  sales_xlsx: data_crm/sales_ksp_crm_20250813_v1.xlsx
+  sales_fixed_xlsx: data_crm/sales_ksp_crm_fixed.xlsx
+  ksp_map_xlsx: data_crm/mappings/ksp_sku_map_updated.xlsx
+  crm_map_xlsx: data_crm/sku_map_crm_20250813_v1.xlsx
+  stock_csv: data_crm/stock_on_hand.csv
+  processed_latest: data_crm/processed_sales_latest.csv
+  processed_dir: data_crm/processed
+  stock_updated_latest: data_crm/stock_on_hand_updated.csv
+  stock_dir: data_crm/stock
+  reports_dir: data_crm/reports
+  orders_csv: data_crm/orders_clean_preview.csv
+  orders_xlsx: data_crm/orders_kaspi_with_sizes.xlsx
+  orders_normalized_csv: data_crm/orders_with_sizes_normalized.csv
+
+aliases:
+  orderid: [orderid, order_id, id_order, 'order no', order_no, 'номер заказа', заказ]
+  height: ['рост', 'рост, см', 'рост (см)', height, customer_height]
+  weight: ['вес', 'вес, кг', 'вес (кг)', weight, customer_weight]
+  phone: [phone, customer_phone, phone_number]
+  date: [date, order_date, created_at, order_datetime, order_date_time]
+  price: [sell_price, price, unit_price, price_total, amount]
+
+size_map:
+  'xl': 'XL'
+  '2xl': '2XL'
+  '3xl': '3XL'
+  '4xl': '4XL'
+  'l': 'L'
+  'm': 'M'
+  's': 'S'
+
