@@ -14,22 +14,7 @@ orders:
 size-recs:
 	@echo "Linking orders with size recommendations..."
 	@./venv/bin/python scripts/link_orders_and_sizes.py || { echo "Missing inputs for size-recs"; exit 1; }
-	@./venv/bin/python - <<'PY'
-import pandas as pd
-from pathlib import Path
-fp = Path('data_crm/orders_kaspi_with_sizes.xlsx')
-if not fp.exists():
-    print('missing data_crm/orders_kaspi_with_sizes.xlsx')
-    raise SystemExit(1)
-df = pd.read_excel(fp)
-df.columns = [str(c).strip().lower().replace(' ', '_') for c in df.columns]
-subset = df[df['sku_key'].astype(str).str.len().gt(0) & df['rec_size'].astype(str).str.len().gt(0)]
-print(subset.head(20).to_csv(index=False))
-null_rate = 1.0 - (df['rec_size'].astype(str).str.len().gt(0).mean())
-if null_rate > 0.10:
-    print(f"ERROR: rec_size null-rate {null_rate:.1%} exceeds 10%")
-    raise SystemExit(2)
-PY
+	@./venv/bin/python -c "import pandas as pd, sys; from pathlib import Path as P; fp=P('data_crm/orders_kaspi_with_sizes.xlsx'); (print('missing data_crm/orders_kaspi_with_sizes.xlsx') or sys.exit(1)) if not fp.exists() else None; df=pd.read_excel(fp); df.columns=[str(c).strip().lower().replace(' ','_') for c in df.columns]; subset=df[df['sku_key'].astype(str).str.len().gt(0) & df['rec_size'].astype(str).str.len().gt(0)]; print(subset.head(20).to_csv(index=False)); null_rate=1.0 - (df['rec_size'].astype(str).str.len().gt(0).mean()); (print(f'ERROR: rec_size null-rate {null_rate:.1%} exceeds 10%') or sys.exit(2)) if null_rate>0.10 else None"
 
 .PHONY: report-missing-maps
 
@@ -79,8 +64,10 @@ outbox:
 .PHONY: group-labels
 
 group-labels:
-	@echo "Grouping Kaspi label PDFs by processed sales..."
-	@./venv/bin/python scripts/crm_kaspi_labels_group.py --input "$$INPUT" --out-date "$$OUT_DATE"
+	@test -n "$(INPUT)" || (echo "INPUT=/abs/path/to/waybill.zip required" && exit 2)
+	@test -n "$(OUT_DATE)" || (echo "OUT_DATE=YYYY-MM-DD required" && exit 2)
+	@echo "Grouping Kaspi label PDFs..."
+	@./venv/bin/python scripts/crm_kaspi_labels_group.py --input "$(INPUT)" --out-date "$(OUT_DATE)" --verbose
 	@man=$$(ls -t data_crm/labels_grouped/*/manifest.csv 2>/dev/null | head -n1); \
 		if [ -f "$$man" ]; then echo "--- manifest preview (first 30 rows) ---"; tail -n +2 "$$man" | head -n 30; else echo "manifest.csv not found"; fi
 

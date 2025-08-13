@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-Group Kaspi label PDFs by (sku_key, my_size or rec_size) using processed sales.
+Group Kaspi label PDFs by (sku_key, my_size) using orders staging.
 
-Features:
-- Accepts INPUT path: ZIP of PDFs or a folder containing PDFs
-- Builds orderid -> row mapping from processed_sales_latest.csv or newest processed/ file
-- Extracts order id from first-page text via regex (digits 6-9, and Russian prefixes)
-- Fallback matching by join_code or product_master_code if present in processed CSV and detected in text
-- Groups by f"{sku_key}_{my_size or rec_size}", merges into one PDF per group
-- Writes manifest.csv and unmatched_files.txt with reasons
+Changes:
+- Extract order number from PDF filename: longest run of 7–12 digits
+- Normalize orders_api_latest.csv.orderid and left-join to get (sku_key, my_size)
+- Group by (sku_key, my_size); merge PDFs in stable sort by orderid ascending
+- Output under data_crm/labels_grouped/${OUT_DATE}/ with file name pattern:
+  {clean_model}_{my_size}-{count}.pdf where clean_model is the first token of sku_key
+- Write manifest.csv: [group_pdf, count, sku_key, my_size, orderids]
+- Write unmatched_files.txt for PDFs with no order match
 """
 
 from __future__ import annotations
@@ -30,17 +31,21 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_CRM = REPO_ROOT / "data_crm"
 
 
-ORDER_RE = re.compile(r"\b(\d{6,9})\b")
-PREFIX_RE = re.compile(r"(?i)(?:№\s*заказа|номер\s*заказа)\D{0,5}(\d{6,9})")
+FILENAME_ORDER_RE = re.compile(r"(\d{7,12})")
 
 
-def find_processed_csv() -> Optional[Path]:
-    latest = DATA_CRM / "processed_sales_latest.csv"
+def find_orders_csv() -> Optional[Path]:
+    latest = DATA_CRM / "orders_api_latest.csv"
     if latest.exists():
         return latest
-    proc_dir = DATA_CRM / "processed"
-    cands = sorted(proc_dir.glob("processed_sales_*.csv"))
-    return cands[-1] if cands else None
+    # Fallbacks: newest active_orders CSV/XLSX
+    cands = sorted(DATA_CRM.glob("active_orders_*.csv"))
+    if cands:
+        return cands[-1]
+    cands_x = sorted(DATA_CRM.glob("active_orders_*.xlsx"))
+    if cands_x:
+        return cands_x[-1]
+    return None
 
 
 def lower_cols(df: pd.DataFrame) -> pd.DataFrame:
@@ -49,44 +54,35 @@ def lower_cols(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def load_processed() -> pd.DataFrame:
-    p = find_processed_csv()
+def load_orders_staging() -> pd.DataFrame:
+    p = find_orders_csv()
     if not p:
         return pd.DataFrame()
-    df = pd.read_csv(p, dtype=str)
+    if p.suffix.lower() == ".xlsx":
+        df = pd.read_excel(p, dtype=str)
+    else:
+        df = pd.read_csv(p, dtype=str)
     df = lower_cols(df)
-    for col in ["orderid", "sku_key", "my_size", "join_code", "product_master_code", "rec_size"]:
+    for col in ["orderid", "sku_key", "my_size"]:
         if col not in df.columns:
             df[col] = ""
-    # Normalize
-    for c in ["orderid", "sku_key", "my_size", "join_code", "product_master_code", "rec_size"]:
+    for c in ["orderid", "sku_key", "my_size"]:
         df[c] = df[c].astype(str).str.strip()
     return df
 
 
-def load_rec_size_map() -> Dict[str, str]:
-    x = DATA_CRM / "orders_kaspi_with_sizes.xlsx"
-    if not x.exists():
-        return {}
-    try:
-        df = pd.read_excel(x, dtype=str)
-        df = lower_cols(df)
-        if "orderid" in df.columns and "rec_size" in df.columns:
-            df["orderid"] = df["orderid"].astype(str).str.strip()
-            df["rec_size"] = df["rec_size"].astype(str).str.strip()
-            mp = {}
-            for _, r in df.iterrows():
-                oid = str(r.get("orderid", "")).strip()
-                rec = str(r.get("rec_size", "")).strip()
-                if oid and rec:
-                    mp[oid] = rec
-            return mp
-    except Exception:
-        return {}
-    return {}
+def extract_orderid_from_filename(pdf_path: Path) -> Optional[str]:
+    name = pdf_path.name
+    matches = FILENAME_ORDER_RE.findall(name)
+    if not matches:
+        return None
+    # Choose the longest; if tie, first occurrence
+    matches.sort(key=lambda s: (-len(s), name.find(s)))
+    return matches[0]
 
 
 def extract_first_page_text(pdf_path: Path) -> str:
+    # No longer used for order id extraction; retained for potential diagnostics
     try:
         reader = PdfReader(str(pdf_path))
         if not reader.pages:
@@ -94,18 +90,6 @@ def extract_first_page_text(pdf_path: Path) -> str:
         return reader.pages[0].extract_text() or ""
     except Exception:
         return ""
-
-
-def find_orderid_in_text(text: str) -> Optional[str]:
-    if not text:
-        return None
-    m = PREFIX_RE.search(text)
-    if m:
-        return m.group(1)
-    m2 = ORDER_RE.search(text)
-    if m2:
-        return m2.group(1)
-    return None
 
 
 def safe_slug(s: str) -> str:
@@ -119,39 +103,7 @@ def safe_slug(s: str) -> str:
 class MatchResult:
     orderid: str
     sku_key: str
-    size: str
-    method: str
-
-
-def match_pdf_to_row(text: str, processed_df: pd.DataFrame, rec_map: Dict[str, str]) -> Tuple[Optional[MatchResult], Optional[str]]:
-    # 1) Strict order id
-    oid = find_orderid_in_text(text)
-    if oid:
-        row = processed_df.loc[processed_df["orderid"] == oid]
-        if not row.empty:
-            r = row.iloc[0]
-            size = str(r.get("my_size", "")).strip() or rec_map.get(oid, "")
-            return MatchResult(orderid=oid, sku_key=str(r.get("sku_key", "")).strip(), size=str(size or ""), method="orderid"), None
-        # oid found but not in processed
-        return None, "order id not in processed"
-
-    # 2) Fallback tokens: join_code or product_master_code found in text
-    text_lc = text.lower()
-    for col, method in [("join_code", "join_code"), ("product_master_code", "product_master_code")]:
-        if col in processed_df.columns:
-            # collect unique non-empty tokens
-            tokens = processed_df[col].astype(str).str.strip()
-            tokens = tokens[tokens != ""].drop_duplicates()
-            # check which tokens appear in text
-            hits = [t for t in tokens if t.lower() in text_lc]
-            if len(hits) == 1:
-                row = processed_df.loc[processed_df[col].astype(str).str.strip().str.lower() == hits[0].lower()]
-                if not row.empty:
-                    r = row.iloc[0]
-                    oid2 = str(r.get("orderid", "")).strip()
-                    size = str(r.get("my_size", "")).strip() or (rec_map.get(oid2, "") if oid2 else "")
-                    return MatchResult(orderid=oid2, sku_key=str(r.get("sku_key", "")).strip(), size=str(size or ""), method=method), None
-    return None, "no order id found"
+    my_size: str
 
 
 def merge_group(paths: List[Path], dest: Path) -> None:
@@ -168,11 +120,10 @@ def merge_group(paths: List[Path], dest: Path) -> None:
         writer.write(f)
 
 
-def group_labels(input_path: Path, out_date: Optional[str]) -> Tuple[Path, Path]:
-    processed_df = load_processed()
-    if processed_df.empty:
-        raise FileNotFoundError("Processed sales CSV not found")
-    rec_map = load_rec_size_map()
+def group_labels(input_path: Path, out_date: Optional[str], verbose: bool = False) -> Tuple[Path, Path]:
+    orders_df = load_orders_staging()
+    if orders_df.empty:
+        raise FileNotFoundError("Orders staging file not found (orders_api_latest.csv or active_orders_*)")
 
     # Prepare source PDFs
     tmpdir_obj: Optional[TemporaryDirectory] = None
@@ -190,50 +141,84 @@ def group_labels(input_path: Path, out_date: Optional[str]) -> Tuple[Path, Path]
     out_dir = DATA_CRM / "labels_grouped" / (out_date or pd.Timestamp.utcnow().strftime("%Y-%m-%d"))
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    # Build mapping from orderid -> (sku_key, my_size)
+    orders_map: Dict[str, Tuple[str, str]] = {}
+    for _, r in orders_df.iterrows():
+        oid = str(r.get("orderid", "")).strip()
+        if not oid:
+            continue
+        sku_key = str(r.get("sku_key", "")).strip()
+        my_size = str(r.get("my_size", "")).strip()
+        if oid not in orders_map:
+            orders_map[oid] = (sku_key, my_size)
+
     # Collect matches
-    groups: Dict[str, List[Path]] = {}
+    groups: Dict[Tuple[str, str], List[Tuple[str, Path]]] = {}
     manifest_rows: List[Dict[str, str]] = []
     unmatched: List[str] = []
     for pdf in pdfs:
-        text = extract_first_page_text(pdf)
-        match, reason = match_pdf_to_row(text, processed_df, rec_map)
-        if match:
-            size_key = match.size or rec_map.get(match.orderid, "") or "UNK"
-            group_key = f"{match.sku_key}_{size_key}"
-            groups.setdefault(group_key, []).append(pdf)
-            manifest_rows.append(
-                {
-                    "pdf_file": str(pdf.relative_to(REPO_ROOT)) if pdf.is_relative_to(REPO_ROOT) else str(pdf),
-                    "orderid": match.orderid,
-                    "sku_key": match.sku_key,
-                    "my_size": str(processed_df.loc[processed_df["orderid"] == match.orderid].iloc[0].get("my_size", "")) if match.orderid else "",
-                    "rec_size": rec_map.get(match.orderid, ""),
-                    "group_key": group_key,
-                    "match_method": match.method,
-                }
-            )
-        else:
-            unmatched.append(f"{pdf.name}\t{reason or 'unknown'}")
+        oid = extract_orderid_from_filename(pdf)
+        if not oid or oid not in orders_map:
+            unmatched.append(pdf.name)
+            continue
+        sku_key, my_size = orders_map[oid]
+        groups.setdefault((sku_key, my_size), []).append((oid, pdf))
+        manifest_rows.append(
+            {
+                "pdf_file": pdf.name,
+                "orderid": oid,
+                "sku_key": sku_key,
+                "my_size": my_size,
+            }
+        )
 
     # Write merged PDFs
-    for group_key, paths in sorted(groups.items()):
-        dest = out_dir / f"{safe_slug(group_key)}.pdf"
-        merge_group(paths, dest)
+    # Write merged PDFs with specified naming and order
+    for (sku_key, my_size), items in sorted(groups.items(), key=lambda kv: (kv[0][0], kv[0][1])):
+        # Stable sort by orderid ascending (numeric if possible)
+        def sort_key(t: Tuple[str, Path]):
+            oid = t[0]
+            try:
+                return int(oid)
+            except Exception:
+                return oid
+        items_sorted = sorted(items, key=sort_key)
+        count = len(items_sorted)
+        clean_model = (sku_key or "").split("_", 1)[0]
+        out_name = f"{safe_slug(clean_model)}_{safe_slug(my_size or 'UNK')}-{count}.pdf"
+        dest = out_dir / out_name
+        merge_group([p for _, p in items_sorted], dest)
 
     # Write manifest
     manifest_csv = out_dir / "manifest.csv"
+    # Aggregate manifest by group
+    by_group: Dict[Tuple[str, str], List[str]] = {}
+    for row in manifest_rows:
+        key = (row["sku_key"], row["my_size"])  # type: ignore[assignment]
+        by_group.setdefault(key, []).append(row["orderid"])  # type: ignore[index]
     with manifest_csv.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=["pdf_file", "orderid", "sku_key", "my_size", "rec_size", "group_key", "match_method"],
+            fieldnames=["group_pdf", "count", "sku_key", "my_size", "orderids"],
         )
         writer.writeheader()
-        for row in manifest_rows:
-            writer.writerow(row)
+        for (sku_key, my_size), orderids in sorted(by_group.items()):
+            count = len(orderids)
+            clean_model = (sku_key or "").split("_", 1)[0]
+            group_pdf = f"{safe_slug(clean_model)}_{safe_slug(my_size or 'UNK')}-{count}.pdf"
+            writer.writerow(
+                {
+                    "group_pdf": group_pdf,
+                    "count": count,
+                    "sku_key": sku_key,
+                    "my_size": my_size,
+                    "orderids": ",".join(sorted(orderids, key=lambda x: int(x) if x.isdigit() else x)),
+                }
+            )
 
     # Write unmatched
     if unmatched:
-        (out_dir / "unmatched_files.txt").write_text("\n".join(unmatched), encoding="utf-8")
+        (out_dir / "unmatched_files.txt").write_text("\n".join(sorted(unmatched)), encoding="utf-8")
 
     if tmpdir_obj is not None:
         try:
@@ -245,17 +230,21 @@ def group_labels(input_path: Path, out_date: Optional[str]) -> Tuple[Path, Path]
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Group Kaspi label PDFs by processed sales")
+    p = argparse.ArgumentParser(description="Group Kaspi label PDFs by (sku_key, my_size)")
     p.add_argument("--input", required=True, help="Path to ZIP file or directory of PDFs")
     p.add_argument("--out-date", default=None, help="Output date tag (YYYY-MM-DD)")
+    p.add_argument("--verbose", action="store_true", help="Enable verbose logging")
     return p.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     in_path = Path(args.input)
+    if args.verbose:
+        import logging
+        logging.getLogger().setLevel(logging.DEBUG)
     try:
-        out_dir, manifest_csv = group_labels(in_path, args.out_date)
+        out_dir, manifest_csv = group_labels(in_path, args.out_date, verbose=args.verbose)
     except Exception as e:
         print(f"ERROR: {e}")
         return 1

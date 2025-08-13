@@ -81,3 +81,7 @@
   - `scripts/link_orders_and_sizes.py` now prioritizes `orders_api_latest.csv`, then newest `active_orders_*.csv/xlsx`.
   - Uses my_size if provided; else engine(height,weight); else size grids; regex model_group.
   - Make `size-recs` prints first 20 with both sku_key and rec_size; fails if rec_size null-rate > 10%.
+
+- 2025-08-14 — Labels grouping: map by PDF order number; grouped outputs + manifest.
+  - `scripts/crm_kaspi_labels_group.py` extracts 7–12 digit order from filename, joins to orders staging, groups by (sku_key,my_size), stable-merge PDFs.
+  - Outputs to `data_crm/labels_grouped/${OUT_DATE}/` with `{clean_model}_{my_size}-{count}.pdf`, writes `manifest.csv` and `unmatched_files.txt`.

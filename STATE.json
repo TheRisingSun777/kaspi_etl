@@ -15,7 +15,8 @@
     "join_hardened": "222fdcb",
     "daily_runner": "7d9201a",
     "webhook_stub": "a2f6080",
-    "size_recs_update": ""
+    "size_recs_update": "5cf9c93",
+    "labels_grouping": ""
   },
   "flags": {
     "bundle_ready": true,
@@ -37,5 +38,5 @@
     "webhook_stub_ready": true,
     "size_recs_ready": true
   },
-  "checkpoint": "2025-08-14T17:10:00Z"
+  "checkpoint": "2025-08-14T17:22:00Z"
 }
