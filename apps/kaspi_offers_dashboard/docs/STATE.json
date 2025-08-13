@@ -1,18 +1,14 @@
 {
-    "version": 1,
-    "branch": "feat/offers-dashboard",
-    "merchantId": "30141222",
-    "storeId": 30141222,
-    "cityId": 710000000,
-    "dryRun": true,
-    "lastRun": "2025-08-11T17:58:00Z",
-    "lastBulkRun": null,
-    "lastExport": null,
-    "lastImport": null,
-  "lastSeen": { "commit": "83fece5a63f81d6c8259b8025477cc8d2f1bf8b0", "taskId": "UI-002" },
-    "flags": {
-      "autoDisableWhenZeroStock": true,
-      "cacheMinutes": 3
-    }
+  "branch": "feat/offers-dashboard",
+  "merchantId": "30141222",
+  "storeId": 30141222,
+  "cityId": 710000000,
+  "flags": {
+    "withOpponentsDefault": false,
+    "playwrightFallback": false
+  },
+  "lastSeen": {
+    "taskId": "CORE-LOOP-002",
+    "idx": 0
   }
-  
+}

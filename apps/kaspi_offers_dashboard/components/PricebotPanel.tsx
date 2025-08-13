@@ -64,7 +64,7 @@ export default function PricebotPanel({ storeId }: { storeId?: string }) {
             <label className="block text-xs text-gray-500">Merchant ID</label>
             <input className="input w-[160px]" value={merchantId} onChange={e=>setMerchantId(e.target.value)} placeholder="30141222" />
           </div>
-          <button className="btn-outline" onClick={async()=>{ await fetch('/api/pricebot/settings', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ base, merchantId }) }); await load() }}>
+          <button className="btn-outline" onClick={async()=>{ await fetch('/api/pricebot/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ merchantId, updates: {} }) }); await load() }}>
             Save Settings
           </button>
           <button className="btn-outline" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Reload'}</button>

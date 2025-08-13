@@ -20,6 +20,8 @@
 - 2025-08-11 11:24 UTC — EXP-001: Export includes merchantId/storeId/cityId columns and uses selected city; Import writes to v2 settings with minPrice/maxPrice/stepKzt.
 # PROGRESS
 
+- 2025-08-13 01:00 UTC — CORE-LOOP-001: Adjusted `PricebotPanel` Save to POST `/api/pricebot/settings` (schema-compliant). Confirmed inline table edits persist to `server/db/pricebot.settings.json` v2 and reload correctly. Advanced task to next.
+
 - 2025-08-11 10:22 UTC — Added repo memory scaffold (OPERATING.md, TASKS.yaml, PROGRESS.md, STATE.json, DECISIONS.md). No app code changed.
 - 2025-08-11 10:22 UTC — Defaults set: storeId=30141222, cityId=710000000 (adjust if needed).
 - 2025-08-11 10:35 UTC — CORE-001: Unified merchant-aware settings: API `/api/pricebot/settings` accepts GET(req) and POST storeId/merchantId; UI passes `storeId` on saves; run/export/opponents consume `pricebot.settings.json` v2.
@@ -31,3 +33,13 @@
 - 2025-08-11 11:10 UTC — KPI-001: Grey out zero-stock rows and auto-disable Active checkbox when stock=0 per UI notes.
 - 2025-08-11 11:16 UTC — UX-001: Opponents modal shows Ignored/You badges and brief Saved tick after toggles.
 - 2025-08-11 12:00 UTC — Refactored TASKS.yaml backlog (STK-001, OPP-002, EXP-002, RUN-002, KPI-002, STR-001, AUTH-001, UX-002) and added context-rotation note to OPERATING.md.
+-- 2025-08-11 13:08 UTC — TEST-001: Added extra unit test for proposal logic; test suite green.
++- 2025-08-11 13:08 UTC — TEST-001: Added extra unit test for proposal logic; test suite green.
++
++## 2025-08-12 15:50 UTC — Pivot to core repricing loop
++
++After several days of debugging the seller/opponents integration, we paused work on scraping competitors and realigned on the core repricing loop.  Seller counts now remain optional, and the `/api/pricebot/offers` endpoint defaults to `withOpponents=false` so it returns our SKUs without blocking.
++
++We added four tasks to the backlog (`CORE-LOOP-001`–`CORE-LOOP-004`) covering settings persistence, offers retrieval, dry‑run proposals, and a scheduler.  We moved `UI-002` back to the backlog as lower priority and updated `STATE.json` to set `CORE-LOOP-001` as the current task.  This pivot frees us to finish the pricing loop quickly while leaving opponents retrieval as a later enhancement.
+*** End Patch
+EOF

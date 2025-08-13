@@ -1,3 +1,4 @@
+TASKS.yaml
 version: 1
 meta:
   branch: feat/offers-dashboard
@@ -8,6 +9,44 @@ meta:
 
 # Priorities: top of in_progress first, then top-down through backlog.
 backlog:
+  # New core loop tasks (2025-08-12)
+  - id: CORE-LOOP-001
+    title: Verify settings persistence and editing
+    desc: Ensure GET/POST /api/pricebot/settings works and persists min/max/step/interval to server/db/pricebot.settings.json (v2). Confirm UI saves and loads correctly.
+    ac:
+      - GET returns JSON with minPrice, maxPrice, stepKzt, intervalMin for each SKU after editing.
+      - POST persists updated values to file and returns ok.
+      - UI "Save Settings" triggers POST and updates row with new values.
+    estimate: 2h
+    labels: [core, settings, v2]
+  - id: CORE-LOOP-002
+    title: Verify offers endpoint returns own SKUs without opponents
+    desc: Ensure /api/pricebot/offers?withOpponents=false returns our SKUs with fields needed for pricing.
+    ac:
+      - GET returns items array with fields: productId, sku, name, ourPrice, stock, active, min, max, step, interval.
+      - Accepts storeId and merchantId; uses merchant cookie to call merchant API.
+      - UI table populates with our SKUs; Sellers column may show 0 but must not block other columns.
+    estimate: 2h
+    labels: [core, offers]
+  - id: CORE-LOOP-003
+    title: Implement run proposals (dry-run) ignoring opponents
+    desc: For each active SKU, compute a target price using current settings; ignore opponents if not available.
+    ac:
+      - POST /api/pricebot/run returns proposals array with sku, ourPrice, targetPrice, delta, and reason.
+      - Accepts merchantId and storeId; reads settings v2 for min/max/step/interval.
+      - Target price uses step increments/decrements and is clamped within [min,max].
+      - UI confirm modal shows proposal; no price is applied when dry=true.
+    estimate: 3h
+    labels: [core, run]
+  - id: CORE-LOOP-004
+    title: Create price watch scheduler script
+    desc: Add script that periodically calls run endpoint to compute proposals for due SKUs.
+    ac:
+      - Node script `scripts/price_watch.ts` reads settings and calls `/api/pricebot/run?dry=true` for each due SKU based on interval.
+      - Accepts env variables for merchantId, storeId, and watch interval; logs proposals to console.
+      - Document usage in docs/OPERATING.md under "Watchers" section.
+    estimate: 3h
+    labels: [core, scheduler]
   - id: RUN-001
     title: Single SKU "run → confirm → apply" (dry by default)
     desc: Compute a proposal for one SKU, show it in UI, confirm, then apply price when dry=false.
@@ -85,16 +124,6 @@ backlog:
     estimate: 4h
     labels: [tests, jest, supertest]
 
-  - id: UI-002
-    title: Store/Merchant selector + sticky header polish
-    desc: Make header controls explicit and sticky; reflect current scope everywhere.
-    ac:
-      - Header shows merchantId + storeId selector(s); selecting updates table, export links, and stats.
-      - Persist last chosen merchant/store to localStorage and `STATE.json`.
-      - Sticky header with export/import buttons and bulk actions visible on scroll.
-    estimate: 3h
-    labels: [ui, ux]
-
   - id: DOCS-001
     title: Operator guide + failure playbook
     desc: Write short guides so anyone can run the bot safely.
@@ -104,7 +133,7 @@ backlog:
     estimate: 2h
     labels: [docs]
 
-in_progress:
+  # Moved from in_progress on 2025-08-12 to backlog as lower priority
   - id: UI-002
     title: Store/Merchant selector + sticky header polish
     desc: Make header controls explicit and sticky; reflect current scope everywhere.
@@ -112,13 +141,10 @@ in_progress:
       - Header shows merchantId + storeId selector(s); selecting updates table, export links, and stats.
       - Persist last chosen merchant/store to localStorage and `STATE.json`.
       - Sticky header with export/import buttons and bulk actions visible on scroll.
-    progress:
-      - 2025-08-11: Added `/api/pricebot/stores` route and wired `StoreSelector`; header made sticky in `PricebotPageClient`.
-      - 2025-08-11: Wired offers page to request `withOpponents=true`; opponents merge added server-side; UI consumes sellers.
-      - 2025-08-12: Updated `OpponentsModal` to read `items` only; ensured opponents count stays correct in `store.ts` and silenced TS warning with `(it: any)`.
-      - 2025-08-12: Implemented storefront cookie env override, HTML JSON-LD scrape, optional Playwright fallback, and robust seller extraction; modal now shows seller names/prices even when API shape changes.
     estimate: 3h
     labels: [ui, ux]
+
+in_progress:
 
 done:
   - id: TEST-001
@@ -151,6 +177,12 @@ done:
       - Server run endpoint validates with zod, returns proposal, and applies on dry=false.
       - UI confirm modal shows proposal and applies.
       - Run records appended with applied flag.
+  - id: CORE-LOOP-001
+    title: Verify settings persistence and editing
+    ac:
+      - GET returns JSON with minPrice, maxPrice, stepKzt, intervalMin for each SKU after editing.
+      - POST persists updated values to file and returns ok.
+      - UI "Save Settings" triggers POST and updates row with new values.
   - id: EXP-001
     title: Merchant-aware export/import (schema v2)
     ac:
@@ -164,28 +196,3 @@ done:
   - id: OPP-001
     title: Opponents route merchant-aware + caching
     ac:
-      - `GET /api/pricebot/opponents` returns sellerId, sellerName, price, isYou, isIgnored; cached per merchant+city+product.
-  - id: SET-002
-    title: Settings v2
-    ac:
-      - `GET/POST /api/pricebot/settings` accept merchantId/storeId and persist to `server/db/pricebot.settings.json` (v2).
-  - id: UI-001
-    title: Table + modal wiring
-    ac:
-      - PricebotTable requests offers with selected storeId and runs proposals via `/api/pricebot/run` (dry).
-      - OpponentsModal requests with merchantId; per-seller ignores persist through settings.
-  - id: CORE-001
-    title: Wire merchantId/cityId end-to-end
-    ac:
-      - Offers/opponents/settings/export/import/run accept merchantId/storeId; UI passes it.
-      - Caches keyed by merchant+city+product where applicable; unified v2 settings source of truth.
-  - id: KPI-001
-    title: KPIs + /stats
-    ac:
-      - `/api/pricebot/stats` returns: totalSKUs, activeSKUs, zeroStock, competingSKUs, winRate, lastRunCount, lastRunAvgDelta.
-      - UI renders 4–6 tiles; zero‑stock rows greyed/inactive.
-  - id: UX-001
-    title: Opponents modal polish
-    ac:
-      - Ignored sellers show a badge and are excluded from proposals.
-      - Saves persist to settings v2; “Saved” tick after debounce.

@@ -120,16 +120,22 @@ export async function GET(req: Request) {
         sku: sku || null,
         productId,
         price: curPrice,
+        ourPrice: curPrice,
         stock,
         opponents: Number(o.sellersCount || o.opponents || 0),
         settings: fixedSettings,
+        active: fixedSettings?.active ?? false,
+        min: fixedSettings?.min ?? 0,
+        max: fixedSettings?.max ?? 0,
+        step: fixedSettings?.step ?? 1,
+        interval: fixedSettings?.interval ?? 5,
       }
     })
 
     // ------------------------------------------------------------------
     // 1)  OPTIONAL seller scrape
     // ------------------------------------------------------------------
-    const withOpponents = new URL(req.url).searchParams.get('withOpponents') !== 'false'
+    const withOpponents = new URL(req.url).searchParams.get('withOpponents') === 'true'
     if (withOpponents) {
       const cityId = new URL(req.url).searchParams.get('cityId') || '710000000'
       const merchantId = new URL(req.url).searchParams.get('merchantId') || new URL(req.url).searchParams.get('storeId') || process.env.KASPI_MERCHANT_ID || ''
