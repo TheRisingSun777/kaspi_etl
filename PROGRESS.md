@@ -20,3 +20,11 @@
   - `join_api_orders_to_sales.py`: robust sku_key join; emits `data_crm/reports/missing_ksp_mapping.csv` if gaps.
   - Make targets: `orders-from-cache`, `sanity`, restored `size-recs`.
   - Ran with cache JSON; produced `processed_sales_latest.csv`, `orders_kaspi_with_sizes.xlsx`, and picklist files.
+
+- 2025-08-14 — CI sanity script and target.
+  - Added `scripts/ci_sanity.py` and Make target `ci-sanity` (uses venv python if present).
+  - First run output:
+    - CRITICAL ok: orders_api_latest.csv
+    - CRITICAL missing: mappings/ksp_sku_map_updated.xlsx
+    - IMPORTANT ok: processed_sales_latest.csv, orders_kaspi_with_sizes.xlsx
+    - Non-null/format checks: PASS (100% non-null, 0 mismatches)

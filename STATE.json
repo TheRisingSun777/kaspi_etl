@@ -2,7 +2,8 @@
   "branch": "kaspi-api-integration",
   "flags": {
     "orders_cache_used": true,
-    "missing_map_count": 0
+    "missing_map_count": 0,
+    "ci_sanity_ready": true
   }
 }
 

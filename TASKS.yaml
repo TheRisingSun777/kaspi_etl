@@ -28,6 +28,14 @@ tasks:
       - Ran with cached JSON through join, size-recs, picklist
     pr: null
     commit: pending
+  - id: ci-sanity
+    title: Add CI sanity checks
+    status: done
+    notes:
+      - scripts/ci_sanity.py created; Make target ci-sanity added
+      - Validates critical/important files and order columns; quality metrics
+    pr: null
+    commit: 5d0b3d8
   - id: labels-grouping
     title: Automate PDF label grouping by SKU and size
     status: done
