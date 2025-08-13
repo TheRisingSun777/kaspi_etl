@@ -147,6 +147,15 @@ tasks:
       - Chains orders→join→sizes→labels→wa with up-to-date checks
     pr: null
     commit: 3c41d60
+  - id: mc-downloader
+    title: Merchant Cabinet downloader (cookies) + XLSX→CSV parser
+    status: done
+    notes:
+      - Auto-extract cookies from browser; download waybills and ActiveOrders; extract ZIP
+      - Parse ActiveOrders XLSX into orders_api_latest.csv for downstream
+      - Make: fetch-orders, fetch-waybills, fetch-all, orders-from-xlsx
+    pr: null
+    commit: pending
   - id: report-missing-maps
     title: Report missing KSP mappings (sku_key gaps)
     status: done

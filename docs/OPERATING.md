@@ -33,6 +33,13 @@ Notes:
 - Each step checks inputs and skips if up-to-date.
 - WhatsApp Cloud API requires env set in `.env.local` (WA_TOKEN, WA_PHONE_NUMBER_ID, WA_TO_EMPLOYEE, WA_TEMPLATE_LABELS).
 - For labels grouping, ensure waybills ZIP or folder is available; grouped PDFs and `manifest.csv` will be created under `data_crm/labels_grouped/${OUT_DATE}/`.
+- To fetch waybills/ActiveOrders from the Merchant Cabinet using your browser cookies:
+  - Ensure you're logged in to `mc.shop.kaspi.kz` in Chrome/Brave/Edge/Firefox.
+  - Set `KASPI_WAYBILLS_URL` and/or `KASPI_ACTIVEORDERS_URL` in `.env.local` (URLs from DevTools Network).
+  - Run:
+    - `make fetch-orders` → updates `data_crm/active_orders_latest.xlsx`
+    - `make fetch-waybills` → downloads into `data_crm/inbox/waybills/YYYY-MM-DD/` and extracts into `raw/`
+  - If cookie scrape fails: set `KASPI_MERCHANT_COOKIE` in `.env.local` as fallback.
 
 ## Webhook setup (WhatsApp Cloud API)
 

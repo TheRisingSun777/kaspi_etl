@@ -4,3 +4,5 @@ tenacity
 streamlit
 pandas
 openpyxl
+browser-cookie3
+tqdm

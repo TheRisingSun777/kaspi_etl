@@ -117,3 +117,8 @@
 
 - 2025-08-14 — Runbook updated.
   - Added daily 16:30 cutoff workflow; pipeline sequence; troubleshooting (API auth/timeouts; mapping gaps).
+
+- 2025-08-14 — MC downloader + XLSX parser.
+  - `services/kaspi_mc_downloader.py` auto-grabs browser cookies, downloads waybills/ActiveOrders.
+  - `scripts/mc_fetch.py` CLI to fetch; `scripts/etl_orders_xlsx.py` parses ActiveOrders → orders_api_latest.csv.
+  - Make targets: fetch-orders, fetch-waybills, fetch-all, orders-from-xlsx.

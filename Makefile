@@ -153,3 +153,22 @@ ci-sanity:
 
 waybills:
 	@./venv/bin/python scripts/kaspi_waybills_download.py --date "$(DATE)"
+
+.PHONY: fetch-waybills
+
+fetch-waybills:
+	@$(PY) scripts/mc_fetch.py --waybills
+
+.PHONY: fetch-orders
+
+fetch-orders:
+	@$(PY) scripts/mc_fetch.py --orders
+
+.PHONY: orders-from-xlsx
+
+orders-from-xlsx:
+	@$(PY) scripts/etl_orders_xlsx.py
+
+.PHONY: fetch-all
+
+fetch-all: fetch-orders fetch-waybills
