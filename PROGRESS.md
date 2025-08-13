@@ -97,3 +97,7 @@
 - 2025-08-14 — Waybills downloader (cookie-based).
   - Added `scripts/kaspi_waybills_download.py` using KASPI_MERCHANT_COOKIE; saves `data_crm/inputs/waybill_YYYYMMDD.zip`.
   - Make `waybills` target added.
+
+- 2025-08-14 — Outbox packer.
+  - Added `scripts/crm_outbox_pack.py` to copy grouped PDFs to `outbox/${OUT_DATE}/` and write counts summary.
+  - Make `outbox` now packs from labels_grouped.

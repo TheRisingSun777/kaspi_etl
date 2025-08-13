@@ -60,7 +60,7 @@ serve:
 .PHONY: outbox
 
 outbox:
-	WA_EMPLOYEE_PHONE="$(PHONE)" ./venv/bin/python scripts/wa_send_outbox.py
+	@./venv/bin/python scripts/crm_outbox_pack.py --date "$(DATE)"
 
 .PHONY: group-labels
 
