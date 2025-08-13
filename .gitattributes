@@ -1,0 +1,10 @@
+venv/ export-ignore
+.venv/ export-ignore
+.idea/ export-ignore
+.vscode/ export-ignore
+.DS_Store export-ignore
+__pycache__/ export-ignore
+logs/ export-ignore
+outbox/ export-ignore
+assistant_bundles/ export-ignore
+data_raw/ export-ignore
