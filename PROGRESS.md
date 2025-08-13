@@ -22,3 +22,7 @@
 - 2025-08-14 — Link API orders to size recommendations (commit 74ba615).
   - Added `scripts/link_orders_and_sizes.py` and `make size-recs` target.
   - Outputs `data_crm/orders_kaspi_with_sizes.xlsx` (currently defaults due to missing grids and sparse source columns).
+
+- 2025-08-14 — API orders → CSV staging (commit f7ed1eb).
+  - Added `scripts/api_orders_to_csv.py` to flatten latest `data_crm/api_cache/orders_*.json` into `data_crm/orders_api_latest.csv`.
+  - No cache files present yet; script no-ops safely.
