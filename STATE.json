@@ -17,7 +17,8 @@
     "orders_etl_ready": true,
     "size_grids_present": false,
     "size_link_ready": true,
-    "api_orders_staging_ready": true
+    "api_orders_staging_ready": true,
+    "data_crm_present": true
   },
   "checkpoint": "2025-08-14T00:00:00Z"
 }

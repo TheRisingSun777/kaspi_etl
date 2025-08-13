@@ -26,3 +26,5 @@
 - 2025-08-14 — API orders → CSV staging (commit f7ed1eb).
   - Added `scripts/api_orders_to_csv.py` to flatten latest `data_crm/api_cache/orders_*.json` into `data_crm/orders_api_latest.csv`.
   - No cache files present yet; script no-ops safely.
+
+- 2025-08-14 — P-FIX-1: Verified `data_crm` present in `crm-api-join`; no checkout required.

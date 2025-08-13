@@ -45,6 +45,14 @@ tasks:
       - Writes data_crm/orders_api_latest.csv
     pr: null
     commit: f7ed1eb
+  - id: p-fix-1
+    title: Ensure data_crm exists in this worktree
+    status: done
+    notes:
+      - Verified data_crm present on crm-api-join
+      - No path checkout required
+    pr: null
+    commit: null
   - id: crm-import
     title: Bring CRM folder and scripts from crm-system into API worktree
     status: done
