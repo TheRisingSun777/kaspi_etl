@@ -119,17 +119,6 @@ backlog:
   # Moved from in_progress on 2025-08-12 to backlog as lower priority
 
 in_progress:
-  - id: UI-002
-    title: Store/Merchant selector + sticky header polish
-    desc: Make header controls explicit and sticky; reflect current scope everywhere.
-    ac:
-      - Header shows merchantId + storeId selector(s); selecting updates table, export links, and stats.
-      - Persist last chosen merchant/store to localStorage and `STATE.json`.
-      - Sticky header with export/import buttons and bulk actions visible on scroll.
-    progress:
-      - 2025-08-13: Hardened opponents route & added fallbacks; robust seller extraction. Pending: validate storefront session for merchant and refine mapping for specific SKUs.
-    estimate: 3h
-    labels: [ui, ux]
 
 done:
   - id: TEST-001
@@ -187,6 +176,12 @@ done:
       - Node script `scripts/price_watch.ts` reads settings and calls `/api/pricebot/run?dry=true` for each due SKU based on interval.
       - Accepts env variables for merchantId, storeId, and watch interval; logs proposals to console.
       - Document usage in docs/OPERATING.md under "Watchers" section.
+  - id: UI-002
+    title: Store/Merchant selector + sticky header polish
+    ac:
+      - Header shows merchantId + storeId selector(s); selecting updates table, export links, and stats.
+      - Persist last chosen merchant/store to localStorage and `STATE.json`.
+      - Sticky header with export/import buttons and bulk actions visible on scroll.
   - id: EXP-001
     title: Merchant-aware export/import (schema v2)
     ac:

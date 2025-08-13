@@ -27,6 +27,7 @@
 - 2025-08-13 01:30 UTC — CORE-LOOP-004: Reworked `scripts/price_watch.ts` to read v2 settings and call `/api/pricebot/run?dry=true` for due SKUs; added usage docs under Watchers.
 - 2025-08-13 01:38 UTC — CORE-LOOP-004: Accept env overrides for poll interval and API base; added in-memory last-run tracking to avoid over-triggering; advanced STATE and in-progress to UI-002.
 - 2025-08-13 02:20 UTC — CORE-LOOP verification: GET offers (withOpponents=false) returns SKUs with guardrails; POST run (dry) returns proposal; POST run (apply) returned applied:true with current env (cookie present or DRY_RUN path behaved as OK). Main loop functional without opponents.
+- 2025-08-13 02:25 UTC — UI-002: Header sticky and store selector persistence verified; moved UI-002 to done; advanced STATE.lastSeen to DOCS-001.
 
 - 2025-08-11 10:22 UTC — Added repo memory scaffold (OPERATING.md, TASKS.yaml, PROGRESS.md, STATE.json, DECISIONS.md). No app code changed.
 - 2025-08-11 10:22 UTC — Defaults set: storeId=30141222, cityId=710000000 (adjust if needed).
