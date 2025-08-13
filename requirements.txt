@@ -4,3 +4,6 @@ tenacity
 streamlit
 pandas
 openpyxl
+reportlab
+fastapi
+uvicorn

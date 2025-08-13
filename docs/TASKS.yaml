@@ -75,6 +75,12 @@ backlog:
   - id: CORE-LOOP-004
 done:
   - id: PH1-REPAIR
+  - id: CRM-C.1
+    title: WA inbound webhook service
+    completed: true
+  - id: CRM-C.2
+    title: WA webhook runner script
+    completed: true
     title: Phase 1 - Repair sales file
     description: Normalize sizes, derive sku_key, drop ignored prefixes; write fixed and delta report
     completed: true
