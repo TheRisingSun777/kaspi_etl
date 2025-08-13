@@ -72,7 +72,7 @@
 - 2025-08-14 — WA outbox handoff (manual-confirm).
   - `scripts/wa_send_files.applescript` + `scripts/wa_send_outbox.py` to open WhatsApp, attach PDFs from latest labels folder to target chat.
   - Make `outbox`: requires `PHONE=+7...` env; script leaves messages composed — press Enter to send.
- 
- - 2025-08-14 — Join hardening.
-   - Tolerant KSP mapping in `scripts/join_api_orders_to_sales.py` with fallbacks (ksp+store → master+store → ksp → master).
-   - Writes `data_crm/reports/missing_ksp_mapping.csv` with guessed model group.
+
+- 2025-08-14 — Join hardened: tolerant mapping + missing mapping report.
+  - `scripts/join_api_orders_to_sales.py` now maps by (ksp_sku_id, store) → (product_master_code, store) → ksp_sku_id → product_master_code.
+  - Writes `data_crm/reports/missing_ksp_mapping.csv` with guessed model group; `sku_id` only when both sku_key and my_size present.

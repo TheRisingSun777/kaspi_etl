@@ -106,46 +106,12 @@ def normalize_size(value: Any, rules: Dict[str, str]) -> str:
 
 
 def build_sku_id(sku_key: str, my_size: str) -> str:
-    """Build sku_id strictly only when both sku_key and my_size are present.
-
-    Returns empty string otherwise to avoid partial identifiers.
-    """
     sku_key = (sku_key or "").strip()
     my_size = (my_size or "").strip()
+    # Only build when BOTH sku_key and my_size are present
     if not sku_key or not my_size:
         return ""
     return f"{sku_key}_{my_size}"
-
-
-def _is_blank(val: Any) -> bool:
-    if val is None or (isinstance(val, float) and pd.isna(val)):
-        return True
-    s = str(val).strip()
-    return s == "" or s.lower() in {"nan", "none", "null", "-", "_"}
-
-
-def _guess_model_group(*texts: Any) -> str:
-    """Guess a simple model group token from provided text fields.
-
-    Looks for simple regex tokens like 'print', 'beli', etc.
-    Fallback: letters from the prefix before first delimiter.
-    """
-    import re
-
-    tokens = ["print", "beli", "strip", "stripe", "classic", "logo"]
-    for t in texts:
-        s = str(t or "")
-        low = s.lower()
-        for tok in tokens:
-            if tok in low:
-                return tok.upper()
-        # Fallback prefix heuristic
-        if s:
-            base = re.split(r"[_\-\/]", s)[0]
-            base = re.sub(r"[^A-Za-z]+", "", base)
-            if base:
-                return base.upper()
-    return ""
 
 
 def update_stock(stock_df: pd.DataFrame, sales_df: pd.DataFrame, qty_col: str) -> pd.DataFrame:
@@ -267,71 +233,101 @@ def main() -> int:
     orders["qty"] = pd.to_numeric(orders["qty"], errors="coerce").fillna(1).astype(int)
     orders["sell_price"] = pd.to_numeric(orders["sell_price"], errors="coerce")
 
-    # Map to sku_key using mapping file with tolerant fallbacks
+    # Normalize join fields
+    orders["ksp_sku_id"] = orders["ksp_sku_id"].astype(str).str.strip()
+    orders["store_name"] = orders["store_name"].astype(str).str.strip().str.upper()
+    orders["product_master_code"] = orders["product_master_code"].astype(str).str.strip()
+    orders["product_master_code_norm"] = orders["product_master_code"].str.upper()
+
+    # Map KSP SKU to sku_key using mapping file with tolerant fallbacks
     if KSP_MAP_XLSX.exists():
         kmap = _read_excel(KSP_MAP_XLSX)
         _lower_columns_inplace(kmap)
-        # Identify possible columns in map
+        # Try to identify columns
         ksp_col = (
-            _choose_first_existing(kmap, ["ksp_sku_id", "sku_id_ksp", "code", "ksp", "sku_ksp"]) or "ksp_sku_id"
+            _choose_first_existing(kmap, ["ksp_sku_id", "sku_id_ksp", "code", "ksp", "sku_ksp"])
+            or "ksp_sku_id"
         )
         store_col = _choose_first_existing(kmap, ["store_name", "store", "shop_name"]) or None
-        pmc_map_col = _choose_first_existing(kmap, ["product_master_code", "mastercode", "master_code"]) or None
-        # Output column for sku_key: prefer explicit sku_key else fall back to master/product code
-        sku_out_col = _choose_first_existing(kmap, ["sku_key", "mastercode", "master_code", "product_master_code"]) or None
+        # Column containing canonical sku_key result
+        result_key_col = (
+            _choose_first_existing(
+                kmap, ["sku_key", "sku", "master_sku_key", "mastercode", "master_code", "product_master_code"]
+            )
+            or "sku_key"
+        )
+        # Column containing product master code in mapping file (for joining by product_master_code)
+        pcode_col = _choose_first_existing(kmap, ["product_master_code", "mastercode", "master_code"]) or None
 
-        # Coerce strings in map
-        if ksp_col in kmap.columns:
-            kmap[ksp_col] = kmap[ksp_col].astype(str).str.strip()
-        if pmc_map_col and pmc_map_col in kmap.columns:
-            kmap[pmc_map_col] = kmap[pmc_map_col].astype(str).str.strip()
-        if store_col and store_col in kmap.columns:
+        # Coerce strings in mapping file
+        kmap[ksp_col] = kmap[ksp_col].astype(str).str.strip()
+        if store_col:
             kmap[store_col] = kmap[store_col].astype(str).str.strip().str.upper()
-        if sku_out_col and sku_out_col in kmap.columns:
-            kmap[sku_out_col] = kmap[sku_out_col].astype(str).str.strip()
+        kmap[result_key_col] = kmap[result_key_col].astype(str).str.strip()
+        if pcode_col:
+            kmap[pcode_col] = kmap[pcode_col].astype(str).str.strip().str.upper()
 
-        # Clean orders join keys
-        orders["ksp_sku_id"] = orders["ksp_sku_id"].astype(str).str.strip()
-        orders["store_name"] = orders["store_name"].astype(str).str.strip().str.upper()
-        orders["product_master_code"] = orders["product_master_code"].astype(str).str.strip()
+        # Attempt (a): (ksp_sku_id, store_name)
+        if store_col:
+            right_a = (
+                kmap[[ksp_col, store_col, result_key_col]]
+                .drop_duplicates()
+                .rename(columns={result_key_col: "_mapped_sku_key"})
+            )
+            joined_a = orders.merge(
+                right_a,
+                left_on=["ksp_sku_id", "store_name"],
+                right_on=[ksp_col, store_col],
+                how="left",
+            )
+            orders["sku_key"] = orders["sku_key"].fillna(joined_a["_mapped_sku_key"])
 
-        # Helper to apply a join and fill sku_key
-        def _fill_by_join(df_left: pd.DataFrame, df_right: pd.DataFrame, left_on, right_on) -> None:
-            if sku_out_col is None or sku_out_col not in df_right.columns:
-                return
-            subset = df_right[[*(right_on if isinstance(right_on, list) else [right_on]), sku_out_col]].drop_duplicates()
-            subset = subset.rename(columns={sku_out_col: "_mapped_sku_key"})
-            merged_tmp = df_left.merge(subset, left_on=left_on, right_on=right_on, how="left")
-            df_left["sku_key"] = df_left["sku_key"].fillna(merged_tmp["_mapped_sku_key"]) 
+        # Attempt (b): (product_master_code, store_name)
+        if store_col and pcode_col:
+            right_b = (
+                kmap[[pcode_col, store_col, result_key_col]]
+                .drop_duplicates()
+                .rename(columns={pcode_col: "_pcode", result_key_col: "_mapped_sku_key"})
+            )
+            joined_b = orders.merge(
+                right_b,
+                left_on=["product_master_code_norm", "store_name"],
+                right_on=["_pcode", store_col],
+                how="left",
+            )
+            orders["sku_key"] = orders["sku_key"].fillna(joined_b["_mapped_sku_key"])
 
-        # a) (ksp_sku_id, store_name)
-        if store_col and store_col in kmap.columns:
-            _fill_by_join(orders, kmap, ["ksp_sku_id", "store_name"], [ksp_col, store_col])
-        # b) (product_master_code, store_name)
-        if pmc_map_col and store_col and pmc_map_col in kmap.columns and store_col in kmap.columns:
-            _fill_by_join(orders, kmap, ["product_master_code", "store_name"], [pmc_map_col, store_col])
-        # c) ksp_sku_id (no store)
-        _fill_by_join(orders, kmap, "ksp_sku_id", ksp_col)
-        # d) product_master_code (no store)
-        if pmc_map_col and pmc_map_col in kmap.columns:
-            _fill_by_join(orders, kmap, "product_master_code", pmc_map_col)
+        # Attempt (c): ksp_sku_id only
+        right_c = (
+            kmap[[ksp_col, result_key_col]].drop_duplicates().rename(columns={result_key_col: "_mapped_sku_key"})
+        )
+        joined_c = orders.merge(
+            right_c,
+            left_on="ksp_sku_id",
+            right_on=ksp_col,
+            how="left",
+        )
+        orders["sku_key"] = orders["sku_key"].fillna(joined_c["_mapped_sku_key"])
 
-    # After mapping, write missing mapping report
-    try:
-        missing = orders[orders["sku_key"].apply(_is_blank)].copy()
-        report_cols = ["orderid", "ksp_sku_id", "product_master_code", "store_name", "guessed_model_group"]
-        missing["guessed_model_group"] = [
-            _guess_model_group(a, b)
-            for a, b in zip(missing.get("sku_key", ""), missing.get("product_master_code", ""))
-        ]
-        REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-        missing[report_cols].to_csv(REPORTS_DIR / "missing_ksp_mapping.csv", index=False)
-    except Exception:
-        # Best-effort reporting; do not break pipeline
-        pass
+        # Attempt (d): product_master_code only
+        if pcode_col:
+            right_d = (
+                kmap[[pcode_col, result_key_col]]
+                .drop_duplicates()
+                .rename(columns={pcode_col: "_pcode", result_key_col: "_mapped_sku_key"})
+            )
+            joined_d = orders.merge(
+                right_d,
+                left_on="product_master_code_norm",
+                right_on="_pcode",
+                how="left",
+            )
+            orders["sku_key"] = orders["sku_key"].fillna(joined_d["_mapped_sku_key"])
 
-    # Optional enrichment with SKU map (not required for basic processed log)
-    # Build sku_id
+    # Ensure sku_key as string post-mapping
+    orders["sku_key"] = orders["sku_key"].astype(str).str.strip()
+
+    # Build sku_id only when both sku_key and my_size are present
     orders["sku_id"] = [
         build_sku_id(k, s)
         for k, s in zip(orders["sku_key"].astype(str), orders["my_size"].astype(str))
@@ -353,8 +349,38 @@ def main() -> int:
     )
     out["ksp_sku_id"] = orders.get("ksp_sku_id")
     out["sku_key"] = orders.get("sku_key")
+    out["product_master_code"] = orders.get("product_master_code")
     out["my_size"] = orders.get("my_size")
     out["normalized_phone"] = ""
+
+    # Write missing KSP mapping report
+    def _guess_model_group(text: str) -> str:
+        t = (text or "").lower()
+        import re
+
+        patterns = [
+            (r"print", "print"),
+            (r"\bbeli\w*\b", "beli"),
+            (r"\bwhite\b", "white"),
+            (r"\bblack\b|chern", "black"),
+        ]
+        for pat, label in patterns:
+            if re.search(pat, t):
+                return label
+        return ""
+
+    missing_mask = orders["sku_key"].astype(str).str.len().eq(0)
+    missing_rows = orders.loc[missing_mask, ["orderid", "ksp_sku_id", "product_master_code", "store_name", "sku_key"]].copy()
+    if not missing_rows.empty:
+        guessed = [
+            _guess_model_group((sk if isinstance(sk, str) else "") or (pmc if isinstance(pmc, str) else ""))
+            for sk, pmc in zip(missing_rows["sku_key"], missing_rows["product_master_code"])
+        ]
+        missing_rows = missing_rows.assign(guessed_model_group=guessed)[
+            ["orderid", "ksp_sku_id", "product_master_code", "store_name", "guessed_model_group"]
+        ]
+        (REPORTS_DIR / "missing_ksp_mapping.csv").write_text("", encoding="utf-8") if False else None
+        missing_rows.to_csv(REPORTS_DIR / "missing_ksp_mapping.csv", index=False)
 
     # Enforce strict schema to match canonical processed_sales
     expected_columns = load_expected_schema()

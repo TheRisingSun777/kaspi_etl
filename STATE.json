@@ -12,7 +12,7 @@
     "zip_exports": "03b5f89",
     "wa_helper": "2a77bfc",
     "schema_strict": "18b5da0",
-    "join_hardening": "TBD",
+    "join_hardened": "",
     "daily_runner": "7d9201a",
     "webhook_stub": "a2f6080"
   },
@@ -28,7 +28,6 @@
     "size_link_ready": true,
     "size_link_processed": true,
     "missing_maps_report_ready": true,
-    "join_hardened": true,
     "api_orders_staging_ready": true,
     "data_crm_present": true,
     "exports_ready": true,

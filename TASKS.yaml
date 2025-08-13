@@ -66,6 +66,15 @@ tasks:
       - join_api_orders_to_sales.py writes schema_diff on mismatch
     pr: null
     commit: 18b5da0
+  - id: join-hardened
+    title: Harden the orders→sales join (tolerant mapping + missing report)
+    status: done
+    notes:
+      - Added multi-key mapping order: (ksp, store) → (product_master_code, store) → ksp → product_master_code
+      - Missing mapping report with guessed model group
+      - sku_id now requires both sku_key and my_size
+    pr: null
+    commit: pending
   - id: report-missing-maps
     title: Report missing KSP mappings (sku_key gaps)
     status: done
@@ -74,13 +83,6 @@ tasks:
       - Writes data_crm/reports/missing_ksp_mapping.csv
     pr: null
     commit: 844113d
-  - id: L7
-    title: Harden the orders→sales join
-    status: done
-    notes:
-      - Added tolerant mapping order and missing mapping report with guessed model group
-    pr: null
-    commit: TBD
   - id: api-orders-staging
     title: Parse API orders → staging CSV
     status: done
