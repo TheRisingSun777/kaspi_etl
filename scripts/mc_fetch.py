@@ -6,10 +6,16 @@ import argparse
 import logging
 import os
 import shutil
+import sys
 from pathlib import Path
 from zipfile import ZipFile
 
 from dotenv import load_dotenv
+
+# Ensure repository root is importable for `services.*`
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from services.kaspi_mc_downloader import download_active_orders, download_waybills
 

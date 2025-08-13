@@ -13,6 +13,7 @@ from typing import Dict, Optional
 import requests
 from dotenv import load_dotenv
 from tqdm import tqdm
+from urllib.parse import unquote
 
 
 load_dotenv(".env.local", override=False)
@@ -23,6 +24,28 @@ logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_CRM = REPO_ROOT / "data_crm"
+
+
+def _cookie_header_from_json_text(text: str) -> Optional[str]:
+    try:
+        data = None
+        if text.strip().startswith("["):
+            data = __import__("json").loads(text)
+        elif text.strip().startswith("{"):
+            data = [__import__("json").loads(text)]
+        else:
+            return None
+        parts = []
+        for item in data:
+            name = item.get("name")
+            value = item.get("value")
+            if name and value:
+                parts.append(f"{name}={value}")
+        if parts:
+            return "; ".join(parts)
+    except Exception:
+        return None
+    return None
 
 
 def get_mc_cookie_header(prefer_browser: bool = True) -> str:
@@ -65,6 +88,17 @@ def get_mc_cookie_header(prefer_browser: bool = True) -> str:
         except Exception:
             pass
 
+    # Try saved cookie jar
+    saved_path = DATA_CRM / "state" / "mc_cookies.json"
+    if saved_path.exists():
+        text = saved_path.read_text(encoding="utf-8")
+        from_json = _cookie_header_from_json_text(text)
+        if from_json:
+            return from_json
+        # maybe a raw cookie string saved in the file
+        if text.strip():
+            return text.strip()
+
     env_cookie = (os.getenv("KASPI_MERCHANT_COOKIE") or "").strip()
     if env_cookie:
         return env_cookie
@@ -78,22 +112,23 @@ def _atomic_write_download(url: str, out_path: Path, headers: Optional[Dict[str,
     with requests.get(url, headers=headers, stream=True, timeout=timeout) as r:
         r.raise_for_status()
         # Filename from Content-Disposition if present
-        cd = r.headers.get("Content-Disposition") or r.headers.get("content-disposition")
+        cd = r.headers.get("Content-Disposition") or r.headers.get("content-disposition") or ""
         final_path = out_path
         if cd:
-            m = re.search(r'filename\*=UTF-8\''([^']+)'|filename="([^"]+)"', cd)
+            m = re.search(r"filename\*=UTF-8''([^;]+)", cd, flags=re.IGNORECASE)
+            if not m:
+                m = re.search(r"filename=\"?([^\";]+)\"?", cd)
             if m:
-                fname = m.group(1) or m.group(2)
+                fname = unquote(m.group(1)).strip()
                 if fname:
-                    final_path = out_path.parent / fname
-        total = int(r.headers.get("Content-Length", 0))
+                    final_path = out_path.parent / Path(fname).name
+        total = int(r.headers.get("Content-Length", 0) or 0)
         bar = tqdm(total=total if total > 0 else None, unit="B", unit_scale=True, desc=final_path.name)
         with open(tmp_path, "wb") as f:
             for chunk in r.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
-                    if total > 0:
-                        bar.update(len(chunk))
+                    bar.update(len(chunk))
         bar.close()
     shutil.move(str(tmp_path), str(final_path))
     return final_path

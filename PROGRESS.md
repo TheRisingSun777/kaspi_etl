@@ -122,3 +122,7 @@
   - `services/kaspi_mc_downloader.py` auto-grabs browser cookies, downloads waybills/ActiveOrders.
   - `scripts/mc_fetch.py` CLI to fetch; `scripts/etl_orders_xlsx.py` parses ActiveOrders → orders_api_latest.csv.
   - Make targets: fetch-orders, fetch-waybills, fetch-all, orders-from-xlsx.
+
+- 2025-08-14 — MC cookie dump fallback.
+  - `scripts/mc_cookie_dump.py` (Playwright) saves cookies to `data_crm/state/mc_cookies.json`.
+  - Downloader now reads saved jar between browser_cookie3 and env fallback; Make `mc-cookie` added.

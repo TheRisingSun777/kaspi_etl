@@ -156,6 +156,15 @@ tasks:
       - Make: fetch-orders, fetch-waybills, fetch-all, orders-from-xlsx
     pr: null
     commit: pending
+  - id: mc-cookie-dump
+    title: Playwright cookie dump fallback; downloader reads saved jar
+    status: done
+    notes:
+      - mc_cookie_dump.py launches Chromium, user logs in, saves cookies to data_crm/state/mc_cookies.json
+      - get_mc_cookie_header now tries browser_cookie3 → saved json → env
+      - Make `mc-cookie` target added
+    pr: null
+    commit: pending
   - id: report-missing-maps
     title: Report missing KSP mappings (sku_key gaps)
     status: done

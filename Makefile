@@ -172,3 +172,8 @@ orders-from-xlsx:
 .PHONY: fetch-all
 
 fetch-all: fetch-orders fetch-waybills
+
+.PHONY: mc-cookie
+
+mc-cookie:
+	@$(PY) scripts/mc_cookie_dump.py
