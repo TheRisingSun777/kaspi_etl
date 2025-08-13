@@ -55,3 +55,11 @@ show-schedule:
 serve:
 	@echo "Starting webhook stub service on http://127.0.0.1:3801 ..."
 	@./venv/bin/uvicorn services.api_server:app --reload --port 3801
+
+.PHONY: group-labels
+
+group-labels:
+	@echo "Grouping Kaspi label PDFs by processed sales..."
+	@./venv/bin/python scripts/crm_kaspi_labels_group.py --input "$$INPUT" --out-date "$$OUT_DATE"
+	@man=$$(ls -t data_crm/labels_grouped/*/manifest.csv 2>/dev/null | head -n1); \
+		if [ -f "$$man" ]; then echo "--- manifest preview (first 30 rows) ---"; tail -n +2 "$$man" | head -n 30; else echo "manifest.csv not found"; fi
