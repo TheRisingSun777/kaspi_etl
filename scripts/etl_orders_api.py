@@ -19,7 +19,9 @@ load_dotenv(override=False)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-KASPI_BASE = os.getenv("KASPI_BASE") or os.getenv("KASPI_API_BASE_URL") or "https://kaspi.kz/shop/api/v2"
+KASPI_BASE = (
+    os.getenv("KASPI_BASE") or os.getenv("KASPI_API_BASE_URL") or "https://kaspi.kz/shop/api/v2"
+)
 KASPI_TOKEN = os.getenv("KASPI_TOKEN") or os.getenv("X_AUTH_TOKEN") or os.getenv("KASPI_API_TOKEN")
 
 DATA_CRM_DIR = Path("data_crm")
@@ -100,15 +102,17 @@ def normalize_orders(payload: Dict[str, Any]) -> pd.DataFrame:
                 return df[opt]
         return pd.Series([None] * len(df))
 
-    normalized = pd.DataFrame({
-        "orderid": pick(df, candidates["orderid"]),
-        "date": pick(df, candidates["date"]),
-        "ksp_sku_id": pick(df, candidates["ksp_sku_id"]),
-        "sku_key": pick(df, candidates["sku_key"]),
-        "store_name": pick(df, candidates["store_name"]),
-        "qty": pick(df, candidates["qty"]),
-        "price": pick(df, candidates["price"]),
-    })
+    normalized = pd.DataFrame(
+        {
+            "orderid": pick(df, candidates["orderid"]),
+            "date": pick(df, candidates["date"]),
+            "ksp_sku_id": pick(df, candidates["ksp_sku_id"]),
+            "sku_key": pick(df, candidates["sku_key"]),
+            "store_name": pick(df, candidates["store_name"]),
+            "qty": pick(df, candidates["qty"]),
+            "price": pick(df, candidates["price"]),
+        }
+    )
 
     # Coerce types where possible
     if "date" in normalized.columns:
@@ -125,6 +129,7 @@ async def main() -> Tuple[Path, Path]:
     stamp = _today_stamp()
     json_path = INPUTS_DIR / f"orders_active_{stamp}.json"
     csv_path = DATA_CRM_DIR / f"active_orders_{stamp}.csv"
+    xlsx_path = DATA_CRM_DIR / f"active_orders_{stamp}.xlsx"
 
     payload = await fetch_active_orders()
 
@@ -136,6 +141,11 @@ async def main() -> Tuple[Path, Path]:
     # Normalize and save CSV
     df = normalize_orders(payload)
     df.to_csv(csv_path, index=False)
+    # Optional XLSX for spreadsheet users
+    try:
+        df.to_excel(xlsx_path, index=False)
+    except Exception as e:
+        logger.warning("Could not write XLSX: %s", e)
     logger.info("Saved normalized orders CSV to %s", csv_path)
 
     return json_path, csv_path

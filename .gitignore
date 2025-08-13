@@ -136,6 +136,7 @@ celerybeat.pid
 
 # Environments
 .env
+.env.local
 .envrc
 .venv
 env/
@@ -215,3 +216,6 @@ apps/kaspi_offers_dashboard/.env*
 apps/kaspi_offers_dashboard/tsconfig.tsbuildinfo
 apps/kaspi_offers_dashboard/playwright-report/
 apps/kaspi_offers_dashboard/data_raw/
+
+# Project logs directory
+logs/
