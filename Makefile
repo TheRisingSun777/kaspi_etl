@@ -1,3 +1,9 @@
+.PHONY: ci-sanity
+
+PY ?= ./venv/bin/python
+
+ci-sanity:
+	@$(PY) scripts/ci_sanity.py
 .PHONY: bundle
 
 bundle:
