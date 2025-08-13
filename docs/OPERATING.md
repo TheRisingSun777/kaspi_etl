@@ -17,7 +17,7 @@ Phase 1 Operations (CRM)
   - `make process` → process sales
   - `make labels` → build labels
   - `make loaddb` → load to SQLite (erp.db)
-  - `make daily` → run full daily orchestrator
+  - `make daily` → run full daily orchestrator (repair → process → labels/pdfs → picklist → export → validate → load-db)
   - `make picklist` → generate warehouse picklist (CSV/PDF)
   - `make exportbm` → export CSV for business_model.xlsm
   - `make validate` → run validation suite

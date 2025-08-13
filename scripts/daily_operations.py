@@ -91,7 +91,13 @@ def main() -> int:
         rc |= run_step([str(build_labels_sh)], log_lines, "run_build_labels.sh")
     else:
         log_lines.append("Skipping packing PDFs step (no script found)")
-    # 4) Load DB
+    # 4) Picklist (warehouse)
+    rc |= run_step([py, str(scripts_dir / "crm_build_picklist.py")], log_lines, "crm_build_picklist")
+    # 5) Export for Business_model
+    rc |= run_step([py, str(scripts_dir / "export_for_business_model.py")], log_lines, "export_for_business_model")
+    # 6) Validate data
+    rc |= run_step([py, str(scripts_dir / "validate_phase1_data.py")], log_lines, "validate_phase1_data")
+    # 7) Load DB
     rc |= run_step([py, str(scripts_dir / "crm_load_to_db.py")], log_lines, "crm_load_to_db")
 
     log_lines.append(f"Daily ops finished at {datetime.now().isoformat(timespec='seconds')} rc={rc}")
