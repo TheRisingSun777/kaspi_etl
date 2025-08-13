@@ -47,13 +47,4 @@ group-labels:
 size-recs:
 	@echo "Linking orders with size recommendations..."
 	@./venv/bin/python scripts/link_orders_and_sizes.py
-	@python - <<'PY'
-import pandas as pd
-from pathlib import Path
-fp=Path('data_crm/orders_kaspi_with_sizes.xlsx')
-if fp.exists():
-    df=pd.read_excel(fp)
-    print(df.head(20).to_csv(index=False))
-else:
-    print('missing data_crm/orders_kaspi_with_sizes.xlsx')
-PY
+	@$(PY) -c "import pandas as pd, pathlib as P; fp=P.Path('data_crm/orders_kaspi_with_sizes.xlsx'); print(pd.read_excel(fp).head(20).to_csv(index=False)) if fp.exists() else print('missing data_crm/orders_kaspi_with_sizes.xlsx')"
