@@ -48,3 +48,9 @@ wa-open:
 show-schedule:
 	@echo 'Save as ~/Library/LaunchAgents/com.kaspi.etl.daily.plist:'
 	@cat docs/OPERATING.md | sed -n '/^```xml/,/^```/p' | sed '1d;$d'
+
+.PHONY: serve
+
+serve:
+	@echo "Starting webhook stub service on http://127.0.0.1:3801 ..."
+	@./venv/bin/uvicorn services.api_server:app --reload --port 3801
