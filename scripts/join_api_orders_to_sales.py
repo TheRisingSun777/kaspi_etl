@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import pandas as pd
 
@@ -29,6 +29,7 @@ STOCK_UPDATED_LATEST = DATA_CRM / "stock_on_hand_updated.csv"
 REPORTS_DIR = DATA_CRM / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 COVERAGE_API = REPORTS_DIR / "mapping_coverage_api.csv"
+SCHEMA_DIFF_PATH = REPORTS_DIR / "schema_diff.txt"
 
 
 def _lower_columns_inplace(df: pd.DataFrame) -> None:
@@ -162,6 +163,44 @@ def update_stock(stock_df: pd.DataFrame, sales_df: pd.DataFrame, qty_col: str) -
     return merged
 
 
+def load_expected_schema() -> Optional[List[str]]:
+    canonical_path = DATA_CRM / "processed_sales_20250813.csv"
+    if not canonical_path.exists():
+        return None
+    try:
+        with canonical_path.open("r", encoding="utf-8") as f:
+            header = f.readline().strip()
+        if not header:
+            return None
+        return [h.strip() for h in header.split(",")]
+    except Exception:
+        return None
+
+
+def enforce_schema(df: pd.DataFrame, expected_columns: List[str]) -> Tuple[pd.DataFrame, str]:
+    current_cols = list(df.columns)
+    current_set = set(current_cols)
+    expected_set = set(expected_columns)
+
+    missing = [c for c in expected_columns if c not in current_set]
+    extra = [c for c in current_cols if c not in expected_set]
+    order_mismatch = current_cols != expected_columns
+
+    for c in missing:
+        df[c] = ""
+    df = df[expected_columns]
+
+    diff_lines: List[str] = []
+    if missing:
+        diff_lines.append("Missing columns added: " + ", ".join(missing))
+    if extra:
+        diff_lines.append("Extra columns dropped: " + ", ".join(extra))
+    if order_mismatch:
+        diff_lines.append("Column order adjusted to match canonical processed_sales schema")
+
+    return df, "\n".join(diff_lines)
+
+
 def main() -> int:
     if not ORDERS_CSV.exists():
         logger.info("No orders staging CSV found at %s; nothing to do", ORDERS_CSV)
@@ -267,6 +306,14 @@ def main() -> int:
     out["sku_key"] = orders.get("sku_key")
     out["my_size"] = orders.get("my_size")
     out["normalized_phone"] = ""
+
+    # Enforce strict schema to match canonical processed_sales
+    expected_columns = load_expected_schema()
+    if expected_columns:
+        out_strict, diff = enforce_schema(out, expected_columns)
+        if diff:
+            SCHEMA_DIFF_PATH.write_text(diff + "\n", encoding="utf-8")
+        out = out_strict
 
     # Write processed sales (dated + latest)
     out.to_csv(PROCESSED_SALES_DATED, index=False)
