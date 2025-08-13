@@ -42,3 +42,7 @@
 - 2025-08-14 — Outbox bundler for fulfillment handoff.
   - Added `scripts/outbox_pack.py` and `make outbox`.
   - Produces `outbox/YYYY-MM-DD/bundle_YYYY-MM-DD.zip` with grouped labels, picklist.pdf, and README.txt.
+
+- 2025-08-14 — Waybills fetcher (Merchant Cabinet) with Playwright.
+  - Added `scripts/fetch_waybills_mc.py` using cookie auth; `make fetch-waybills` target.
+  - Saves ZIP under `data_crm/labels_inbox/YYYY-MM-DD/waybill-*.zip`.

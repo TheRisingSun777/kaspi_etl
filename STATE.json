@@ -4,7 +4,8 @@
     "orders_cache_used": true,
     "missing_map_count": 0,
     "ci_sanity_ready": true,
-    "outbox_ready": true
+    "outbox_ready": true,
+    "waybills_fetch_ready": true
   }
 }
 

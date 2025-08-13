@@ -59,6 +59,13 @@ tasks:
       - Packs grouped labels, manifest, picklist.pdf, and orders_with_sizes into outbox/DATE zip
     pr: null
     commit: 4ebf766
+  - id: fetch-waybills
+    title: Fetch waybills ZIP from Merchant Cabinet
+    status: done
+    notes:
+      - Playwright-based; filters by statuses; cookie auth from .env.local
+    pr: null
+    commit: 559d014
   - id: labels-grouping
     title: Automate PDF label grouping by SKU and size
     status: done
