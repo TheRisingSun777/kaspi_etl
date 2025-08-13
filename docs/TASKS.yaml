@@ -1,6 +1,14 @@
 version: 1
 
 in_progress:
+  - id: CRM-A.1
+    started: true
+    title: Add normalization rules (sizes, ignore prefixes)
+    description: |
+      Create size normalization CSV and ignore prefixes to filter non-clothing SKUs.
+    AC:
+      - data_crm/rules/size_normalization.csv exists with basic mappings
+      - data_crm/rules/ignore_prefixes.txt exists with ELS_
   - id: CORE-LOOP-001
     started: true
     title: Ensure settings v2 persist correctly
