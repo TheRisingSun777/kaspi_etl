@@ -45,6 +45,11 @@ When the chat approaches 80 % of the token limit, checkpoint your work to PROG
 - `POST /api/pricebot/run` — single SKU (dry by default).
 - `POST /api/pricebot/bulk` — chunked multi‑SKU runs (dry by default).
 - `GET /api/pricebot/stats` — KPIs for dashboard tiles.
+ 
+### Watchers
+ - Price Watch (`scripts/price_watch.ts`): calls `/api/pricebot/run?dry=true` for due SKUs by `intervalMin`.
+   - Usage: `pnpm tsx apps/kaspi_offers_dashboard/scripts/price_watch.ts --merchantId=30141222 --city=710000000 --pollSec=60`
+   - Logs proposals like: `[run][30141222] SKU123: our=1099 → target=1050 (undercut)`
 
 ## UI Notes
 - `PricebotTable` scopes calls by selected `storeId`.

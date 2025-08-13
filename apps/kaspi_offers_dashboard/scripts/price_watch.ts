@@ -1,22 +1,23 @@
 #!/usr/bin/env tsx
 /*
-  Price Watch: periodically scrapes product IDs and appends NDJSON records under data_raw/watch/<id>.ndjson
+  Price Watch (CORE-LOOP-004): periodically reads settings and calls /api/pricebot/run?dry=true
+  for SKUs that are due by interval, logging proposals.
 */
 import fs from 'node:fs'
 import path from 'node:path'
-import { scrapeAnalyze } from '@/server/scrape'
+import { getSettings } from '@/server/db/pricebot.settings'
 
-type Args = { ids: string[]; city: string; intervalSec: number }
+type Args = { merchantId: string; city: string; pollSec: number }
 
 function parseArgs(): Args {
   const arg = Object.fromEntries(process.argv.slice(2).map((x) => {
     const [k, v] = x.split('=')
     return [k.replace(/^--/, ''), v]
   })) as any
-  const ids = String(arg.ids || '').split(',').map((s) => s.trim()).filter(Boolean)
+  const merchantId = String(arg.merchantId || arg.storeId || process.env.KASPI_MERCHANT_ID || '')
   const city = String(arg.city || process.env.DEFAULT_CITY_ID || '710000000')
-  const intervalSec = Number(arg.intervalSec || 60)
-  return { ids, city, intervalSec }
+  const pollSec = Number(arg.pollSec || 60)
+  return { merchantId, city, pollSec }
 }
 
 function ndjsonAppend(file: string, obj: unknown) {
@@ -29,59 +30,50 @@ function ndjsonAppend(file: string, obj: unknown) {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _median = (_nums: number[]): number => 0
 
-// sliding window of bot signals per (variantId,seller)
-const botWindow: Map<string, Map<string, number[]>> = new Map()
+function isDue(lastTs: number|undefined, intervalMin: number, nowMs: number): boolean {
+  if (!intervalMin || intervalMin <= 0) return false
+  if (!lastTs) return true
+  return (nowMs - lastTs) >= intervalMin * 60_000
+}
 
-async function tick(ids: string[], city: string) {
-  const ts = new Date().toISOString()
-  for (const id of ids) {
+async function tick(merchantId: string, city: string) {
+  const now = Date.now()
+  const st = getSettings(merchantId)
+  const dueSkus: string[] = []
+  for (const [sku, cfg] of Object.entries(st.sku)) {
+    if (!cfg?.active) continue
+    const lastRunTs = 0 // reserved: could be read from runs db later
+    const interval = Number(cfg.intervalMin || 0)
+    if (isDue(lastRunTs, interval, now)) dueSkus.push(sku)
+  }
+  if (!dueSkus.length) {
+    console.log(`[watch] no due SKUs for merchant=${merchantId}`)
+    return
+  }
+  for (const sku of dueSkus) {
     try {
-      const data = await scrapeAnalyze(id, city)
-      const outFile = path.join(process.cwd(), 'data_raw', 'watch', `${id}.ndjson`)
-      for (const v of data.variants) {
-        const min = v.stats?.min ?? Math.min(...v.sellers.map(s=>s.price))
-        const key = v.productId
-        if (!botWindow.has(key)) botWindow.set(key, new Map())
-        const sellersWindow = botWindow.get(key)!
-        // emit one NDJSON per seller
-        for (const s of v.sellers) {
-          const undercut = Number.isFinite(min) ? (s.price <= (Number(min) + 50)) : false
-          const sw = sellersWindow.get(s.name) || []
-          sw.push(undercut ? 1 : 0)
-          while (sw.length > 5) sw.shift()
-          sellersWindow.set(s.name, sw)
-          const repeatedUndercut = sw.reduce((a,b)=>a+b,0) >= 3
-          const isPriceBot = s.isPriceBot || repeatedUndercut
-          ndjsonAppend(outFile, {
-            ts,
-            masterProductId: id,
-            variantId: v.productId,
-            variantColor: v.variantColor,
-            variantSize: v.variantSize || v.label,
-            seller: s.name,
-            price: s.price,
-            deliveryDate: s.deliveryDate,
-            isPriceBot,
-          })
-        }
+      const res = await fetch(`http://localhost:3001/api/pricebot/run`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ storeId: merchantId, cityId: city, sku, dry: true }) })
+      const js: any = await res.json().catch(()=>null)
+      const p = js?.proposal || js?.proposals?.[0] || null
+      if (p) {
+        console.log(`[run][${merchantId}] ${sku}: our=${p.currentPrice ?? p.ourPrice} → target=${p.targetPrice} (${p.reason})`)
+      } else {
+        console.log(`[run][${merchantId}] ${sku}: no proposal`)
       }
-      const top = data.variants.flatMap(v=>v.sellers).sort((a,b)=>a.price-b.price).slice(0,3)
-      const suspected = data.variants.flatMap(v=>v.sellers.filter(s=>s.isPriceBot)).slice(0,5).map(s=>s.name)
-      console.log(`[watch][${id}] ok variants=${data.variants.length} top3=${top.map(s=>`${s.name}:${s.price}`).join(', ')} suspectedBots=${[...new Set(suspected)].join(', ')}`)
     } catch (e:any) {
-      console.error(`[watch][${id}] error:`, e?.message || e)
+      console.error(`[run][${merchantId}] ${sku}:`, e?.message||e)
     }
   }
 }
 
 async function main() {
-  const { ids, city, intervalSec } = parseArgs()
-  if (!ids.length) { console.error('Usage: tsx scripts/price_watch.ts --ids=ID1,ID2 --city=710000000 --intervalSec=60'); process.exit(1) }
-  console.log(`Price Watch: ids=${ids.join(', ')} city=${city} intervalSec=${intervalSec}`)
+  const { merchantId, city, pollSec } = parseArgs()
+  if (!merchantId) { console.error('Usage: tsx scripts/price_watch.ts --merchantId=30141222 --city=710000000 --pollSec=60'); process.exit(1) }
+  console.log(`Price Watch: merchantId=${merchantId} city=${city} pollSec=${pollSec}`)
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    await tick(ids, city)
-    await new Promise(r=>setTimeout(r, intervalSec*1000))
+    await tick(merchantId, city)
+    await new Promise(r=>setTimeout(r, pollSec*1000))
   }
 }
 
