@@ -119,14 +119,7 @@ backlog:
   # Moved from in_progress on 2025-08-12 to backlog as lower priority
 
 in_progress:
-  - id: DOCS-001
-    title: Operator guide + failure playbook
-    desc: Write short guides so anyone can run the bot safely.
-    ac:
-      - `docs/OPERATING.md` gains sections: cookie refresh, bulk best practices, safe apply checklist, rollback notes.
-      - `README.md` quickstart for dev (pnpm, env, cookies, routes).
-    estimate: 2h
-    labels: [docs]
+  
 
 done:
   - id: TEST-001
@@ -184,6 +177,11 @@ done:
       - Node script `scripts/price_watch.ts` reads settings and calls `/api/pricebot/run?dry=true` for each due SKU based on interval.
       - Accepts env variables for merchantId, storeId, and watch interval; logs proposals to console.
       - Document usage in docs/OPERATING.md under "Watchers" section.
+  - id: DOCS-001
+    title: Operator guide + failure playbook
+    ac:
+      - `docs/OPERATING.md` gains sections: cookie refresh, bulk best practices, safe apply checklist, rollback notes.
+      - `README.md` quickstart for dev (pnpm, env, cookies, routes).
   - id: UI-002
     title: Store/Merchant selector + sticky header polish
     ac:
