@@ -13,3 +13,8 @@
   - Updated `.env.example` to include KASPI_BASE and token aliases.
   - `scripts/test_kaspi_api.py` now loads `.env.local` and supports multiple token var names.
   - Ran test: waiting on token in `.env.local` (missing token detected as expected).
+
+- 2025-08-14 — Orders intake ETL (commits b1ed662, 4e378f5).
+  - Added `scripts/etl_orders_api.py` to pull active orders and normalize to CSV/XLSX.
+  - Added `make orders` target.
+  - First run pending token in `.env.local`.

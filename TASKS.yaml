@@ -20,6 +20,15 @@ tasks:
       - test runner loads .env.local and multiple token vars
     pr: null
     commit: 774493d
+  - id: orders-intake
+    title: API → CRM intake for active orders
+    status: in-progress
+    notes:
+      - Added scripts/etl_orders_api.py (JSON + CSV/XLSX)
+      - Added Makefile target `orders`
+      - Awaiting token to execute successfully
+    pr: null
+    commit: 4e378f5
   - id: crm-import
     title: Bring CRM folder and scripts from crm-system into API worktree
     status: done
