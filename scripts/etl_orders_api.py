@@ -26,7 +26,9 @@ KASPI_TOKEN = os.getenv("KASPI_TOKEN") or os.getenv("X_AUTH_TOKEN") or os.getenv
 
 DATA_CRM_DIR = Path("data_crm")
 INPUTS_DIR = DATA_CRM_DIR / "inputs"
+CACHE_DIR = DATA_CRM_DIR / "api_cache"
 INPUTS_DIR.mkdir(parents=True, exist_ok=True)
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _today_stamp() -> str:
@@ -128,6 +130,7 @@ def normalize_orders(payload: Dict[str, Any]) -> pd.DataFrame:
 async def main() -> Tuple[Path, Path]:
     stamp = _today_stamp()
     json_path = INPUTS_DIR / f"orders_active_{stamp}.json"
+    cache_copy = CACHE_DIR / f"orders_{stamp}.json"
     csv_path = DATA_CRM_DIR / f"active_orders_{stamp}.csv"
     xlsx_path = DATA_CRM_DIR / f"active_orders_{stamp}.xlsx"
 
@@ -137,6 +140,14 @@ async def main() -> Tuple[Path, Path]:
     with json_path.open("w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
     logger.info("Saved raw orders JSON to %s", json_path)
+
+    # Also save a copy to api_cache for staging consumers
+    try:
+        with cache_copy.open("w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        logger.info("Saved cache copy to %s", cache_copy)
+    except Exception as e:
+        logger.warning("Could not save cache copy: %s", e)
 
     # Normalize and save CSV
     df = normalize_orders(payload)

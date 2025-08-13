@@ -12,17 +12,20 @@ logger = logging.getLogger(__name__)
 
 DATA_CRM_DIR = Path("data_crm")
 CACHE_DIR = DATA_CRM_DIR / "api_cache"
+INPUTS_DIR = DATA_CRM_DIR / "inputs"
 OUT_CSV = DATA_CRM_DIR / "orders_api_latest.csv"
 
 
 def find_most_recent_orders_json() -> Optional[Path]:
-    if not CACHE_DIR.exists():
+    candidates: list[Path] = []
+    if CACHE_DIR.exists():
+        candidates.extend(CACHE_DIR.glob("orders_*.json"))
+    if INPUTS_DIR.exists():
+        candidates.extend(INPUTS_DIR.glob("orders_active_*.json"))
+    if not candidates:
         return None
-    files = list(CACHE_DIR.glob("orders_*.json"))
-    if not files:
-        return None
-    files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    return files[0]
+    candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return candidates[0]
 
 
 def load_orders_payload(path: Path) -> Any:
@@ -100,7 +103,7 @@ def to_staging(df: pd.DataFrame) -> pd.DataFrame:
 def main() -> int:
     path = find_most_recent_orders_json()
     if not path:
-        logger.info("No orders_*.json found under %s; nothing to do", CACHE_DIR)
+        logger.info("No orders JSON found under %s or %s; nothing to do", CACHE_DIR, INPUTS_DIR)
         return 0
 
     logger.info("Reading %s", path)
