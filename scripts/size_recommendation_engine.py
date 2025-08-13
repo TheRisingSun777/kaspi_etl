@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
 """
 Size Recommendation Engine for Kaspi Orders
-Recommends clothing sizes based on customer height/weight and product type
+
+Adds CLI to write recommendations into SQLite from explicit args or by scanning
+inbound WhatsApp messages stored in `wa_inbox`.
+
+Usage examples:
+- ./venv/bin/python scripts/size_recommendation_engine.py --order-id 607640463 \
+    --height 178 --weight 82
+- ./venv/bin/python scripts/size_recommendation_engine.py --scan-inbox
 """
-import pandas as pd
+import argparse
+import json
+import re
 import sqlite3
 import pathlib
 import logging
-from typing import Dict, Optional, Tuple
+from datetime import datetime, timezone
+from typing import Dict, Optional, Tuple, List
 from dataclasses import dataclass
 
 # Setup paths
@@ -305,114 +315,183 @@ class SizeRecommendationEngine:
                           recommendation: SizeRecommendation,
                           customer_height: int,
                           customer_weight: int) -> None:
-        """Save recommendation to database for tracking"""
-        
+        """Save recommendation to database for tracking (minimal schema)."""
+
         con = sqlite3.connect(DB_PATH)
         try:
             cur = con.cursor()
-            
-            # Create table if not exists
-            cur.execute("""
+
+            # Create table if not exists (minimal columns per Phase 3 spec)
+            cur.execute(
+                """
                 CREATE TABLE IF NOT EXISTS size_recommendations (
                     order_id TEXT,
-                    recommended_size TEXT,
-                    confidence_score REAL,
-                    reasoning TEXT,
-                    customer_height INTEGER,
-                    customer_weight INTEGER,
-                    alternative_sizes TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    height INTEGER,
+                    weight INTEGER,
                     final_size TEXT,
-                    customer_confirmed BOOLEAN DEFAULT FALSE
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 )
-            """)
-            
-            # Insert recommendation
-            cur.execute("""
-                INSERT INTO size_recommendations 
-                (order_id, recommended_size, confidence_score, reasoning, 
-                 customer_height, customer_weight, alternative_sizes)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                order_id,
-                recommendation.recommended_size,
-                recommendation.confidence_score,
-                recommendation.reasoning,
-                customer_height,
-                customer_weight,
-                ','.join(recommendation.alternative_sizes)
-            ))
-            
+                """
+            )
+
+            # Insert minimal record
+            cur.execute(
+                """
+                INSERT INTO size_recommendations (order_id, height, weight, final_size)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    order_id,
+                    int(customer_height),
+                    int(customer_weight),
+                    recommendation.recommended_size,
+                ),
+            )
+
             con.commit()
             self.logger.info(f"Saved size recommendation for order {order_id}")
-            
+
         except Exception as e:
             self.logger.error(f"Error saving recommendation: {e}")
         finally:
             con.close()
 
 
-def main():
-    """Test the size recommendation engine"""
+def _ensure_table() -> None:
+    con = sqlite3.connect(DB_PATH)
+    try:
+        cur = con.cursor()
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS size_recommendations (
+                order_id TEXT,
+                height INTEGER,
+                weight INTEGER,
+                final_size TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        con.commit()
+    finally:
+        con.close()
+
+
+_H_RE = re.compile(r"(\d{2,3})\s*(см|cm)", re.IGNORECASE)
+_W_RE = re.compile(r"(\d{2,3})\s*(кг|kg)", re.IGNORECASE)
+
+
+def _extract_hw(text: str, parsed_json: Optional[str]) -> Tuple[Optional[int], Optional[int]]:
+    h = w = None
+    if parsed_json:
+        try:
+            data = json.loads(parsed_json)
+            if isinstance(data, dict):
+                if "height_cm" in data:
+                    h = int(data["height_cm"])  # type: ignore[arg-type]
+                if "weight_kg" in data:
+                    w = int(data["weight_kg"])  # type: ignore[arg-type]
+        except Exception:
+            pass
+    if h is None:
+        m = _H_RE.search(text or "")
+        if m:
+            h = int(m.group(1))
+    if w is None:
+        m = _W_RE.search(text or "")
+        if m:
+            w = int(m.group(1))
+    return h, w
+
+
+def _upsert_recommendation(order_id: str, height: int, weight: int, final_size: str) -> None:
+    con = sqlite3.connect(DB_PATH)
+    try:
+        cur = con.cursor()
+        # Deduplicate by order_id: if exists, skip
+        cur.execute("SELECT COUNT(1) FROM size_recommendations WHERE order_id = ?", (order_id,))
+        if cur.fetchone()[0]:
+            return
+        cur.execute(
+            """
+            INSERT INTO size_recommendations (order_id, height, weight, final_size)
+            VALUES (?, ?, ?, ?)
+            """,
+            (order_id, int(height), int(weight), final_size),
+        )
+        con.commit()
+    finally:
+        con.close()
+
+
+def run_single(order_id: str, height: int, weight: int) -> str:
     engine = SizeRecommendationEngine()
-    
-    # Test cases
-    test_cases = [
-        {
-            'name': 'Typical male customer',
-            'height': 175,
-            'weight': 80,
-            'gender': 'Men',
-            'product_type': 'CL'
-        },
-        {
-            'name': 'Female customer',
-            'height': 165,
-            'weight': 60,
-            'gender': 'Women',
-            'product_type': 'CL'
-        },
-        {
-            'name': 'Kids customer',
-            'height': 120,
-            'weight': 25,
-            'gender': 'Kids',
-            'product_type': 'CL',
-            'age': 5
-        }
-    ]
-    
-    print("🧮 SIZE RECOMMENDATION ENGINE TEST")
-    print("=" * 50)
-    
-    for test in test_cases:
-        print(f"\n📏 Testing: {test['name']}")
-        print(f"   Height: {test['height']}cm, Weight: {test['weight']}kg")
-        
-        recommendation = engine.recommend_size(
-            height_cm=test['height'],
-            weight_kg=test['weight'],
-            gender=test['gender'],
-            product_type=test['product_type'],
-            age=test.get('age')
-        )
-        
-        print(f"   ✅ Recommended size: {recommendation.recommended_size}")
-        print(f"   📊 Confidence: {recommendation.confidence_score:.1%}")
-        print(f"   💭 Reasoning: {recommendation.reasoning}")
-        
-        if recommendation.alternative_sizes:
-            print(f"   🔄 Alternatives: {', '.join(recommendation.alternative_sizes)}")
-        
-        # Test message generation
-        message = engine.get_size_confirmation_message(
-            customer_name="Али",
-            product_name="Футболка черная",
-            recommendation=recommendation
-        )
-        print(f"\n💬 WhatsApp message preview:")
-        print("   " + message.replace('\n', '\n   '))
+    rec = engine.recommend_size(height_cm=height, weight_kg=weight, gender='Men', product_type='CL')
+    _upsert_recommendation(order_id, height, weight, rec.recommended_size)
+    return rec.recommended_size
+
+
+def _count_recs(order_id: str) -> int:
+    con = sqlite3.connect(DB_PATH)
+    try:
+        cur = con.cursor()
+        cur.execute("SELECT COUNT(1) FROM size_recommendations WHERE order_id = ?", (order_id,))
+        return int(cur.fetchone()[0])
+    finally:
+        con.close()
+
+
+def run_scan_inbox(limit: Optional[int] = None) -> int:
+    con = sqlite3.connect(DB_PATH)
+    try:
+        cur = con.cursor()
+        q = "SELECT id, order_id, text, parsed_json, created_at FROM wa_inbox ORDER BY created_at DESC"
+        if limit:
+            q += f" LIMIT {int(limit)}"
+        rows = cur.execute(q).fetchall()
+    finally:
+        con.close()
+
+    inserted = 0
+    for row in rows:
+        inbox_id, order_id, text, parsed_json, created_at = row
+        use_order_id = order_id if order_id and str(order_id).strip() else inbox_id
+        h, w = _extract_hw(str(text or ""), str(parsed_json or ""))
+        if h is None or w is None:
+            continue
+        engine = SizeRecommendationEngine()
+        rec = engine.recommend_size(height_cm=int(h), weight_kg=int(w), gender='Men', product_type='CL')
+        before = _count_recs(str(use_order_id))
+        _upsert_recommendation(str(use_order_id), int(h), int(w), rec.recommended_size)
+        after = _count_recs(str(use_order_id))
+        if after > before:
+            inserted += 1
+    return inserted
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Size Recommendation Engine CLI")
+    mx = parser.add_mutually_exclusive_group(required=True)
+    mx.add_argument("--scan-inbox", action="store_true", help="Scan wa_inbox for new height/weight messages and insert recommendations")
+    mx.add_argument("--order-id", type=str, help="Order ID to write recommendation for (requires --height and --weight)")
+    parser.add_argument("--height", type=int, help="Height in cm")
+    parser.add_argument("--weight", type=int, help="Weight in kg")
+    parser.add_argument("--limit", type=int, default=None, help="Optional limit when scanning inbox")
+
+    args = parser.parse_args()
+    _ensure_table()
+
+    if args.scan_inbox:
+        inserted = run_scan_inbox(limit=args.limit)
+        logger.info(f"Inserted {inserted} recommendations from inbox")
+        return 0
+
+    if args.order_id and (args.height is None or args.weight is None):
+        parser.error("--order-id requires --height and --weight")
+    final = run_single(args.order_id, args.height, args.weight)
+    logger.info(f"Order {args.order_id}: final_size={final}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
