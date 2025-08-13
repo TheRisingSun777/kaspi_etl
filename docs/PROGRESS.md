@@ -7,6 +7,7 @@ Pivot to core repricing loop: After days of effort fighting the seller/opponent 
 \- 2025-08-13 12:20 UTC: PH1-REPAIR finalized — added size normalization (44–64, S–4XL), ignore prefixes (ELS_, PRINTER_, CARTRIDGE_, PAPER_), ran repair to produce fixed sales and delta report; counts and top dropped prefixes captured. (crm-system)
 \- 2025-08-13 12:35 UTC: WA size-check outbox generated (dry-run) with template; deduped, wrote texts and whatsapp_messages.csv. (crm-system)
 \- 2025-08-13 12:50 UTC: Mapping coverage + missing-by-store reports; worst stores: M-GROUP, (blank); worst models: ЧЕРНИЛА_664_ЧЕРНЫЙ, ЧЕРНИЛА_КОМПЛЕКТ, 0, (blank), XLOOKUP-artifact. (crm-system)
+\- 2025-08-13 12:40 UTC: Picklist CSV/PDF written; Business_model export written; Validation PASS (completeness 100.00%, no negative stock). (crm-system)
 - 2025-08-13 10:35 UTC: C.1 Add STATE.json and OPERATING.md (crm-system)
 - 2025-08-13 10:36 UTC: C.2 Refresh TASKS.yaml with PH1 tasks (done/todo) (crm-system)
 - 2025-08-13 10:37 UTC: C.3 Commit updates for state, ops, tasks, progress (crm-system)
