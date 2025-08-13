@@ -7,3 +7,4 @@ openpyxl
 reportlab
 fastapi
 uvicorn
+pypdf
