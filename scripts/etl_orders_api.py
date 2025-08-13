@@ -41,13 +41,25 @@ async def fetch_active_orders() -> Dict[str, Any]:
     if not KASPI_TOKEN:
         raise RuntimeError("Missing API token. Set KASPI_TOKEN/X_AUTH_TOKEN/KASPI_API_TOKEN in env")
 
-    headers = {"X-Auth-Token": KASPI_TOKEN, "Content-Type": "application/json"}
+    headers = {
+        "X-Auth-Token": KASPI_TOKEN,
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "User-Agent": "kaspi-etl/1.0 (+python-httpx)",
+    }
 
     url = f"{KASPI_BASE}/orders"
-    logger.info("Fetching active orders from %s", url)
+    # Allow paging/filters via env (fallback to small page to reduce load/timeouts)
+    page = int(os.getenv("KASPI_ORDERS_PAGE", "0"))
+    size = int(os.getenv("KASPI_ORDERS_SIZE", "50"))
+    status = os.getenv("KASPI_ORDERS_STATUS", "")  # e.g., ACCEPTED_BY_MERCHANT
+    params = {"page": page, "size": size}
+    if status:
+        params["status"] = status
+    logger.info("Fetching active orders from %s with params %s", url, params)
 
     async with httpx.AsyncClient(timeout=httpx.Timeout(180.0)) as client:
-        response = await client.get(url, headers=headers)
+        response = await client.get(url, headers=headers, params=params)
         response.raise_for_status()
         return response.json()
 
