@@ -22,6 +22,10 @@ Phase 1 Operations (CRM)
   - `make exportbm` → export CSV for business_model.xlsm
   - `make validate` → run validation suite
 
+- Webhook (inbound WhatsApp)
+  - Start locally: `./scripts/run_wa_webhook.sh` (listens on http://127.0.0.1:8787)
+  - Expose with ngrok (quick test): `ngrok http 8787` then set webhook URL to `https://<your-id>.ngrok-free.app/wa/inbound`
+
 - Checkpoint / rotate
   - Append a short summary to `docs/PROGRESS.md`
   - Persist run state to `STATE.json`
