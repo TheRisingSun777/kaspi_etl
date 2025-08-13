@@ -37,6 +37,8 @@ SKU_MAP_XLSX = DATA_CRM_DIR / "sku_map_crm_20250813_v1.xlsx"
 STOCK_CSV = DATA_CRM_DIR / "stock_on_hand.csv"
 STOCK_UPDATED_CSV = DATA_CRM_DIR / "stock_on_hand_updated.csv"
 PROCESSED_SALES_CSV = DATA_CRM_DIR / "processed_sales_20250813.csv"
+MISSING_SKUS_CSV = DATA_CRM_DIR / "missing_skus.csv"
+SALES_FIXED_XLSX = DATA_CRM_DIR / "sales_ksp_crm_fixed.xlsx"
 
 
 def _lower_columns_inplace(df: pd.DataFrame) -> None:
@@ -61,14 +63,16 @@ def _ensure_columns(df: pd.DataFrame, required: Iterable[str]) -> None:
 
 
 def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, Optional[pd.DataFrame], pd.DataFrame]:
-    if not SALES_XLSX.exists():
-        raise FileNotFoundError(f"Missing sales file: {SALES_XLSX}")
+    # Prefer fixed file if present
+    sales_path = SALES_FIXED_XLSX if SALES_FIXED_XLSX.exists() else SALES_XLSX
+    if not sales_path.exists():
+        raise FileNotFoundError(f"Missing sales file: {sales_path}")
     if not KSP_MAP_XLSX.exists():
         raise FileNotFoundError(f"Missing KSP map: {KSP_MAP_XLSX}")
     if not STOCK_CSV.exists():
         raise FileNotFoundError(f"Missing stock file: {STOCK_CSV}")
 
-    sales_df = _read_excel(SALES_XLSX)
+    sales_df = _read_excel(sales_path)
     _lower_columns_inplace(sales_df)
     sales_df.rename(
         columns={
@@ -142,6 +146,59 @@ def enrich_with_sku_map(sales_df: pd.DataFrame, sku_map_df: Optional[pd.DataFram
     # Left-join to enrich; suffix mapped columns clearly
     enriched = sales_df.merge(sku_map_df, on="sku_id", how="left", suffixes=("", "_map"))
     return enriched
+
+
+def write_missing_skus_report(
+    sales_df: pd.DataFrame,
+    sku_map_df: Optional[pd.DataFrame],
+    qty_col: str,
+    output_path: Path,
+) -> pd.DataFrame:
+    """
+    Create a simple report of sales rows whose sku_id is not present in the CRM SKU map.
+    The report includes sku_id with occurrence count and total quantity sold.
+    """
+    df = sales_df.copy()
+    df["sku_id"] = df.get("sku_id", "").astype(str)
+    df["sku_key"] = df.get("sku_key", "").astype(str)
+    df["my_size"] = df.get("my_size", "").astype(str)
+    qty_series = pd.to_numeric(df.get(qty_col, 1), errors="coerce").fillna(1)
+    df["_qty_num"] = qty_series
+
+    if sku_map_df is not None and "sku_id" in sku_map_df.columns:
+        sku_ids_in_map = set(sku_map_df["sku_id"].astype(str))
+        missing_df = df[~df["sku_id"].isin(sku_ids_in_map)].copy()
+    else:
+        missing_df = df
+
+    if missing_df.empty:
+        report_df = pd.DataFrame(columns=[
+            "sku_id",
+            "occurrences",
+            "total_qty",
+            "example_sku_key",
+            "example_my_size",
+            "example_store_name",
+        ])
+    else:
+        report_df = (
+            missing_df
+            .groupby("sku_id", dropna=False)
+            .agg(
+                occurrences=("sku_id", "size"),
+                total_qty=("_qty_num", "sum"),
+                example_sku_key=("sku_key", "first"),
+                example_my_size=("my_size", "first"),
+                example_store_name=("store_name", "first"),
+            )
+            .reset_index()
+            .sort_values(["total_qty", "occurrences"], ascending=[False, False])
+        )
+
+    # Save report
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    report_df.to_csv(output_path, index=False)
+    return report_df
 
 
 def choose_qty_column(df: pd.DataFrame) -> str:
@@ -250,6 +307,27 @@ def main() -> int:
     normalized_sales = make_normalized_sales_log(enriched_df, qty_col)
     normalized_sales.to_csv(PROCESSED_SALES_CSV, index=False)
     print(f"Processed sales log written: {PROCESSED_SALES_CSV}")
+
+    # Missing SKU report
+    missing_report_df = write_missing_skus_report(sales_df, maybe_sku_map_df, qty_col, MISSING_SKUS_CSV)
+    print(
+        f"Missing SKU report written: {MISSING_SKUS_CSV} (unique missing sku_id: {len(missing_report_df)})"
+    )
+
+    # Coverage report
+    coverage = {
+        "total_sales_rows": int(len(sales_df)),
+        "rows_with_valid_sku_id": int(sales_df["sku_id"].astype(str).str.len().gt(1).sum()),
+        "rows_missing_sku_id": int(sales_df["sku_id"].astype(str).str.len().le(1).sum()),
+        "unique_sku_id_in_sales": int(sales_df["sku_id"].nunique(dropna=True)),
+        "unique_sku_id_in_map": int((maybe_sku_map_df["sku_id"].nunique(dropna=True)) if (maybe_sku_map_df is not None and "sku_id" in maybe_sku_map_df.columns) else 0),
+        "timestamp": pd.Timestamp.utcnow().isoformat(),
+    }
+    reports_dir = DATA_CRM_DIR / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    coverage_path = reports_dir / "mapping_coverage.csv"
+    pd.DataFrame([coverage]).to_csv(coverage_path, index=False)
+    print(f"Coverage report written: {coverage_path}")
 
     # Print summary
     total_rows = len(sales_df)

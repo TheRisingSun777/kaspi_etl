@@ -8,3 +8,40 @@ l,L
 m,M
 s,S
 
+# Additional common variants for letter sizes
+ x l,XL
+ x-large,XL
+ xxl,2XL
+ 2 x l,2XL
+ 2x,2XL
+ xxxl,3XL
+ 3x,3XL
+ xxxxl,4XL
+ 4x,4XL
+ large,L
+ medium,M
+ small,S
+
+# Numeric sizes (identity mapping)
+ 44,44
+ 45,45
+ 46,46
+ 47,47
+ 48,48
+ 49,49
+ 50,50
+ 51,51
+ 52,52
+ 53,53
+ 54,54
+ 55,55
+ 56,56
+ 57,57
+ 58,58
+ 59,59
+ 60,60
+ 61,61
+ 62,62
+ 63,63
+ 64,64
+

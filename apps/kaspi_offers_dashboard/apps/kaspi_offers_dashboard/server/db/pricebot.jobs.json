@@ -80,5 +80,46 @@
       "proposed": 7,
       "applied": 7
     }
+  },
+  "me9gfwlt-zohf54": {
+    "id": "me9gfwlt-zohf54",
+    "merchantId": "30141222",
+    "total": 7,
+    "processed": 7,
+    "status": "done",
+    "proposals": [
+      {
+        "sku": "CL_OC_MEN_PRINT51_BLACK_116155651_54-56_(3XL)",
+        "target": 0
+      },
+      {
+        "sku": "CL_OC_MEN_PRINT51_BLACK_112128130_62-7XL_(4XL)",
+        "target": 0
+      },
+      {
+        "sku": "CL_OC_MEN_PRINT51_BLACK_108382478_58_(4XL)",
+        "target": 11500
+      },
+      {
+        "sku": "CL_OC_MEN_PRINT51_BLACK_112128130_52-2XL_(2XL)",
+        "target": 11500
+      },
+      {
+        "sku": "CL_OC_MEN_PRINT51_BLACK_112128130_60-6XL_(4XL)",
+        "target": 0
+      },
+      {
+        "sku": "CL_OC_MEN_PRINT51_BLACK_112128130_46-M_(L)",
+        "target": 14990
+      },
+      {
+        "sku": "CL_OC_MEN_PRINT51_BLACK_109953019_48_(XL)",
+        "target": 8800
+      }
+    ],
+    "summary": {
+      "proposed": 7,
+      "applied": 7
+    }
   }
 }

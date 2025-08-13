@@ -1,0 +1,3 @@
+Здравствуйте, ! Вы заказали "=XLOOKUP([@[SKU KEY]];BUSINESS MODEL.XLSM!TABLE257[SKU KEY];BUSINESS MODEL.XLSM!TABLE257[KASPI NAME CORE];"";0;1)". 
+Чтобы подобрать размер, пожалуйста, напишите ваш рост (см) и вес (кг).
+

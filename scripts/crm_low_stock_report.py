@@ -160,9 +160,13 @@ def main() -> int:
 
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     out_path = REPORTS_DIR / f"low_stock_{datetime.now().strftime('%Y%m%d')}.csv"
-    pd.DataFrame(rows).sort_values(["reorder_qty", "velocity_14d"], ascending=[False, False]).to_csv(
-        out_path, index=False
-    )
+
+    columns = ["sku_id/sku_key", "stock_now", "velocity_14d", "days_cover", "reorder_qty"]
+    if not rows:
+        pd.DataFrame(columns=columns).to_csv(out_path, index=False)
+    else:
+        df_out = pd.DataFrame(rows)[columns]
+        df_out.sort_values(["reorder_qty", "velocity_14d"], ascending=[False, False]).to_csv(out_path, index=False)
     print(f"Low-stock report written: {out_path}")
     return 0
 

@@ -188,6 +188,87 @@
       "count": 1,
       "avgDelta": 8800,
       "applied": true
+    },
+    {
+      "ts": "2025-08-13T04:12:56.887Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 0,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T04:12:56.999Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 0,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T04:12:57.148Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 11500,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T04:12:57.285Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 11500,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T04:12:57.409Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 0,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T04:12:57.515Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 14990,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T04:12:58.021Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 8800,
+      "applied": true
+    },
+    {
+      "ts": "2025-08-13T04:19:11.431Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "dry",
+      "count": 1,
+      "avgDelta": 0,
+      "applied": false
+    },
+    {
+      "ts": "2025-08-13T04:19:14.994Z",
+      "merchantId": "30141222",
+      "storeId": "30141222",
+      "mode": "apply",
+      "count": 1,
+      "avgDelta": 0,
+      "applied": true
     }
   ],
   "test-store": [

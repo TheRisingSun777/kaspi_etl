@@ -48,7 +48,7 @@ def load_size_rules(path: Path) -> Dict[str, str]:
     mapping: Dict[str, str] = {}
     if not path.exists():
         return mapping
-    rules_df = pd.read_csv(path)
+    rules_df = pd.read_csv(path, comment="#", dtype=str)
     rules_df.columns = [c.strip().lower() for c in rules_df.columns]
     for _, row in rules_df.iterrows():
         raw = str(row.get("raw", "")).strip().lower()
@@ -70,7 +70,7 @@ def load_ignore_prefixes(path: Path) -> List[str]:
     return prefixes
 
 
-SIZE_TOKEN_RE = re.compile(r"(?:^|[\s\-_/])(?:(?:[2-4]?XL|XL|L|M|S)|(4[8-9]|5[0-9]|6[0-4]))$", re.IGNORECASE)
+SIZE_TOKEN_RE = re.compile(r"(?:^|[\s\-_/])(?:(?:[2-4]?XL|XL|L|M|S)|(4[4-9]|5[0-9]|6[0-4]))$", re.IGNORECASE)
 
 
 def strip_trailing_size_tokens(name: str) -> str:
@@ -88,7 +88,7 @@ def strip_trailing_size_tokens(name: str) -> str:
             working = " ".join(parts[:-1]).rstrip()
             continue
         # Also handle separators like '_' or '-' between base and size token at end
-        working = re.sub(r"([_\-\s])(?:[2-4]?XL|XL|L|M|S|4[8-9]|5[0-9]|6[0-4])\s*$", "", working, flags=re.IGNORECASE)
+        working = re.sub(r"([_\-\s])(?:[2-4]?XL|XL|L|M|S|4[4-9]|5[0-9]|6[0-4])\s*$", "", working, flags=re.IGNORECASE)
         # Check if changed
         if working and working.split() and working.split()[-1] != last:
             continue
@@ -170,8 +170,20 @@ def main() -> int:
     dropped_count = 0
     if ignore_prefixes:
         pattern = re.compile(rf"^(?:{'|'.join(map(re.escape, ignore_prefixes))})")
-        keep_mask = ~df["sku_key"].astype(str).str.match(pattern)
-        dropped_count = int((~keep_mask).sum())
+        match_mask = df["sku_key"].astype(str).str.match(pattern)
+        keep_mask = ~match_mask
+        dropped_count = int(match_mask.sum())
+        # Compute top 10 dropped prefixes
+        try:
+            dropped_prefixes = (
+                df.loc[match_mask, "sku_key"]
+                .astype(str)
+                .str.extract(rf"^({'|'.join(map(re.escape, ignore_prefixes))})", expand=False)
+                .value_counts()
+                .head(10)
+            )
+        except Exception:
+            dropped_prefixes = None
         df = df[keep_mask].copy()
 
     # Compute new sku_id
@@ -202,6 +214,10 @@ def main() -> int:
     print(f"Delta report written: {DELTA_REPORT_CSV}")
     if ignore_prefixes:
         print(f"Rows dropped by ignore prefixes: {dropped_count}")
+        if 'dropped_prefixes' in locals() and dropped_prefixes is not None:
+            print("Top dropped prefixes (prefix: count):")
+            for pref, cnt in dropped_prefixes.items():
+                print(f"  {pref}: {int(cnt)}")
     print(f"sku_key changed: {changed_sku_key}")
     print(f"my_size changed: {changed_my_size}")
 

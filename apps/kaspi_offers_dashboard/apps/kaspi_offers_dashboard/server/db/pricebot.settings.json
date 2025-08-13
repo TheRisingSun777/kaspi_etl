@@ -17,8 +17,9 @@
         "active": false
       },
       "CL_OC_MEN_PRINT51_BLACK_108382478_58_(4XL)": {
-        "active": false,
-        "minPrice": 11500
+        "active": true,
+        "minPrice": 12000,
+        "maxPrice": 12000
       },
       "CL_OC_MEN_PRINT51_BLACK_112128130_52-2XL_(2XL)": {
         "active": false,
@@ -39,6 +40,10 @@
         "active": true,
         "minPrice": 8800,
         "maxPrice": 8850
+      },
+      "CL_OC_MEN_PRINT51_BLACK_108382478_56_(3XL)": {
+        "active": false,
+        "minPrice": 12000
       }
     }
   },

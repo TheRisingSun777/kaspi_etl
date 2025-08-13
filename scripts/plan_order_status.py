@@ -31,14 +31,26 @@ REPORTS_DIR = REPO_ROOT / "data_crm" / "reports"
 
 def load_orders_and_workflows() -> pd.DataFrame:
     with sqlite3.connect(DB_PATH) as conn:
-        df = pd.read_sql_query(
-            """
-            SELECT o.order_id, o.status AS current_status, o.store_name, w.state AS workflow_state
-            FROM orders o
-            LEFT JOIN workflows w ON w.order_id = o.order_id
-            """,
-            conn,
-        )
+        try:
+            df = pd.read_sql_query(
+                """
+                SELECT o.order_id, o.status AS current_status, o.store_name, w.state AS workflow_state
+                FROM orders o
+                LEFT JOIN workflows w ON w.order_id = o.order_id
+                """,
+                conn,
+            )
+        except Exception:
+            # Fallback to sales table for store_name; status unknown
+            df = pd.read_sql_query(
+                """
+                SELECT s.orderid AS order_id, '' AS current_status, s.store_name AS store_name, w.state AS workflow_state
+                FROM sales s
+                LEFT JOIN workflows w ON w.order_id = s.orderid
+                GROUP BY s.orderid
+                """,
+                conn,
+            )
     df.columns = [c.strip().lower() for c in df.columns]
     return df
 

@@ -22,16 +22,30 @@ OUT_ROOT = REPO_ROOT / "data_crm" / "labels"
 
 def load_confirmed_orders() -> pd.DataFrame:
     with sqlite3.connect(DB_PATH) as conn:
-        df = pd.read_sql_query(
-            """
-            SELECT o.order_id, o.order_date, o.store_name, o.sku_name_raw, o.qty
-            FROM orders o
-            JOIN workflows w ON w.order_id = o.order_id
-            WHERE w.state = 'CONFIRMED'
-            ORDER BY o.store_name, o.order_date, o.order_id
-            """,
-            conn,
-        )
+        try:
+            df = pd.read_sql_query(
+                """
+                SELECT o.order_id, o.order_date, o.store_name, o.sku_name_raw, o.qty
+                FROM orders o
+                JOIN workflows w ON w.order_id = o.order_id
+                WHERE w.state = 'CONFIRMED'
+                ORDER BY o.store_name, o.order_date, o.order_id
+                """,
+                conn,
+            )
+        except Exception:
+            # Fallback to sales table (no sku_name_raw); use sku_key instead
+            df = pd.read_sql_query(
+                """
+                SELECT s.orderid AS order_id, s.date AS order_date, s.store_name AS store_name,
+                       s.sku_key AS sku_name_raw, s.qty AS qty
+                FROM sales s
+                JOIN workflows w ON w.order_id = s.orderid
+                WHERE w.state = 'CONFIRMED'
+                ORDER BY s.store_name, s.date, s.orderid
+                """,
+                conn,
+            )
     df.columns = [c.strip().lower() for c in df.columns]
     return df
 
