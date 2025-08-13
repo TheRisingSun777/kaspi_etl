@@ -36,3 +36,9 @@ zip-exports:
 		echo "Creating $$out"; \
 		zip -r "$$out" data_crm/exports >/dev/null; \
 		echo "$$out"
+
+.PHONY: wa-open
+
+wa-open:
+	@echo "Opening WhatsApp Web to target chat..."
+	@./venv/bin/python -m services.whatsapp_web --to "$(TO)" --attach "$(ATTACH)"
