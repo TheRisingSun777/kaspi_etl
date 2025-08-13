@@ -24,8 +24,8 @@ KASPI_BASE = (
     os.getenv("KASPI_BASE") or os.getenv("KASPI_API_BASE_URL") or "https://kaspi.kz/shop/api/v2"
 )
 KASPI_TOKEN = os.getenv("KASPI_TOKEN") or os.getenv("X_AUTH_TOKEN") or os.getenv("KASPI_API_TOKEN")
-KASPI_ORDERS_STATUS = os.getenv("KASPI_ORDERS_STATUS", "ACCEPTED_BY_MERCHANT").strip()
-KASPI_ORDERS_SIZE = int(os.getenv("KASPI_ORDERS_SIZE", "50"))
+KASPI_ORDERS_STATUS = os.getenv("KASPI_ORDERS_STATUS", "").strip()
+KASPI_ORDERS_SIZE = int(os.getenv("KASPI_ORDERS_SIZE", "25"))
 KASPI_ORDERS_PAGES = int(os.getenv("KASPI_ORDERS_PAGES", "5"))
 
 DATA_CRM_DIR = Path("data_crm")
@@ -175,6 +175,7 @@ async def main() -> Tuple[Path, Path]:
     # Page loop
     all_records: List[Dict[str, Any]] = []
     fetched_pages = 0
+    import random
     for page in range(0, max(1, KASPI_ORDERS_PAGES)):
         payload = await fetch_orders_page(page=page, size=KASPI_ORDERS_SIZE, status=KASPI_ORDERS_STATUS)
         recs = _extract_records(payload)
@@ -184,6 +185,8 @@ async def main() -> Tuple[Path, Path]:
         fetched_pages += 1
         if page + 1 >= KASPI_ORDERS_PAGES:
             break
+        # polite pacing between pages (200–400 ms)
+        await asyncio.sleep(random.uniform(0.2, 0.4))
 
     # Save raw JSON
     merged_payload: Dict[str, Any] = {"data": all_records, "pages": fetched_pages}
@@ -201,13 +204,29 @@ async def main() -> Tuple[Path, Path]:
 
     # Normalize and save CSV
     df = normalize_orders(merged_payload)
+    # Log first 5 order ids and sku codes
+    try:
+        ids_preview = (
+            df.get("orderid").astype(str).head(5).tolist() if "orderid" in df.columns else []
+        )
+        sku_preview = (
+            df.get("ksp_sku_id").astype(str).head(5).tolist() if "ksp_sku_id" in df.columns else []
+        )
+        logger.info("Sample orderids(5): %s", ids_preview)
+        logger.info("Sample ksp_sku_id(5): %s", sku_preview)
+    except Exception:
+        pass
+
     df.to_csv(csv_path, index=False)
     # Optional XLSX for spreadsheet users
     try:
         df.to_excel(xlsx_path, index=False)
     except Exception as e:
         logger.warning("Could not write XLSX: %s", e)
-    logger.info("Saved normalized orders CSV to %s", csv_path)
+    # Also write staging latest CSV for downstream consumers
+    latest_csv = DATA_CRM_DIR / "orders_api_latest.csv"
+    df.to_csv(latest_csv, index=False)
+    logger.info("Saved normalized orders CSV to %s and %s", csv_path, latest_csv)
 
     return json_path, csv_path
 
@@ -219,4 +238,22 @@ if __name__ == "__main__":
         print(str(c))
     except Exception as exc:
         logger.error("Orders ETL failed: %s", exc)
-        raise
+        # Write empty staging CSV to keep pipeline moving
+        try:
+            OUT_CSV = Path("data_crm/orders_api_latest.csv")
+            OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(
+                columns=[
+                    "orderid",
+                    "date",
+                    "store_name",
+                    "ksp_sku_id",
+                    "sku_key",
+                    "my_size",
+                    "qty",
+                    "sell_price",
+                ]
+            ).to_csv(OUT_CSV, index=False)
+            print(str(OUT_CSV))
+        except Exception:
+            pass

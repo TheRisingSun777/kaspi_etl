@@ -7,7 +7,8 @@ bundle:
 
 orders:
 	@echo "Running ETL for active orders..."
-	@python scripts/etl_orders_api.py
+	@echo "Params: KASPI_ORDERS_STATUS='$(KASPI_ORDERS_STATUS)' KASPI_ORDERS_SIZE='$(KASPI_ORDERS_SIZE)'"
+	@./venv/bin/python scripts/etl_orders_api.py
 
 .PHONY: size-recs
 

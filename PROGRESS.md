@@ -85,3 +85,7 @@
 - 2025-08-14 — Labels grouping: map by PDF order number; grouped outputs + manifest.
   - `scripts/crm_kaspi_labels_group.py` extracts 7–12 digit order from filename, joins to orders staging, groups by (sku_key,my_size), stable-merge PDFs.
   - Outputs to `data_crm/labels_grouped/${OUT_DATE}/` with `{clean_model}_{my_size}-{count}.pdf`, writes `manifest.csv` and `unmatched_files.txt`.
+
+- 2025-08-14 — Orders ETL: real paging + filter + staging outputs.
+  - `scripts/etl_orders_api.py` adds paging (page,size), optional status filter, polite sleep, first 5 ids/sku logs.
+  - Saves raw JSON to `data_crm/inputs/orders_active_YYYYMMDD.json` and normalized to both dated + `orders_api_latest.csv`.
