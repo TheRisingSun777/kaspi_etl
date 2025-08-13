@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import json
 import logging
 from pathlib import Path
@@ -20,6 +21,7 @@ def find_most_recent_orders_json() -> Optional[Path]:
     candidates: list[Path] = []
     if CACHE_DIR.exists():
         candidates.extend(CACHE_DIR.glob("orders_*.json"))
+        candidates.extend(CACHE_DIR.glob("webhook_*.json"))
     if INPUTS_DIR.exists():
         candidates.extend(INPUTS_DIR.glob("orders_active_*.json"))
     if not candidates:
@@ -29,8 +31,19 @@ def find_most_recent_orders_json() -> Optional[Path]:
 
 
 def load_orders_payload(path: Path) -> Any:
-    with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        data = path.read_text(encoding="utf-8")
+    except Exception as e:
+        logger.error("Failed to read %s: %s", path, e)
+        raise SystemExit(2)
+    if not data.strip():
+        logger.error("Input JSON is empty: %s", path)
+        raise SystemExit(2)
+    try:
+        return json.loads(data)
+    except Exception as e:
+        logger.error("Invalid JSON in %s: %s", path, e)
+        raise SystemExit(2)
 
 
 def flatten_payload_to_records(payload: Any) -> List[Dict[str, Any]]:
@@ -109,8 +122,25 @@ def to_staging(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def main() -> int:
-    path = find_most_recent_orders_json()
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Stage Kaspi orders JSON to CSV")
+    p.add_argument("--input", "-i", help="Path to orders JSON file")
+    return p.parse_args(argv)
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    args = parse_args(argv)
+    env_input = Path(str(Path.cwd() / Path(str(Path.cwd()))))  # dummy to please mypy linters if any
+    input_override = None
+    # Check env var first
+    import os
+
+    if os.getenv("INPUT_JSON"):
+        input_override = Path(os.getenv("INPUT_JSON"))
+    if args.input:
+        input_override = Path(args.input)
+
+    path = input_override if input_override else find_most_recent_orders_json()
     if not path:
         logger.info("No orders JSON found under %s or %s; nothing to do", CACHE_DIR, INPUTS_DIR)
         return 0

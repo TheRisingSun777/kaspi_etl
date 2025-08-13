@@ -201,6 +201,10 @@ def main() -> int:
         if col not in orders.columns:
             orders[col] = pd.NA
 
+    # Ensure 'sku_key' column exists even if absent in source
+    if "sku_key" not in orders.columns:
+        orders["sku_key"] = pd.NA
+
     # Normalize size
     rules = load_size_rules()
     orders["my_size"] = orders["my_size"].apply(lambda v: normalize_size(v, rules))
@@ -209,6 +213,8 @@ def main() -> int:
     orders["qty"] = pd.to_numeric(orders["qty"], errors="coerce").fillna(1).astype(int)
     orders["sell_price"] = pd.to_numeric(orders["sell_price"], errors="coerce")
 
+    # Build join candidate and map
+    orders["join_code"] = orders.get("ksp_sku_id", pd.Series([pd.NA] * len(orders))).astype(str).str.strip()
     # Map KSP SKU to sku_key using mapping file; fallback to product_master_code or ksp_sku_id
     if KSP_MAP_XLSX.exists():
         kmap = _read_excel(KSP_MAP_XLSX)
@@ -236,7 +242,7 @@ def main() -> int:
                 right_on=[ksp_col, store_col],
                 how="left",
             )
-            orders["sku_key"] = orders["sku_key"].fillna(merged["_mapped_sku_key"])
+            orders["sku_key"] = orders["sku_key"].fillna(merged["_mapped_sku_key"])  # prefer existing
         right_cols2 = (
             kmap[[ksp_col, key_col]].drop_duplicates().rename(columns={key_col: "_mapped_sku_key"})
         )
@@ -251,6 +257,33 @@ def main() -> int:
             )
     # Last resort: use ksp_sku_id as sku_key if still blank
     orders["sku_key"] = orders["sku_key"].fillna(orders["ksp_sku_id"].astype(str).str.strip())
+
+    # Emit report for missing sku_key
+    missing_mask = orders["sku_key"].isna() | (orders["sku_key"].astype(str).str.len() == 0)
+    if missing_mask.any():
+        def _guess_model_group(text: Any) -> str:
+            s = str(text or "")
+            s = s.replace(" ", "_")
+            for delim in ("-", "_", "/"):
+                if delim in s:
+                    s = s.split(delim)[0]
+                    break
+            import re
+            s = re.sub(r"[^A-Za-z]+", "", s)
+            return s.upper() if s else ""
+
+        report = pd.DataFrame({
+            "orderid": orders.loc[missing_mask, "orderid"],
+            "ksp_sku_id": orders.loc[missing_mask, "ksp_sku_id"],
+            "store_name": orders.loc[missing_mask, "store_name"],
+            "product_master_code": orders.loc[missing_mask, "product_master_code"] if "product_master_code" in orders.columns else "",
+        })
+        report["guessed_model_group"] = report["product_master_code"].map(_guess_model_group)
+        REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+        missing_path = REPORTS_DIR / "missing_ksp_mapping.csv"
+        report.to_csv(missing_path, index=False)
+        logger.error("Missing sku_key for %d rows. Update mapping at %s and re-run.", int(missing_mask.sum()), KSP_MAP_XLSX)
+        return 2
 
     # Build sku_id
     orders["sku_id"] = [build_sku_id(k, s) for k, s in zip(orders["sku_key"].astype(str), orders["my_size"].astype(str))]

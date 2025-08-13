@@ -11,6 +11,25 @@ orders:
 	@./venv/bin/python scripts/api_orders_to_csv.py
 	@./venv/bin/python scripts/join_api_orders_to_sales.py
 
+.PHONY: orders-from-cache
+
+orders-from-cache:
+	@INPUT_JSON=$${INPUT_JSON:-$$(ls -t data_crm/api_cache/*.json 2>/dev/null | head -n1)} ; \
+	echo "Using $${INPUT_JSON}" ; \
+	./venv/bin/python scripts/api_orders_to_csv.py --input "$$INPUT_JSON"
+
+.PHONY: sanity
+
+sanity:
+	@echo "Mapping columns:" ; \
+	python - <<'PY' ; \
+import pandas as pd ; \
+x='data_crm/mappings/ksp_sku_map_updated.xlsx' ; \
+try: print(pd.read_excel(x,nrows=0).columns.tolist()) ; \
+except Exception as e: print('missing', x, e) ; \
+PY
+	@echo "--- orders_api_latest.csv (first 3)" ; head -n 3 data_crm/orders_api_latest.csv || true
+
 .PHONY: group-labels
 
 group-labels:
