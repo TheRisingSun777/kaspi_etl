@@ -15,8 +15,8 @@ OUTPUT_XLSX = DATA_CRM / "orders_kaspi_with_sizes.xlsx"
 ORDERS_STAGING = DATA_CRM / "orders_api_latest.csv"
 
 
-def find_latest_orders_file() -> Optional[Path]:
-    # Prefer staging CSV written by api_orders_to_csv.py and enriched by join step
+def find_orders() -> Optional[Path]:
+    """Prefer API-staged CSV, else newest active_orders CSV/XLSX."""
     if ORDERS_STAGING.exists():
         return ORDERS_STAGING
     candidates: List[Path] = []
@@ -92,7 +92,7 @@ def load_group_defaults() -> Optional[pd.DataFrame]:
 
 
 def main() -> Tuple[Path, pd.DataFrame]:
-    orders_path = find_latest_orders_file()
+    orders_path = find_orders()
     if not orders_path:
         raise SystemExit("No orders staging CSV/XLSX found in data_crm/")
 
@@ -112,6 +112,16 @@ def main() -> Tuple[Path, pd.DataFrame]:
     for col in ["height", "weight"]:
         if col not in df.columns:
             df[col] = None
+
+    # If sku_key is empty but product_master_code exists, use it
+    if "product_master_code" in df.columns:
+        def _fill_sku(row):
+            val = str(row.get("sku_key", "") or "").strip()
+            if val:
+                return val
+            pmc = str(row.get("product_master_code", "") or "").strip()
+            return pmc if pmc else None
+        df["sku_key"] = df.apply(_fill_sku, axis=1)
 
     df["model_group"] = df["sku_key"].fillna("").map(infer_model_group)
 
