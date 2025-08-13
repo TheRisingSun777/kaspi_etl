@@ -1,0 +1,12 @@
+[project]
+name = "kaspi-crm-etl"
+version = "0.1.0"
+description = "Kaspi CRM ETL tools"
+requires-python = ">=3.11"
+readme = "README.md"
+dependencies = []
+
+[project.scripts]
+crm-etl = "scripts.crm_cli:main"
+
+
