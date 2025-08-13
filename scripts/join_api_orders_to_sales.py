@@ -113,14 +113,32 @@ def build_sku_id(sku_key: str, my_size: str) -> str:
 
 
 def update_stock(stock_df: pd.DataFrame, sales_df: pd.DataFrame, qty_col: str) -> pd.DataFrame:
+    """Mirror CRM pipeline stock update behavior.
+
+    - Detect stock quantity column (prefers qty_on_hand)
+    - Subtract sold quantities per sku_key
+    - Add oversell column
+    - Return full dataframe with original columns preserved
+    """
     if "sku_key" not in stock_df.columns:
         raise KeyError("Expected column 'sku_key' in stock file")
+
     stock_df = stock_df.copy()
     stock_df["sku_key"] = stock_df["sku_key"].astype(str).str.strip()
+
     stock_qty_col = (
         _choose_first_existing(
             stock_df,
-            ["qty", "quantity", "stock", "on_hand", "stock_on_hand", "available", "qty_available"],
+            [
+                "qty_on_hand",
+                "qty",
+                "quantity",
+                "stock",
+                "on_hand",
+                "stock_on_hand",
+                "available",
+                "qty_available",
+            ],
         )
         or "qty_on_hand"
     )
@@ -141,9 +159,7 @@ def update_stock(stock_df: pd.DataFrame, sales_df: pd.DataFrame, qty_col: str) -
     updated_raw = merged[stock_qty_col] - merged["sold_qty"]
     merged["oversell"] = (-updated_raw).clip(lower=0)
     merged[stock_qty_col] = updated_raw.clip(lower=0)
-    return merged[["sku_key", stock_qty_col, "sold_qty", "oversell"]].rename(
-        columns={stock_qty_col: "qty"}
-    )
+    return merged
 
 
 def main() -> int:
