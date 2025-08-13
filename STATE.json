@@ -1,0 +1,10 @@
+{
+  "active_branch": "crm-system",
+  "phase": "phase1",
+  "last_run": null,
+  "flags": {
+    "use_fixed_sales": true,
+    "dry_run": true
+  }
+}
+

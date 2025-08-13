@@ -7,6 +7,17 @@ in_progress:
   - id: CRM-A.2
     started: true
     title: Implement repair script
+  - id: CRM-A.3
+    started: true
+    title: Rebuild mappings/outputs and add coverage report
+    description: |
+      Update processing to use fixed sales if present and generate mapping coverage report.
+    AC:
+      - scripts/crm_process_sales.py prefers sales_ksp_crm_fixed.xlsx
+      - data_crm/processed_sales_20250813.csv regenerated
+      - data_crm/stock_on_hand_updated.csv regenerated
+      - data_crm/missing_skus.csv regenerated
+      - data_crm/reports/mapping_coverage.csv created
     description: |
       Normalize my_size, derive sku_key from names, drop ignored prefixes, write fixed file and delta report.
     AC:
@@ -58,6 +69,28 @@ backlog:
       - Each proposal includes sku, current price, and target price within min/max
 
   - id: CORE-LOOP-004
+done:
+  - id: PH1-REPAIR
+    title: Phase 1 - Repair sales file
+    description: Normalize sizes, derive sku_key, drop ignored prefixes; write fixed and delta report
+    completed: true
+  - id: PH1-PDFS
+    title: Phase 1 - PDFs/labels pipeline
+    description: Initial labels step acknowledged (external script hook)
+    completed: true
+
+todo:
+  - id: PH1-LOAD-DB
+    title: Phase 1 - Load processed sales into ERP DB
+    description: Load `data_crm/processed_sales_20250813.csv` into `db/erp.db` as table `sales`
+    AC:
+      - CSV loaded to SQLite
+      - Table name `sales` in lower-case
+  - id: PH1-ORCH
+    title: Phase 1 - Daily operations orchestrator
+    description: Create `scripts/daily_operations.py` to run repair → process → labels
+    AC:
+      - Orchestrator script exists and runs end-to-end
     title: Add price-watch scheduler script
     description: |
       Create a Node/TypeScript script that runs /api/pricebot/pricebot/run?dry=true on a schedule (e.g. every 10 minutes).
