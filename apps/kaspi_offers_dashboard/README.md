@@ -1,4 +1,4 @@
-# Kaspi Offers Insight (Next.js + TypeScript + Tailwind)
+# Kaspi Offers Dashboard + Pricebot (Next.js + TypeScript + Tailwind)
 
 Modern one‑page dashboard to analyze Kaspi master product ID, variants, and sellers.
 
@@ -30,13 +30,17 @@ pnpm install
 
 4) Run dev server
 ```bash
-pnpm dev
+PORT=3001 pnpm dev
 ```
-Open `http://localhost:3000`.
+Open `http://localhost:3001`.
 
-## Env vars
+## Env vars (core loop)
 - DEFAULT_CITY_ID (e.g. 710000000)
 - NEXT_PUBLIC_DEFAULT_CITY_ID
+- KASPI_MERCHANT_ID (e.g. 30141222)
+- KASPI_MERCHANT_COOKIE (mc-session; dev only; do NOT commit)
+- KASPI_MERCHANT_API_BASE (default https://mc.shop.kaspi.kz)
+- DRY_RUN=true (server will log apply payload instead of sending)
 - KASPI_TOKEN (optional, used for product name; never exposed client-side)
 - DEBUG_SCRAPE=0|1
 - PW_HEADLESS=0|1 (default 1), PW_SLOWMO=0|250
@@ -51,11 +55,32 @@ PW_HEADLESS=0
 PW_SLOWMO=250
 ```
 
-## Watch prices
+## Watch prices (scheduler)
 ```bash
-pnpm watch:prices
+pnpm tsx apps/kaspi_offers_dashboard/scripts/price_watch.ts --merchantId=30141222 --city=710000000 --pollSec=60
 ```
-Writes NDJSON under `data_raw/watch/<id>.ndjson`.
+Reads settings v2 and calls `/api/pricebot/run?dry=true` for due SKUs by interval.
+
+## Core loop smoke tests (curl)
+
+Offers without opponents:
+```bash
+curl -sS "http://localhost:3001/api/pricebot/offers?withOpponents=false&storeId=30141222" | jq '.items[0]'
+```
+
+Run (dry):
+```bash
+curl -sS 'http://localhost:3001/api/pricebot/run' \
+  -H 'Content-Type: application/json' \
+  --data '{"storeId":"30141222","sku":"SKU_HERE","ourPrice":9999,"dry":true}' | jq
+```
+
+Run (apply): ensure `KASPI_MERCHANT_COOKIE` is set or `DRY_RUN=true` for safe logs.
+```bash
+curl -sS 'http://localhost:3001/api/pricebot/run' \
+  -H 'Content-Type: application/json' \
+  --data '{"storeId":"30141222","sku":"SKU_HERE","ourPrice":9999,"dry":false}' | jq
+```
 
 ## Metrics
 - median, spread=max−min, stddev
