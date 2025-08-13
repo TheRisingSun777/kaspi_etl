@@ -1,5 +1,19 @@
 ## Schedule
 
+## End-to-end run
+
+To run the full pipeline in one command (orders → join → size-recs → labels → WhatsApp send):
+
+```bash
+source venv/bin/activate
+OUT_DATE=$(date +%F) make run-all INPUT="/abs/path/to/waybill.zip"
+```
+
+Notes:
+- Each step checks inputs and skips if up-to-date.
+- WhatsApp Cloud API requires env set in `.env.local` (WA_TOKEN, WA_PHONE_NUMBER_ID, WA_TO_EMPLOYEE, WA_TEMPLATE_LABELS).
+- For labels grouping, ensure waybills ZIP or folder is available; grouped PDFs and `manifest.csv` will be created under `data_crm/labels_grouped/${OUT_DATE}/`.
+
 This project includes a local daily runner for macOS using a shell script and an example LaunchAgent.
 
 Script:

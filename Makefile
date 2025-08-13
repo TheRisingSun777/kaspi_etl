@@ -86,8 +86,57 @@ group-labels:
 
 .PHONY: run-all
 
-run-all:
-	INPUT_LABELS="$(INPUT)" OUT_DATE="$(OUT_DATE)" ./scripts/run_e2e.sh
+run-all: orders join size-recs group-labels wa-send
+	@echo "Pipeline complete."
+
+.PHONY: join
+
+# Join orders → processed sales; skip if processed_sales_latest.csv is newer than orders_api_latest.csv
+join:
+	@o=data_crm/orders_api_latest.csv; p=data_crm/processed_sales_latest.csv; \
+	if [ -f "$$p" ] && [ -f "$$o" ] && [ "$$p" -nt "$$o" ]; then \
+		echo "join: up-to-date (processed newer than orders)"; \
+	else \
+		./venv/bin/python scripts/join_api_orders_to_sales.py; \
+	fi
+
+# orders target already prints params; consider up-to-date if inputs JSON newer than output CSV
+orders:
+	@echo "Running ETL for active orders..."
+	@echo "Params: KASPI_ORDERS_STATUS='$(KASPI_ORDERS_STATUS)' KASPI_ORDERS_SIZE='$(KASPI_ORDERS_SIZE)'"
+	@in=$$(ls -t data_crm/inputs/orders_active_*.json 2>/dev/null | head -n1); out=data_crm/orders_api_latest.csv; \
+	if [ -f "$$out" ] && [ -n "$$in" ] && [ "$$out" -nt "$$in" ]; then \
+		echo "orders: up-to-date (latest CSV newer than raw JSON)"; \
+	else \
+		./venv/bin/python scripts/etl_orders_api.py; \
+	fi
+
+# size-recs: skip if orders_kaspi_with_sizes.xlsx newer than processed_sales_latest.csv
+size-recs:
+	@echo "Linking orders with size recommendations..."
+	@out=data_crm/orders_kaspi_with_sizes.xlsx; dep=data_crm/processed_sales_latest.csv; \
+	if [ -f "$$out" ] && [ -f "$$dep" ] && [ "$$out" -nt "$$dep" ]; then \
+		echo "size-recs: up-to-date"; \
+	else \
+		./venv/bin/python scripts/link_orders_and_sizes.py || { echo "Missing inputs for size-recs"; exit 1; }; \
+	fi; \
+	./venv/bin/python -c "import pandas as pd, sys; from pathlib import Path as P; fp=P('data_crm/orders_kaspi_with_sizes.xlsx'); (print('missing data_crm/orders_kaspi_with_sizes.xlsx') or sys.exit(1)) if not fp.exists() else None; df=pd.read_excel(fp); df.columns=[str(c).strip().lower().replace(' ','_') for c in df.columns]; subset=df[df['sku_key'].astype(str).str.len().gt(0) & df['rec_size'].astype(str).str.len().gt(0)]; print(subset.head(20).to_csv(index=False)); null_rate=1.0 - (df['rec_size'].astype(str).str.len().gt(0).mean()); (print(f'ERROR: rec_size null-rate {null_rate:.1%} exceeds 10%') or sys.exit(2)) if null_rate>0.10 else None"
+
+# group-labels: skip if manifest exists for OUT_DATE
+group-labels:
+	@test -n "$(OUT_DATE)" || (echo "OUT_DATE=YYYY-MM-DD required" && exit 2)
+	@man=data_crm/labels_grouped/$(OUT_DATE)/manifest.csv; \
+	if [ -f "$$man" ]; then \
+		echo "group-labels: up-to-date ($$man)"; \
+	else \
+		./venv/bin/python scripts/crm_kaspi_labels_group.py --input "$(INPUT)" --out-date "$(OUT_DATE)" --verbose; \
+		man=$$(ls -t data_crm/labels_grouped/*/manifest.csv 2>/dev/null | head -n1); \
+		if [ -f "$$man" ]; then echo "--- manifest preview (first 30 rows) ---"; tail -n +2 "$$man" | head -n 30; else echo "manifest.csv not found"; fi; \
+	fi
+
+# wa-send: skip if today's files already logged as sent
+wa-send:
+	@$(PY) scripts/wa_send_outbox_waba.py --date "$(OUT_DATE)"
 
 .PHONY: ci-sanity
 

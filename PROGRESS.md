@@ -106,3 +106,7 @@
   - Added `services/waba_client.py` (template/text/document send, media upload, retries).
   - Added `scripts/wa_send_outbox_waba.py` to send grouped PDFs; logs to `data_crm/reports/wa_send_log.csv` with idempotency.
   - Make targets: `wa-send`, `wa-template`; `PY?` autodetects venv.
+
+- 2025-08-14 — Pipeline meta target.
+  - Make `run-all` chains orders → join → size-recs → group-labels → wa-send with up-to-date checks.
+  - Docs updated: `docs/OPERATING.md` shows one-command run.

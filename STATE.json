@@ -21,7 +21,8 @@
     "ci_sanity": "878a9a3",
     "waybills_downloader": "e88dde2",
     "outbox_pack": "5a9ec47",
-    "waba_sender": ""
+    "waba_sender": "d90de23",
+    "pipeline_run_all": ""
   },
   "flags": {
     "bundle_ready": true,
@@ -43,5 +44,5 @@
     "webhook_stub_ready": true,
     "size_recs_ready": true
   },
-  "checkpoint": "2025-08-14T17:55:00Z"
+  "checkpoint": "2025-08-14T18:04:00Z"
 }
