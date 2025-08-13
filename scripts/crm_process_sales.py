@@ -25,6 +25,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import sys
+import re
 from typing import Iterable, List, Optional
 
 import pandas as pd
@@ -43,6 +44,11 @@ STOCK_UPDATED_CSV = DATA_CRM_DIR / "stock_on_hand_updated.csv"
 PROCESSED_SALES_CSV = DATA_CRM_DIR / "processed_sales_20250813.csv"
 MISSING_SKUS_CSV = DATA_CRM_DIR / "missing_skus.csv"
 SALES_FIXED_XLSX = DATA_CRM_DIR / "sales_ksp_crm_fixed.xlsx"
+
+# Optional orders-with-sizes inputs/outputs
+ORDERS_CSV = DATA_CRM_DIR / "orders_clean_preview.csv"
+ORDERS_XLSX = DATA_CRM_DIR / "orders_kaspi_with_sizes.xlsx"
+ORDERS_NORMALIZED_CSV = DATA_CRM_DIR / "orders_with_sizes_normalized.csv"
 
 
 def _lower_columns_inplace(df: pd.DataFrame) -> None:
@@ -64,6 +70,68 @@ def _ensure_columns(df: pd.DataFrame, required: Iterable[str]) -> None:
     for col in required:
         if col not in df.columns:
             df[col] = pd.NA
+
+
+# ---------------- Orders-with-sizes enrichment helpers ---------------- #
+
+def _first_number(text: str) -> float | None:
+    if pd.isna(text):
+        return None
+    m = re.search(r"([0-9]+(?:[.,][0-9]+)?)", str(text))
+    if not m:
+        return None
+    return float(m.group(1).replace(",", "."))
+
+
+def _normalize_height_cm(val) -> float | None:
+    n = _first_number(val)
+    if n is None:
+        return None
+    # Treat 1.4–2.3 as meters; else assume centimeters
+    if 1.4 <= n <= 2.3:
+        return round(n * 100)
+    return round(n)
+
+
+def _normalize_weight_kg(val) -> float | None:
+    n = _first_number(val)
+    return float(n) if n is not None else None
+
+
+def _choose_col(df: pd.DataFrame, candidates: Iterable[str]) -> Optional[str]:
+    for c in candidates:
+        if c in df.columns:
+            return c
+    return None
+
+
+def load_orders_with_sizes() -> pd.DataFrame | None:
+    if ORDERS_CSV.exists():
+        odf = pd.read_csv(ORDERS_CSV, encoding="utf-8-sig")
+    elif ORDERS_XLSX.exists():
+        odf = pd.read_excel(ORDERS_XLSX, engine="openpyxl")
+    else:
+        return None
+    odf.columns = [str(c).strip().lower() for c in odf.columns]
+
+    order_col = _choose_col(odf, ["orderid", "order_id", "id_order", "заказ", "номер заказа"])
+    h_col = _choose_col(odf, ["рост", "рост, см", "рост (см)", "height", "customer_height"])
+    w_col = _choose_col(odf, ["вес", "вес, кг", "вес (кг)", "weight", "customer_weight"])
+
+    if not order_col:
+        print("Warning: orders-with-sizes file lacks an order id column; skipping enrichment.")
+        return None
+
+    out = pd.DataFrame()
+    out["orderid"] = odf[order_col].astype(str).str.strip()
+    out["customer_height"] = odf[h_col].map(_normalize_height_cm) if h_col else pd.NA
+    out["customer_weight"] = odf[w_col].map(_normalize_weight_kg) if w_col else pd.NA
+
+    # Drop exact dupes by orderid keeping first
+    out = out.drop_duplicates(subset=["orderid"])
+    out.to_csv(ORDERS_NORMALIZED_CSV, index=False)
+    print(f"Orders-with-sizes normalized: {ORDERS_NORMALIZED_CSV} ({len(out)} rows)")
+    return out
 
 
 def load_inputs() -> tuple[pd.DataFrame, pd.DataFrame, Optional[pd.DataFrame], pd.DataFrame]:
@@ -280,8 +348,8 @@ def make_normalized_sales_log(df: pd.DataFrame, qty_col: str) -> pd.DataFrame:
     out["store_name"] = df.get("store_name", pd.NA)
     out["qty"] = pd.to_numeric(df[qty_col], errors="coerce").fillna(0).astype(int)
     out["sell_price"] = pd.to_numeric(df[price_col], errors="coerce") if price_col else pd.NA
-    out["customer_height"] = df[height_col] if height_col else pd.NA
-    out["customer_weight"] = df[weight_col] if weight_col else pd.NA
+    out["customer_height"] = df.get("customer_height", pd.NA)
+    out["customer_weight"] = df.get("customer_weight", pd.NA)
 
     # Add a few helpful context fields
     out["ksp_sku_id"] = df.get("ksp_sku_id", pd.NA)
@@ -306,6 +374,17 @@ def main() -> int:
     DATA_CRM_DIR.mkdir(parents=True, exist_ok=True)
 
     sales_df, ksp_map_df, maybe_sku_map_df, stock_df = load_inputs()
+    orders_sizes_df = load_orders_with_sizes()
+
+    # ensure 'orderid' exists in sales_df for merge
+    if "orderid" not in sales_df.columns:
+        oc = _choose_first_existing(sales_df, ["orderid", "order_id", "id_order", "order no", "order_no"])
+        if oc and oc != "orderid":
+            sales_df["orderid"] = sales_df[oc].astype(str).str.strip()
+
+    # merge height/weight
+    if orders_sizes_df is not None and "orderid" in sales_df.columns:
+        sales_df = sales_df.merge(orders_sizes_df, on="orderid", how="left")
 
     compute_sku_id_inplace(sales_df)
 
