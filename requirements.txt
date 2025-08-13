@@ -4,3 +4,4 @@ tenacity
 streamlit
 pandas
 openpyxl
+pypdf

@@ -18,3 +18,12 @@ tasks:
     notes: []
     pr: null
     commit: null
+  - id: labels-grouping
+    title: Automate PDF label grouping by SKU and size
+    status: done
+    notes:
+      - Added scripts/crm_kaspi_labels_group.py
+      - Added Makefile target group-labels
+      - Writes grouped PDFs and manifest under data_crm/labels_grouped/DATE
+    pr: null
+    commit: pending
