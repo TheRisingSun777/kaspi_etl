@@ -209,7 +209,7 @@ def main() -> int:
     orders["qty"] = pd.to_numeric(orders["qty"], errors="coerce").fillna(1).astype(int)
     orders["sell_price"] = pd.to_numeric(orders["sell_price"], errors="coerce")
 
-    # Map KSP SKU to sku_key using mapping file
+    # Map KSP SKU to sku_key using mapping file; fallback to product_master_code or ksp_sku_id
     if KSP_MAP_XLSX.exists():
         kmap = _read_excel(KSP_MAP_XLSX)
         _lower_columns_inplace(kmap)
@@ -242,6 +242,15 @@ def main() -> int:
         )
         merged2 = orders.merge(right_cols2, left_on="ksp_sku_id", right_on=ksp_col, how="left")
         orders["sku_key"] = orders["sku_key"].fillna(merged2["_mapped_sku_key"])
+
+    # Fallbacks when sku_key still missing
+    for alt_col in ("product_master_code",):
+        if alt_col in orders.columns:
+            orders["sku_key"] = orders["sku_key"].fillna(
+                orders[alt_col].astype(str).str.strip()
+            )
+    # Last resort: use ksp_sku_id as sku_key if still blank
+    orders["sku_key"] = orders["sku_key"].fillna(orders["ksp_sku_id"].astype(str).str.strip())
 
     # Build sku_id
     orders["sku_id"] = [build_sku_id(k, s) for k, s in zip(orders["sku_key"].astype(str), orders["my_size"].astype(str))]

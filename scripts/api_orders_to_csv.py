@@ -77,10 +77,15 @@ def to_staging(df: pd.DataFrame) -> pd.DataFrame:
         "store_name": ["store_name", "pickuppoint_name", "pickup_point_name", "shop_name"],
         "ksp_sku_id": ["code", "sku", "ksp_sku_id", "product_code"],
         "sku_key": ["sku_key", "mastercode", "master_code", "product_master_code"],
+        # carry master code separately to aid join fallback
+        "product_master_code": ["product_master_code", "mastercode", "master_code"],
         "my_size": ["my_size", "variant_size", "size"],
         "qty": ["quantity", "qty", "count"],
         "sell_price": ["sell_price", "price", "unit_price", "amount"],
         "customer_phone": ["customer_phone", "phone", "customer_phone_number"],
+        # measurements if provided
+        "height": ["height", "height_cm", "customer_height"],
+        "weight": ["weight", "weight_kg", "customer_weight"],
     }
 
     def pick(options: List[str]) -> pd.Series:
@@ -94,6 +99,10 @@ def to_staging(df: pd.DataFrame) -> pd.DataFrame:
     # Coerce types best-effort
     out["qty"] = pd.to_numeric(out["qty"], errors="coerce")
     out["sell_price"] = pd.to_numeric(out["sell_price"], errors="coerce")
+    if "height" in out.columns:
+        out["height"] = pd.to_numeric(out["height"], errors="coerce")
+    if "weight" in out.columns:
+        out["weight"] = pd.to_numeric(out["weight"], errors="coerce")
     if "date" in out.columns:
         out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.date
 
@@ -120,10 +129,13 @@ def main() -> int:
                 "store_name",
                 "ksp_sku_id",
                 "sku_key",
+                "product_master_code",
                 "my_size",
                 "qty",
                 "sell_price",
                 "customer_phone",
+                "height",
+                "weight",
             ]
         )
         empty.to_csv(OUT_CSV, index=False)
