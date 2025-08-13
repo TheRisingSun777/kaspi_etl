@@ -1,12 +1,22 @@
-.PHONY: repair process labels loaddb daily picklist exportbm validate test
+.PHONY: setup lint test repair process labels loaddb daily picklist exportbm validate mart bundle
 
 PY=./venv/bin/python
+
+setup:
+	python3 -m venv venv
+	./venv/bin/pip install -U pip
+	./venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+	./venv/bin/pre-commit install
+
+lint:
+	./venv/bin/ruff check .
+	./venv/bin/black --check .
 
 repair:
 	$(PY) scripts/crm_repair_sales.py
 
 process:
-	$(PY) scripts/crm_process_sales.py
+	$(PY) -m scripts.crm_cli process-sales
 
 labels:
 	./scripts/run_build_labels.sh
@@ -28,5 +38,11 @@ validate:
 
 test:
 	pytest -q
+
+mart:
+	$(PY) -m scripts.crm_build_mart
+
+bundle:
+	./scripts/make_repo_bundle.sh
 
 
