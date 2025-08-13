@@ -1,11 +1,11 @@
 {
   "active_branch": "crm-system",
   "phase": "phase2",
-  "last_run": "2025-08-13T13:10:00Z",
+  "last_run": "2025-08-13T20:49:32Z",
   "flags": {
     "use_fixed_sales": true,
     "dry_run": true,
-    "whatsapp_vendor": "d360"
+    "whatsapp_vendor": "d360",
+    "kaspi_api_env_ready": true
   }
 }
-
