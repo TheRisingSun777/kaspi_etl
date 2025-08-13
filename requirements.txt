@@ -8,3 +8,5 @@ reportlab
 fastapi
 uvicorn
 pypdf
+pyyaml
+python-dotenv
