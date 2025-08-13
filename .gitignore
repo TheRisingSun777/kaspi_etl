@@ -232,3 +232,7 @@ server/merchant/*.cookie.json
 .env.*
 **/.env*
 !/.env.sample
+!/.env.example
+
+# Logs directory
+logs/
