@@ -58,6 +58,11 @@ outbox:
 	./venv/bin/python scripts/outbox_pack.py --out-date "$$OUT_DATE"; \
 	if [ "$$(uname)" = "Darwin" ]; then open "outbox/$$OUT_DATE"; fi
 
+.PHONY: fetch-waybills
+
+fetch-waybills:
+	@./venv/bin/python scripts/fetch_waybills_mc.py $(foreach s,$(STATUS),--status $(s)) --out-date "$(OUT_DATE)"
+
 .PHONY: wa-open
 
 wa-open:
