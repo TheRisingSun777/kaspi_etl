@@ -13,27 +13,22 @@ logger = logging.getLogger(__name__)
 DATA_CRM = Path("data_crm")
 OUTPUT_XLSX = DATA_CRM / "orders_kaspi_with_sizes.xlsx"
 ORDERS_STAGING = DATA_CRM / "orders_api_latest.csv"
-PROCESSED_LATEST = DATA_CRM / "processed_sales_latest.csv"
 
 
 def find_orders() -> Optional[Path]:
     """Inputs priority:
-    a) data_crm/processed_sales_latest.csv
-    b) latest data_crm/processed/processed_sales_*.csv
-    c) latest legacy active_orders_*.csv/xlsx
+    1) data_crm/orders_api_latest.csv
+    2) newest data_crm/active_orders_*.csv
+    3) newest data_crm/active_orders_*.xlsx
     """
-    if PROCESSED_LATEST.exists():
-        return PROCESSED_LATEST
-    processed_dir = DATA_CRM / "processed"
-    candidates: List[Path] = []
-    candidates.extend(sorted(processed_dir.glob("processed_sales_*.csv")))
-    if candidates:
-        return candidates[-1]
-    legacy: List[Path] = []
-    legacy.extend(DATA_CRM.glob("active_orders_*.csv"))
-    legacy.extend(DATA_CRM.glob("active_orders_*.xlsx"))
-    if legacy:
-        return max(legacy, key=lambda p: p.stat().st_mtime)
+    if ORDERS_STAGING.exists():
+        return ORDERS_STAGING
+    legacy_csv: List[Path] = sorted(DATA_CRM.glob("active_orders_*.csv"), key=lambda p: p.stat().st_mtime)
+    legacy_xlsx: List[Path] = sorted(DATA_CRM.glob("active_orders_*.xlsx"), key=lambda p: p.stat().st_mtime)
+    if legacy_csv:
+        return legacy_csv[-1]
+    if legacy_xlsx:
+        return legacy_xlsx[-1]
     return None
 
 
@@ -64,7 +59,7 @@ def extract_size_token(*texts: str) -> Optional[str]:
     return None
 
 
-def infer_model_group(text: str) -> Optional[str]:
+def infer_model_group_basic(text: str) -> Optional[str]:
     """Take token before first underscore; uppercase; alnum only."""
     if not text:
         return None
@@ -74,13 +69,27 @@ def infer_model_group(text: str) -> Optional[str]:
     return token.upper() if token else None
 
 
+def infer_model_group_regex(text: str) -> Optional[str]:
+    """Regex-based model group extraction: print|beli|cl_... (case-insensitive)."""
+    if not text:
+        return None
+    s = str(text)
+    if re.search(r"(?i)print", s):
+        return "PRINT"
+    if re.search(r"(?i)\bbeli\b", s):
+        return "BELI"
+    if re.search(r"(?i)\bcl_", s):
+        return "CL"
+    return infer_model_group_basic(text)
+
+
 def load_group_defaults() -> Optional[pd.DataFrame]:
-    # Prefer by-model-group, then all-models
+    # Prefer all-models, then by-model-group
     for pattern in [
-        DATA_CRM / "size_grid_by_model_group.xlsx",
-        DATA_CRM / "size_grid_by_model_group.csv",
         DATA_CRM / "size_grid_all_models.xlsx",
         DATA_CRM / "size_grid_all_models.csv",
+        DATA_CRM / "size_grid_by_model_group.xlsx",
+        DATA_CRM / "size_grid_by_model_group.csv",
     ]:
         if pattern.exists():
             try:
@@ -168,15 +177,15 @@ def main() -> Tuple[Path, pd.DataFrame]:
             return ksp if ksp else None
         df["sku_key"] = df.apply(_fill_sku, axis=1)
 
-    # model_group from sku_key or product_master_code
-    df["model_group"] = df["sku_key"].fillna("").map(infer_model_group)
+    # model_group from sku_key (regex first) or product_master_code
+    df["model_group"] = df["sku_key"].fillna("").map(infer_model_group_regex)
     if df["model_group"].isna().any() and "product_master_code" in df.columns:
         mask = df["model_group"].isna() | (df["model_group"] == "")
         df.loc[mask, "model_group"] = (
-            df.loc[mask, "product_master_code"].fillna("").map(infer_model_group)
+            df.loc[mask, "product_master_code"].fillna("").map(infer_model_group_regex)
         )
 
-    # rec_size via engine if height & weight present, else grid default, else M
+    # rec_size: prefer my_size if present, else engine if height & weight present, else grid default, else M
     rec_size: List[Optional[str]] = [None] * len(df)
     size_norm_map = _load_size_normalization()
     # Try optional engine(recommend)
@@ -201,13 +210,17 @@ def main() -> Tuple[Path, pd.DataFrame]:
         w = row.get("weight", None)
         mg = row.get("model_group", None)
         chosen = None
+        # Priority 1: honor my_size if present
+        mysz = row.get("my_size", None)
+        if mysz is not None and str(mysz).strip() != "":
+            chosen = _apply_size_norm(str(mysz).strip(), size_norm_map)
         try:
             hnum = float(h) if h is not None and str(h).strip() != "" else None
             wnum = float(w) if w is not None and str(w).strip() != "" else None
         except Exception:
             hnum = None
             wnum = None
-        if engine_recommend and hnum is not None and wnum is not None and mg:
+        if not chosen and engine_recommend and hnum is not None and wnum is not None and mg:
             try:
                 # Expect engine.recommend(height_cm, weight_kg, model_group) -> str
                 chosen = engine_recommend(hnum, wnum, str(mg))
@@ -233,8 +246,8 @@ def main() -> Tuple[Path, pd.DataFrame]:
         "qty",
         "height",
         "weight",
+        "my_size",
         "rec_size",
-        "model_group",
     ]
     present_cols = [c for c in out_cols if c in df.columns]
     out_df = df[present_cols].copy()
@@ -244,7 +257,7 @@ def main() -> Tuple[Path, pd.DataFrame]:
     out_df.to_excel(OUTPUT_XLSX, index=False)
     logger.info("Wrote %s", OUTPUT_XLSX)
 
-    preview_cols = [c for c in ["orderid", "sku_key", "height", "weight", "rec_size", "model_group"] if c in out_df.columns]
+    preview_cols = [c for c in ["orderid", "sku_key", "height", "weight", "my_size", "rec_size"] if c in out_df.columns]
     print(out_df[preview_cols].head(20).to_string(index=False))
     # Value counts of rec_size
     try:

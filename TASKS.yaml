@@ -74,7 +74,7 @@ tasks:
       - Missing mapping report with guessed model group
       - sku_id now requires both sku_key and my_size
     pr: null
-    commit: pending
+    commit: 222fdcb
   - id: report-missing-maps
     title: Report missing KSP mappings (sku_key gaps)
     status: done

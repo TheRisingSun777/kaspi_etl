@@ -76,3 +76,8 @@
 - 2025-08-14 — Join hardened: tolerant mapping + missing mapping report.
   - `scripts/join_api_orders_to_sales.py` now maps by (ksp_sku_id, store) → (product_master_code, store) → ksp_sku_id → product_master_code.
   - Writes `data_crm/reports/missing_ksp_mapping.csv` with guessed model group; `sku_id` only when both sku_key and my_size present.
+
+- 2025-08-14 — Size-recs: prefer API CSV; honor my_size; strict null gate.
+  - `scripts/link_orders_and_sizes.py` now prioritizes `orders_api_latest.csv`, then newest `active_orders_*.csv/xlsx`.
+  - Uses my_size if provided; else engine(height,weight); else size grids; regex model_group.
+  - Make `size-recs` prints first 20 with both sku_key and rec_size; fails if rec_size null-rate > 10%.

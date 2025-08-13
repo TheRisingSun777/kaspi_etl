@@ -14,7 +14,22 @@ orders:
 size-recs:
 	@echo "Linking orders with size recommendations..."
 	@./venv/bin/python scripts/link_orders_and_sizes.py || { echo "Missing inputs for size-recs"; exit 1; }
-	@./venv/bin/python -c "import pandas as pd, pathlib as P; fp=P.Path('data_crm/orders_kaspi_with_sizes.xlsx'); print(pd.read_excel(fp).head(20).to_csv(index=False)) if fp.exists() else print('missing data_crm/orders_kaspi_with_sizes.xlsx')"
+	@./venv/bin/python - <<'PY'
+import pandas as pd
+from pathlib import Path
+fp = Path('data_crm/orders_kaspi_with_sizes.xlsx')
+if not fp.exists():
+    print('missing data_crm/orders_kaspi_with_sizes.xlsx')
+    raise SystemExit(1)
+df = pd.read_excel(fp)
+df.columns = [str(c).strip().lower().replace(' ', '_') for c in df.columns]
+subset = df[df['sku_key'].astype(str).str.len().gt(0) & df['rec_size'].astype(str).str.len().gt(0)]
+print(subset.head(20).to_csv(index=False))
+null_rate = 1.0 - (df['rec_size'].astype(str).str.len().gt(0).mean())
+if null_rate > 0.10:
+    print(f"ERROR: rec_size null-rate {null_rate:.1%} exceeds 10%")
+    raise SystemExit(2)
+PY
 
 .PHONY: report-missing-maps
 

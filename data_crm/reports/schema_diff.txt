@@ -1,0 +1,2 @@
+Extra columns dropped: product_master_code
+Column order adjusted to match canonical processed_sales schema

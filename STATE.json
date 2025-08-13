@@ -12,9 +12,10 @@
     "zip_exports": "03b5f89",
     "wa_helper": "2a77bfc",
     "schema_strict": "18b5da0",
-    "join_hardened": "",
+    "join_hardened": "222fdcb",
     "daily_runner": "7d9201a",
-    "webhook_stub": "a2f6080"
+    "webhook_stub": "a2f6080",
+    "size_recs_update": ""
   },
   "flags": {
     "bundle_ready": true,
@@ -33,7 +34,8 @@
     "exports_ready": true,
     "zip_ready": true,
     "wa_helper_ready": true,
-    "webhook_stub_ready": true
+    "webhook_stub_ready": true,
+    "size_recs_ready": true
   },
-  "checkpoint": "2025-08-14T16:45:00Z"
+  "checkpoint": "2025-08-14T17:10:00Z"
 }
