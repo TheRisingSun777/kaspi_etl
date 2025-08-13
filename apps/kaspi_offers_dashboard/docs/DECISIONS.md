@@ -26,3 +26,14 @@ Imports are validated first; errors are typed and shown as toasts. No mutation o
 
 ## 2025-08-11 — Conventional commits and small diffs
 We keep commits small and descriptive (Conventional Commits) to simplify reviews and bisects in production.
+## 2025-08-12 — Pivot to core repricing loop; opponents optional
+After spending several days chasing seller counts, we decided to prioritise the core repricing loop and treat opponents (seller) data as an enhancement rather than a blocker.  The core tasks are:
+
+1. Verify settings persistence so that min/max/step/interval changes are saved to `server/db/pricebot.settings.json` and loaded back into the UI.
+2. Return offers without opponents by default. The offers API should return our SKUs with price/stock even if opponents are unavailable.
+3. Implement run proposals ignoring opponents when necessary and clamp target prices within the `[min,max]` range using the configured step.
+4. Introduce a price watch script to call `/run` on a schedule, computing proposals for SKUs whose interval has elapsed.
+
+Opponents retrieval (seller lists) is behind a flag and a cache; it should not block or crash the app. Seller scraping may be implemented later via HTML parsing or Playwright fallback, but the main loop must function without it. We added new tasks `CORE-LOOP-001` to `CORE-LOOP-004` to the backlog to cover these core steps and moved `UI-002` back to backlog. `STATE.json` reflects `lastSeen.taskId` as `CORE-LOOP-001`.
+*** End Patch
+EOF
