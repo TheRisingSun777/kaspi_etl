@@ -79,6 +79,15 @@ done:
     description: Add Twilio/360dialog client with dry-run
     completed: true
   - id: PH1-PDFS
+  - id: CRM-A.3
+    title: Rebuild mappings/outputs and add coverage report
+    completed: true
+  - id: PH1-LOAD-DB
+    title: Phase 1 - Load processed sales into ERP DB
+    completed: true
+  - id: PH1-ORCH
+    title: Phase 1 - Daily operations orchestrator
+    completed: true
     title: Phase 1 - PDFs/labels pipeline
     description: Initial labels step acknowledged (external script hook)
     completed: true
