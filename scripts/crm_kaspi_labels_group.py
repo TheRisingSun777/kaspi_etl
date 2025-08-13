@@ -24,7 +24,7 @@ from tempfile import TemporaryDirectory
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import pandas as pd
-from pypdf import PdfMerger
+from pypdf import PdfReader, PdfWriter
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -110,33 +110,20 @@ class GroupEntry:
 
 def merge_group_to_pdf(pdf_paths: Iterable[Path], output_pdf: Path) -> None:
     output_pdf.parent.mkdir(parents=True, exist_ok=True)
-    merger = PdfMerger()
-    try:
-        for p in pdf_paths:
-            merger.append(str(p))
-        with output_pdf.open("wb") as f:
-            merger.write(f)
-    finally:
-        merger.close()
+    writer = PdfWriter()
+    for p in pdf_paths:
+        reader = PdfReader(str(p))
+        for page in reader.pages:
+            writer.add_page(page)
+    with output_pdf.open("wb") as f:
+        writer.write(f)
 
 
-def discover_label_pdfs(input_path: Path) -> Tuple[Path, List[Path]]:
-    """Return a directory that holds PDFs and the list of PDF paths inside it.
-
-    If input_path is a ZIP, extract to a temp dir and return its PDFs.
-    If it's a directory, search recursively for PDFs.
-    """
-    if input_path.is_file() and input_path.suffix.lower() == ".zip":
-        tmpdir = TemporaryDirectory()
-        tmp_path = Path(tmpdir.name)
-        shutil.unpack_archive(str(input_path), extract_dir=str(tmp_path))
-        pdfs = sorted([p for p in tmp_path.rglob("*.pdf") if p.is_file()])
-        return tmp_path, pdfs  # caller must keep tmpdir alive by holding reference
-    elif input_path.is_dir():
-        pdfs = sorted([p for p in input_path.rglob("*.pdf") if p.is_file()])
-        return input_path, pdfs
-    else:
-        raise FileNotFoundError(f"Input path not found or unsupported: {input_path}")
+def discover_label_pdfs_from_dir(input_dir: Path) -> Tuple[Path, List[Path]]:
+    if not input_dir.is_dir():
+        raise FileNotFoundError(f"Directory not found: {input_dir}")
+    pdfs = sorted([p for p in input_dir.rglob("*.pdf") if p.is_file()])
+    return input_dir, pdfs
 
 
 def group_labels(
@@ -149,7 +136,17 @@ def group_labels(
     if not order_to_group:
         logger.warning("Processed sales CSV has no mapping rows: %s", processed_csv)
 
-    holder_dir, pdfs = discover_label_pdfs(input_path)
+    # Prepare source PDFs, handling ZIP extraction with a temp directory
+    tmpdir_obj: Optional[TemporaryDirectory] = None
+    if input_path.is_file() and input_path.suffix.lower() == ".zip":
+        tmpdir_obj = TemporaryDirectory()
+        holder_dir = Path(tmpdir_obj.name)
+        shutil.unpack_archive(str(input_path), extract_dir=str(holder_dir))
+        pdfs = sorted([p for p in holder_dir.rglob("*.pdf") if p.is_file()])
+    elif input_path.is_dir():
+        holder_dir, pdfs = discover_label_pdfs_from_dir(input_path)
+    else:
+        raise FileNotFoundError(f"Input path not found or unsupported: {input_path}")
     logger.info("Found %d PDF labels", len(pdfs))
 
     # Collect PDFs per group
@@ -205,6 +202,13 @@ def group_labels(
         unmatched_txt = out_dir / "unmatched_files.txt"
         unmatched_txt.write_text("\n".join(str(p) for p in unmatched), encoding="utf-8")
         logger.warning("Unmatched PDFs (no orderid or no mapping): %d (see %s)", len(unmatched), unmatched_txt)
+
+    # Explicitly cleanup temp extraction directory if used
+    if tmpdir_obj is not None:
+        try:
+            tmpdir_obj.cleanup()
+        except Exception:
+            pass
 
     return out_dir, groups, manifest_csv
 
