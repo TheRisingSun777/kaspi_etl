@@ -20,11 +20,12 @@ tasks:
     commit: null
   - id: orders-pipeline
     title: Get real API data flowing end-to-end
-    status: in-progress
+    status: done
     notes:
       - Restored api_orders_to_csv.py and join_api_orders_to_sales.py
-      - Updated link_orders_and_sizes.py to use orders_api_latest.csv
-      - Make orders chains ETL → staging → join
+      - Added --input/INPUT_JSON handling and webhook fallback
+      - Emitted missing mapping report; added orders-from-cache + sanity targets
+      - Ran with cached JSON through join, size-recs, picklist
     pr: null
     commit: pending
   - id: labels-grouping

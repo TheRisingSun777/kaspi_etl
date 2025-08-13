@@ -14,3 +14,9 @@
   - Restored `scripts/api_orders_to_csv.py`, `scripts/join_api_orders_to_sales.py`, `scripts/link_orders_and_sizes.py`.
   - Make `orders` now chains ETL → staging → join.
   - `link_orders_and_sizes.py` prefers `data_crm/orders_api_latest.csv` and writes real `rec_size`.
+
+- 2025-08-14 — ETL hardening + cache run (orders→CSV→join→sizes→picklist).
+  - `api_orders_to_csv.py`: added --input/INPUT_JSON, webhook_* fallback, strict JSON error handling.
+  - `join_api_orders_to_sales.py`: robust sku_key join; emits `data_crm/reports/missing_ksp_mapping.csv` if gaps.
+  - Make targets: `orders-from-cache`, `sanity`, restored `size-recs`.
+  - Ran with cache JSON; produced `processed_sales_latest.csv`, `orders_kaspi_with_sizes.xlsx`, and picklist files.
