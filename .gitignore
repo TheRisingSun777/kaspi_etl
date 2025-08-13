@@ -231,3 +231,4 @@ server/merchant/*.cookie.json
 .env
 .env.*
 **/.env*
+!/.env.sample
