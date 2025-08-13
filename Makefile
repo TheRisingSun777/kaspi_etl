@@ -56,6 +56,11 @@ serve:
 	@echo "Starting webhook stub service on http://127.0.0.1:3801 ..."
 	@./venv/bin/uvicorn services.api_server:app --reload --port 3801
 
+.PHONY: outbox
+
+outbox:
+	WA_EMPLOYEE_PHONE="$(PHONE)" ./venv/bin/python scripts/wa_send_outbox.py
+
 .PHONY: group-labels
 
 group-labels:

@@ -65,3 +65,7 @@
 - 2025-08-14 — Added end-to-end runner.
   - `scripts/run_e2e.sh` with orders → join → size-recs → (labels if INPUT) → picklist.
   - Make `run-all`: `make run-all INPUT=~/Downloads/waybill-327.zip OUT_DATE=$(date +%F)`
+
+- 2025-08-14 — WA outbox handoff (manual-confirm).
+  - `scripts/wa_send_files.applescript` + `scripts/wa_send_outbox.py` to open WhatsApp, attach PDFs from latest labels folder to target chat.
+  - Make `outbox`: requires `PHONE=+7...` env; script leaves messages composed — press Enter to send.
