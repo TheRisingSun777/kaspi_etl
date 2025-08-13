@@ -19,15 +19,7 @@ backlog:
       - UI "Save Settings" triggers POST and updates row with new values.
     estimate: 2h
     labels: [core, settings, v2]
-  - id: CORE-LOOP-002
-    title: Verify offers endpoint returns own SKUs without opponents
-    desc: Ensure /api/pricebot/offers?withOpponents=false returns our SKUs with fields needed for pricing.
-    ac:
-      - GET returns items array with fields: productId, sku, name, ourPrice, stock, active, min, max, step, interval.
-      - Accepts storeId and merchantId; uses merchant cookie to call merchant API.
-      - UI table populates with our SKUs; Sellers column may show 0 but must not block other columns.
-    estimate: 2h
-    labels: [core, offers]
+  
   - id: CORE-LOOP-003
     title: Implement run proposals (dry-run) ignoring opponents
     desc: For each active SKU, compute a target price using current settings; ignore opponents if not available.
@@ -183,6 +175,12 @@ done:
       - GET returns JSON with minPrice, maxPrice, stepKzt, intervalMin for each SKU after editing.
       - POST persists updated values to file and returns ok.
       - UI "Save Settings" triggers POST and updates row with new values.
+  - id: CORE-LOOP-002
+    title: Verify offers endpoint returns own SKUs without opponents
+    ac:
+      - GET returns items array with fields: productId, sku, name, ourPrice, stock, active, min, max, step, interval.
+      - Accepts storeId and merchantId; uses merchant cookie to call merchant API.
+      - UI table populates with our SKUs; Sellers column may show 0 but must not block other columns.
   - id: EXP-001
     title: Merchant-aware export/import (schema v2)
     ac:
