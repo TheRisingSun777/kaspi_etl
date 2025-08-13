@@ -11,7 +11,7 @@ tasks:
       - Added scripts/make_repo_bundle.sh
       - Added Makefile target `bundle`
     pr: null
-    commit: pending
+    commit: bed9d9f
   - id: api-integration-basics
     title: Prepare API client scaffolding and env
     status: todo
