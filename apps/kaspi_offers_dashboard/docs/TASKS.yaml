@@ -117,6 +117,8 @@ backlog:
     labels: [docs]
 
   # Moved from in_progress on 2025-08-12 to backlog as lower priority
+
+in_progress:
   - id: UI-002
     title: Store/Merchant selector + sticky header polish
     desc: Make header controls explicit and sticky; reflect current scope everywhere.
@@ -126,8 +128,6 @@ backlog:
       - Sticky header with export/import buttons and bulk actions visible on scroll.
     estimate: 3h
     labels: [ui, ux]
-
-in_progress:
 
 done:
   - id: TEST-001
