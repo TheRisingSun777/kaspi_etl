@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import asyncio
+import sys, asyncio
 import datetime as dt
 import json
 import logging
@@ -12,6 +12,7 @@ import httpx
 import pandas as pd
 from dotenv import load_dotenv
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
+from services.http_client import async_client, get_json
 
 # Load environment (.env.local preferred, then .env)
 load_dotenv(".env.local", override=False)
@@ -64,14 +65,9 @@ async def fetch_orders_page(page: int, size: int, status: str) -> Dict[str, Any]
         params["status"] = status
     logger.info("Fetching orders: %s params=%s", url, params)
 
-    async with httpx.AsyncClient(timeout=httpx.Timeout(180.0)) as client:
-        resp = await client.get(url, headers=headers, params=params)
-        try:
-            resp.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            # Re-raise to trigger retry for 429/5xx; bubble others
-            raise
-        return resp.json()
+    async with async_client() as client:
+        # Respect header token if present
+        return await get_json(client, url, headers=headers, params=params)
 
 
 def normalize_orders(payload: Dict[str, Any]) -> pd.DataFrame:
@@ -233,9 +229,10 @@ async def main() -> Tuple[Path, Path]:
 
 if __name__ == "__main__":
     try:
-        j, c = asyncio.run(main())
-        print(str(j))
-        print(str(c))
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Interrupted by user, exiting 130", file=sys.stderr)
+        sys.exit(130)
     except Exception as exc:
         logger.error("Orders ETL failed: %s", exc)
         # Write empty staging CSV to keep pipeline moving
