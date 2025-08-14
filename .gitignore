@@ -216,6 +216,11 @@ apps/kaspi_offers_dashboard/.env*
 apps/kaspi_offers_dashboard/tsconfig.tsbuildinfo
 apps/kaspi_offers_dashboard/playwright-report/
 apps/kaspi_offers_dashboard/data_raw/
-
+.env
+.env.*
+.env.local
+data_crm/inputs/
+data_crm/api_cache/
+outbox/
 # Project logs directory
 logs/

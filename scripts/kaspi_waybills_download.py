@@ -6,7 +6,7 @@ Kaspi Waybills Downloader (local-use)
 Reads env:
 - KASPI_MERCHANT_ID
 - KASPI_MERCHANT_COOKIE  (copy full Cookie string from browser DevTools)
-- KASPI_MERCHANT_API_BASE (default: https://mc.shop.kaspi.kz)
+- KASPI_MERCHANT_API_BASE (default: https://kaspi.kz/mc)
 - KASPI_WAYBILLS_URL (optional; full URL captured from DevTools → "Print all waybills")
 
 Usage:

@@ -155,7 +155,7 @@ tasks:
       - Parse ActiveOrders XLSX into orders_api_latest.csv for downstream
       - Make: fetch-orders, fetch-waybills, fetch-all, orders-from-xlsx
     pr: null
-    commit: pending
+    commit: e92349e
   - id: mc-cookie-dump
     title: Playwright cookie dump fallback; downloader reads saved jar
     status: done
@@ -164,7 +164,7 @@ tasks:
       - get_mc_cookie_header now tries browser_cookie3 → saved json → env
       - Make `mc-cookie` target added
     pr: null
-    commit: pending
+    commit: c2af4ab
   - id: report-missing-maps
     title: Report missing KSP mappings (sku_key gaps)
     status: done

@@ -8,3 +8,12 @@ logs/ export-ignore
 outbox/ export-ignore
 assistant_bundles/ export-ignore
 data_raw/ export-ignore
+data_crm/inputs/ export-ignore
+data_crm/api_cache/ export-ignore
+assistant_bundles/ export-ignore
+outbox/ export-ignore
+.env          export-ignore
+.env.*        export-ignore
+.env.local    export-ignore
+.env.local    export-ignore
+.env.local    export-ignore

@@ -41,6 +41,17 @@ Notes:
     - `make fetch-waybills` → downloads into `data_crm/inbox/waybills/YYYY-MM-DD/` and extracts into `raw/`
   - If cookie scrape fails: set `KASPI_MERCHANT_COOKIE` in `.env.local` as fallback.
 
+### Merchant downloads path (no API dependency)
+
+Use XLSX export to drive the pipeline when the API is unavailable or rate-limited:
+
+```bash
+source venv/bin/activate
+make run-from-xlsx OUT_DATE=$(date +%F)
+```
+
+This runs: fetch-orders → orders-from-xlsx → join → size-recs → (then you can group-labels and outbox as usual).
+
 ## Webhook setup (WhatsApp Cloud API)
 
 1) Run the webhook receiver locally:

@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-
+# fail when labels exist but orders rows < N
+labels_dir = DATA_CRM / "labels_grouped" / pd.Timestamp.utcnow().strftime("%Y-%m-%d")
+has_labels = labels_dir.exists() and any(p.suffix.lower()==".pdf" for p in labels_dir.rglob("*.pdf"))
+min_orders = int(os.getenv("MIN_ORDERS_FOR_TODAY", "10"))
+if has_labels and len(orders) < min_orders:
+    raise SystemExit(f"Orders rows {len(orders)} < {min_orders} while labels exist; refusing to proceed.")
+    
 import logging
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple

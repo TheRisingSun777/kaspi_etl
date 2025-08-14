@@ -126,3 +126,7 @@
 - 2025-08-14 — MC cookie dump fallback.
   - `scripts/mc_cookie_dump.py` (Playwright) saves cookies to `data_crm/state/mc_cookies.json`.
   - Downloader now reads saved jar between browser_cookie3 and env fallback; Make `mc-cookie` added.
+
+- 2025-08-14 — Merchant downloads path wired.
+  - requirements.txt includes requests/browser-cookie3/tqdm/openpyxl/pandas.
+  - Make targets: fetch-orders, fetch-waybills, fetch-all, run-from-xlsx; docs updated for “Merchant downloads path”.

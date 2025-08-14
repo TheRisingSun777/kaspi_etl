@@ -177,3 +177,15 @@ fetch-all: fetch-orders fetch-waybills
 
 mc-cookie:
 	@$(PY) scripts/mc_cookie_dump.py
+
+.PHONY: run-from-xlsx
+
+run-from-xlsx: fetch-orders orders-from-xlsx join size-recs
+
+.PHONY: bundle
+
+bundle:
+./scripts/sanitize_before_bundle.sh
+./scripts/make_repo_bundle.sh
+
+.PHONY: bundle-sanitize

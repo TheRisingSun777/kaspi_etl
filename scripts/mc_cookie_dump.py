@@ -30,7 +30,7 @@ def main() -> int:
             args=["--disable-blink-features=AutomationControlled"],
         )
         page = context.pages[0] if context.pages else context.new_page()
-        page.goto("https://mc.shop.kaspi.kz/orders", wait_until="load")
+        page.goto("https://kaspi.kz/mc", wait_until="load")
         try:
             input("When you see you are logged in (orders page loaded), press Enter to save cookies...")
         except KeyboardInterrupt:
