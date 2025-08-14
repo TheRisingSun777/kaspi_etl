@@ -1,4 +1,5 @@
 PY?=$(shell [ -x venv/bin/python ] && echo venv/bin/python || which python3)
+export PYTHONPATH := src:$(PYTHONPATH):.
 
 .PHONY: orders fetch-orders fetch-waybills fetch-all orders-from-xlsx join size-recs group-labels outbox wa-send run-all run-from-xlsx
 .PHONY: fetch-orders-today fetch-waybills-today
