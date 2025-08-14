@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
-# fail when labels exist but orders rows < N
-labels_dir = DATA_CRM / "labels_grouped" / pd.Timestamp.utcnow().strftime("%Y-%m-%d")
-has_labels = labels_dir.exists() and any(p.suffix.lower()==".pdf" for p in labels_dir.rglob("*.pdf"))
-min_orders = int(os.getenv("MIN_ORDERS_FOR_TODAY", "10"))
-if has_labels and len(orders) < min_orders:
-    raise SystemExit(f"Orders rows {len(orders)} < {min_orders} while labels exist; refusing to proceed.")
-    
-import logging
+from __future__ import annotations
+import os, logging
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
-
 import pandas as pd
 
+# robust import of repo paths
+try:
+    from settings.paths import DATA_CRM, REPORTS, LABELS_GROUPED
+except Exception:
+    ROOT = Path(__file__).resolve().parents[1]
+    DATA_CRM = ROOT / "data_crm"
+    REPORTS = DATA_CRM / "reports"
+    LABELS_GROUPED = DATA_CRM / "labels_grouped"
+    for p in (DATA_CRM, REPORTS, LABELS_GROUPED):
+        p.mkdir(parents=True, exist_ok=True)
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 from settings.paths import DATA_CRM

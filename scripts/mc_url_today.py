@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-for p in (ROOT, SRC):
+for p in (SRC, ROOT):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
@@ -27,7 +27,7 @@ def strip_quotes(s: str) -> str:
 def today_orders_url() -> str:
     out_date = os.getenv("OUT_DATE")
     from_ms, to_ms = day_range_ms(out_date)
-    merchant_id = strip_quotes(os.getenv("KASPI_MERCHANT_ID", ""))
+    merchant_id = strip_quotes(os.getenv("KASPI_MERCHANT_ID", "00000000"))
     preset = strip_quotes(os.getenv("KASPI_PRESET_FILTER", "KASPI_DELIVERY_WAIT_FOR_COURIER"))
     archived = strip_quotes(os.getenv("KASPI_ARCHIVED_STATUSES", "RETURNING,RETURNED"))
     base = strip_quotes(os.getenv("KASPI_MERCHANT_API_BASE", "https://mc.shop.kaspi.kz"))
@@ -48,8 +48,9 @@ def today_orders_url() -> str:
 def today_waybills_url() -> str:
     out_date = os.getenv("OUT_DATE")
     from_ms, to_ms = day_range_ms(out_date)
-    merchant_id = strip_quotes(os.getenv("KASPI_MERCHANT_ID", ""))
-    base = strip_quotes(os.getenv("KASPI_MERCHANT_API_BASE", "https://mc.shop.kaspi.kz"))
+    merchant_id = strip_quotes(os.getenv("KASPI_MERCHANT_ID", "00000000"))
+    # Fallback per spec uses kaspi.kz/mc for waybills
+    base = strip_quotes(os.getenv("KASPI_MERCHANT_API_BASE", "https://kaspi.kz/mc"))
     path = "/merchantcabinet/api/order/downloadWaybills"
     qs = urlencode({"fromDate": str(from_ms), "toDate": str(to_ms), "_m": merchant_id})
     return f"{base}{path}?{qs}"

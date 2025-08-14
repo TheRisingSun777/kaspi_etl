@@ -1,0 +1,17 @@
+[project]
+name = "kaspi-etl"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "httpx",
+  "tenacity",
+  "python-dotenv",
+  "pandas",
+  "openpyxl",
+  "browser-cookie3",
+  "playwright",
+  "tqdm",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
