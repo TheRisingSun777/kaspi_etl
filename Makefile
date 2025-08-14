@@ -60,6 +60,19 @@ run-all: orders join size-recs group-labels wa-send
 run-from-xlsx: fetch-orders orders-from-xlsx join size-recs
 	@echo "run-from-xlsx: ok"
 
+.PHONY: run-from-xlsx-today
+
+run-from-xlsx-today:
+	@$(MAKE) fetch-orders-today
+	@$(MAKE) orders-from-xlsx
+	@$(MAKE) join
+	@$(MAKE) size-recs
+	@zip=$$(ls -t data_crm/inbox/waybills/*/*.zip 2>/dev/null | head -n1); \
+		out=$$(date +%F); \
+		if [ -n "$$zip" ]; then $(MAKE) group-labels INPUT="$$zip" OUT_DATE="$$out"; else echo "No waybills zip found"; fi
+	@$(MAKE) outbox DATE=$$(date +%F)
+	@echo "run-from-xlsx-today: ok"
+
 fetch-orders-today:
 	@python - <<'PY'
 import os, sys, time
