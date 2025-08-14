@@ -74,40 +74,11 @@ run-from-xlsx-today:
 	@echo "run-from-xlsx-today: ok"
 
 fetch-orders-today:
-	@python - <<'PY'
-import os, sys, time
-from datetime import datetime, timezone
-import pytz
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
-tz = pytz.timezone('Asia/Almaty')
-now = datetime.now(tz)
-start = datetime(now.year, now.month, now.day, 0, 0, 0, tzinfo=tz)
-end = datetime(now.year, now.month, now.day, 23, 59, 59, tzinfo=tz)
-ms = lambda d: int(d.timestamp() * 1000)
-base = os.environ.get('KASPI_ACTIVEORDERS_URL', '').strip().strip('"').strip("'")
-if not base:
-    print('Missing KASPI_ACTIVEORDERS_URL'); sys.exit(2)
-u = urlparse(base)
-qs = parse_qs(u.query)
-qs['fromDate'] = [str(ms(start))]
-qs['toDate'] = [str(ms(end))]
-new_q = urlencode(qs, doseq=True)
-new_url = urlunparse((u.scheme or 'https', u.netloc, u.path, u.params, new_q, u.fragment))
-os.execvp('make', ['make', 'fetch-orders', f'URL={new_url}'])
-PY
+	@url=$$($(PY) scripts/mc_url_today.py orders); \
+		if [ -z "$$url" ]; then echo "https://mc.shop.kaspi.kz/order/view/mc/order/export?presetFilter=KASPI_DELIVERY_WAIT_FOR_COURIER&merchantId=30141222&fromDate=1755111600000&toDate=1755198000000&archivedOrderStatusFilter=RETURNING%2CRETURNED&_m=30141222"; exit 2; fi; \
+		$(MAKE) fetch-orders URL="$$url"
 
 fetch-waybills-today:
-	@python - <<'PY'
-import os, sys
-from datetime import datetime
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
-base = os.environ.get('KASPI_WAYBILLS_URL', '').strip().strip('"').strip("'")
-if not base:
-    print('Missing KASPI_WAYBILLS_URL'); sys.exit(2)
-u = urlparse(base)
-qs = parse_qs(u.query)
-# keep as-is; sometimes not date-bound
-new_q = urlencode(qs, doseq=True)
-new_url = urlunparse((u.scheme or 'https', u.netloc, u.path, u.params, new_q, u.fragment))
-os.execvp('make', ['make', 'fetch-waybills', f'URL={new_url}'])
-PY
+	@url=$$($(PY) scripts/mc_url_today.py waybills); \
+		if [ -z "$$url" ]; then echo "https://mc.shop.kaspi.kz/merchantcabinet/api/order/downloadWaybills?...&_m=30141222"; exit 2; fi; \
+		$(MAKE) fetch-waybills URL="$$url"

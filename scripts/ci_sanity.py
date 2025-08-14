@@ -25,6 +25,8 @@ import argparse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+import os
+import re
 
 import pandas as pd
 
@@ -172,6 +174,79 @@ def size_recs_checks(path: Path, min_non_null_pct: float = 95.0) -> List[CheckRe
     return results
 
 
+def size_recs_coverage(path: Path, min_pct: float = 70.0) -> List[CheckResult]:
+    results: List[CheckResult] = []
+    name = f"size-recs: coverage sku_key&rec_size >= {min_pct:.0f}%"
+    if not path.exists():
+        results.append(CheckResult(name=name, ok=False, message="missing file", level="CHECK"))
+        return results
+    try:
+        df = pd.read_excel(path)
+        df.columns = [str(c).strip().lower().replace(" ", "_") for c in df.columns]
+        total = len(df)
+        if total == 0:
+            results.append(CheckResult(name=name, ok=False, message="rows=0", level="CHECK"))
+            return results
+        both = (
+            df.get("sku_key", pd.Series([None] * total)).astype(str).str.strip().str.len().gt(0)
+            & df.get("rec_size", pd.Series([None] * total)).astype(str).str.strip().str.len().gt(0)
+        )
+        pct = float(both.sum()) / float(total) * 100.0
+        results.append(CheckResult(name=name, ok=(pct >= min_pct), message=f"{pct:.1f}% of {total}", level="CHECK"))
+    except Exception as exc:
+        results.append(CheckResult(name=name, ok=False, message=str(exc), level="CHECK"))
+    return results
+
+
+def env_quotes_check(repo_root: Path) -> List[CheckResult]:
+    results: List[CheckResult] = []
+    env_path = repo_root / ".env.local"
+    if not env_path.exists():
+        return results
+    try:
+        text = env_path.read_text(encoding="utf-8", errors="ignore")
+        # Fail if any KASPI_*URL is single-quoted
+        bad = re.findall(r"^\s*(KASPI_\w*URL)\s*=\s*'[^']*'\s*$", text, flags=re.MULTILINE)
+        if bad:
+            results.append(
+                CheckResult(
+                    name="ENV: single-quoted URLs detected",
+                    ok=False,
+                    message=", ".join(sorted(set(bad))),
+                    level="CRITICAL",
+                )
+            )
+    except Exception as exc:
+        results.append(CheckResult(name="ENV: parse .env.local", ok=False, message=str(exc), level="IMPORTANT"))
+    return results
+
+
+def time_drift_check(paths: Dict[str, Path], repo_root: Path, threshold_seconds: int = 1800) -> List[CheckResult]:
+    results: List[CheckResult] = []
+    name = "time drift: orders vs labels zip <= 30m"
+    try:
+        orders_csv = paths.get("orders_csv")
+        # find latest waybills zip under inbox
+        waybills_root = repo_root / "data_crm" / "inbox" / "waybills"
+        latest_zip: Optional[Path] = None
+        if waybills_root.exists():
+            zips: List[Path] = sorted(waybills_root.glob("**/*.zip"), key=lambda p: p.stat().st_mtime)
+            if zips:
+                latest_zip = zips[-1]
+        if not orders_csv or not orders_csv.exists() or not latest_zip:
+            results.append(CheckResult(name=name, ok=True, message="skipped (missing orders or labels)", level="IMPORTANT"))
+            return results
+        dt_orders = orders_csv.stat().st_mtime
+        dt_zip = latest_zip.stat().st_mtime
+        drift = abs(dt_orders - dt_zip)
+        ok = drift <= threshold_seconds
+        minutes = drift / 60.0
+        results.append(CheckResult(name=name, ok=ok, message=f"drift={minutes:.1f}m", level="IMPORTANT"))
+    except Exception as exc:
+        results.append(CheckResult(name=name, ok=False, message=str(exc), level="IMPORTANT"))
+    return results
+
+
 def ksp_map_checks(path: Path) -> List[CheckResult]:
     results: List[CheckResult] = []
     name = "ksp_sku_map_updated.xlsx columns"
@@ -226,6 +301,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     path_results, paths = check_paths(strict=args.strict)
     overall_results: List[CheckResult] = []
     overall_results.extend(path_results)
+    overall_results.extend(env_quotes_check(REPO_ROOT))
 
     # Orders checks
     orders_csv = paths["orders_csv"]
@@ -252,6 +328,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     # Size recs checks (null-rate < 10% => non-null >= 90%)
     overall_results.extend(size_recs_checks(paths["sizes_xlsx"], min_non_null_pct=90.0))
+    # Coverage check: >=70% rows have both sku_key and rec_size
+    overall_results.extend(size_recs_coverage(paths["sizes_xlsx"], min_pct=70.0))
 
     # Missing KSP mapping gate: row count == 0 OR < 5% of orders
     miss_path = paths.get("missing_map")
@@ -272,6 +350,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     overall_results.extend(ksp_map_checks(paths["ksp_map_xlsx"]))
     overall_results.extend(size_grids_checks(paths))
 
+    # Time drift warning
+    overall_results.extend(time_drift_check(paths, REPO_ROOT, threshold_seconds=1800))
     ok = print_summary(overall_results, strict=args.strict)
     return 0 if ok else 1
 
