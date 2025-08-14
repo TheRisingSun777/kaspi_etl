@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DATA_CRM = REPO_ROOT / "data_crm"
+from settings.paths import DATA_CRM
 REPORTS_DIR = DATA_CRM / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 RECEIPTS_PATH = REPORTS_DIR / "wa_receipts.jsonl"

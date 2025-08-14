@@ -24,9 +24,13 @@ fetch-all: fetch-orders fetch-waybills
 	@echo "fetch-all: ok"
 
 orders-from-xlsx:
-	@echo "orders-from-xlsx: starting..."
-	@$(PY) scripts/etl_orders_xlsx.py
-	@echo "orders-from-xlsx: ok"
+    @echo "orders-from-xlsx: starting..."
+    @test -f data_crm/active_orders_latest.xlsx || ( \
+      echo "ERROR: data_crm/active_orders_latest.xlsx not found."; \
+      echo "Hint: put the Excel exported from MC here OR run 'make fetch-orders-today' to auto-download."; \
+      exit 2 )
+    @$(PY) scripts/etl_orders_xlsx.py
+    @echo "orders-from-xlsx: ok"
 
 join:
 	@echo "join: starting..."
@@ -38,11 +42,15 @@ size-recs:
 	@$(PY) scripts/link_orders_and_sizes.py
 	@echo "size-recs: ok"
 
+latest_waybill := $(shell ./scripts/find_latest_waybill.py || true)
+
 group-labels:
-	@test -n "$(OUT_DATE)" || (echo "OUT_DATE=YYYY-MM-DD required" && exit 2)
-	@echo "group-labels: starting..."
-	@$(PY) scripts/crm_kaspi_labels_group.py --input "$(INPUT)" --out-date "$(OUT_DATE)" --verbose
-	@echo "group-labels: ok"
+    @test -n "$(OUT_DATE)" || (echo "OUT_DATE=YYYY-MM-DD required" && exit 2)
+    @echo "group-labels: starting..."
+    @test -n "$(INPUT)$(latest_waybill)" || (echo "No waybill ZIPs under data_crm/inbox/waybills. Provide INPUT=..." && exit 3)
+    @zipfile=$${INPUT:-$(latest_waybill)}; \
+        $(PY) scripts/crm_kaspi_labels_group.py --input "$$zipfile" --out-date "$(OUT_DATE)" --verbose
+    @echo "group-labels: ok"
 
 outbox:
 	@test -n "$(OUT_DATE)" || (echo "OUT_DATE=YYYY-MM-DD required" && exit 2)

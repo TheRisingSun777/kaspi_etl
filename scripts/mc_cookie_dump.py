@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_CRM = REPO_ROOT / "data_crm"
+from settings.paths import DATA_CRM
 STATE_DIR = DATA_CRM / "state"
 STATE_DIR.mkdir(parents=True, exist_ok=True)
 COOKIES_JSON = STATE_DIR / "mc_cookies.json"

@@ -28,8 +28,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DATA_CRM = REPO_ROOT / "data_crm"
-REPORTS_DIR = DATA_CRM / "reports"
+from settings.paths import DATA_CRM, REPORTS as REPORTS_DIR
 OUTBOX_DIR = REPO_ROOT / "outbox"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 

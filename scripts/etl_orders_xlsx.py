@@ -12,7 +12,7 @@ import pandas as pd
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-DATA_CRM = Path("data_crm")
+from settings.paths import DATA_CRM
 INPUT_XLSX = DATA_CRM / "active_orders_latest.xlsx"
 OUT_CSV = DATA_CRM / "orders_api_latest.csv"
 

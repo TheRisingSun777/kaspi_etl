@@ -28,7 +28,7 @@ from pypdf import PdfReader, PdfWriter
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DATA_CRM = REPO_ROOT / "data_crm"
+from settings.paths import DATA_CRM
 
 
 FILENAME_ORDER_RE = re.compile(r"(\d{9,})")

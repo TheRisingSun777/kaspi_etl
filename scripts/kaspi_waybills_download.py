@@ -39,7 +39,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DATA_CRM = REPO_ROOT / "data_crm"
+from settings.paths import DATA_CRM
 INPUTS_DIR = DATA_CRM / "inputs"
 INPUTS_DIR.mkdir(parents=True, exist_ok=True)
 

@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DATA_CRM = REPO_ROOT / "data_crm"
+from settings.paths import DATA_CRM
 ORDERS_CSV = DATA_CRM / "orders_api_latest.csv"
 KSP_MAP_XLSX = DATA_CRM / "mappings" / "ksp_sku_map_updated.xlsx"
 SKU_MAP_GLOB = list(DATA_CRM.glob("sku_map_crm_*.xlsx"))

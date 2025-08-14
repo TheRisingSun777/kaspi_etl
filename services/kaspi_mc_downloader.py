@@ -24,8 +24,7 @@ load_dotenv(override=False)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-DATA_CRM = REPO_ROOT / "data_crm"
+from settings.paths import DATA_CRM
 
 
 def _cookie_header_from_json_text(text: str) -> Optional[str]:
