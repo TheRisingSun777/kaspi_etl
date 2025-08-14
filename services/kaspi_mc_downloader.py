@@ -156,12 +156,14 @@ def http_download(url: str, out_path: str | Path, timeout: int = 120) -> Path:
     sess = requests.Session()
     headers = build_headers(build_cookie())
     last_exc: Optional[Exception] = None
-    for attempt in range(7):
+    for attempt in range(1, 8):
+        logger.info("download attempt %d GET %s", attempt, url)
         try:
             r = sess.get(url, headers=headers, timeout=timeout, stream=True, allow_redirects=True)
             if r.status_code == 200:
                 return _atomic_write_stream(r, p)
             if r.status_code in (401, 403):
+                logger.error("attempt %d: auth error %d; abort", attempt, r.status_code)
                 raise RuntimeError("Auth error (401/403). Refresh your login (make mc-cookie) or update KASPI_MERCHANT_COOKIE.")
             if r.status_code == 429:
                 ra = r.headers.get("Retry-After") or "4"
@@ -170,16 +172,22 @@ def http_download(url: str, out_path: str | Path, timeout: int = 120) -> Path:
                 except Exception:
                     ra_int = 4
                 sleep_s = min(60, ra_int) + random.uniform(1, 3) + attempt
+                logger.warning("attempt %d: 429 too many requests, retry-after=%ss, backoff=%.1fs", attempt, ra_int, sleep_s)
                 time.sleep(sleep_s)
                 continue
             # other errors
-            time.sleep(min(30, (2 ** attempt) + random.uniform(0, 1)))
+            wait = min(30, (2 ** attempt) + random.uniform(0, 1))
+            logger.info("attempt %d: status %d, retry in %.1fs", attempt, r.status_code, wait)
+            time.sleep(wait)
         except Exception as e:
             last_exc = e
-            time.sleep(min(30, (2 ** attempt) + random.uniform(0, 1)))
+            wait = min(30, (2 ** attempt) + random.uniform(0, 1))
+            logger.info("attempt %d: error %s, retry in %.1fs", attempt, e.__class__.__name__, wait)
+            time.sleep(wait)
 
     # Fallback to Playwright headless download
     try:
+        logger.info("playwright-fallback: %s", url)
         return browser_download(url, p)
     except Exception as e:
         if last_exc:
