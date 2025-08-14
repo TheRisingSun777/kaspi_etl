@@ -7,3 +7,5 @@ pandas
 openpyxl
 browser-cookie3
 tqdm
+playwright
+pytz

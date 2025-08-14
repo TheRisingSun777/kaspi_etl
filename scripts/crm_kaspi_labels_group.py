@@ -31,7 +31,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_CRM = REPO_ROOT / "data_crm"
 
 
-FILENAME_ORDER_RE = re.compile(r"(\d{7,12})")
+FILENAME_ORDER_RE = re.compile(r"(\d{9,})")
 
 
 def find_orders_csv() -> Optional[Path]:
@@ -172,7 +172,6 @@ def group_labels(input_path: Path, out_date: Optional[str], verbose: bool = Fals
             }
         )
 
-    # Write merged PDFs
     # Write merged PDFs with specified naming and order
     for (sku_key, my_size), items in sorted(groups.items(), key=lambda kv: (kv[0][0], kv[0][1])):
         # Stable sort by orderid ascending (numeric if possible)
@@ -184,35 +183,43 @@ def group_labels(input_path: Path, out_date: Optional[str], verbose: bool = Fals
                 return oid
         items_sorted = sorted(items, key=sort_key)
         count = len(items_sorted)
-        clean_model = (sku_key or "").split("_", 1)[0]
-        out_name = f"{safe_slug(clean_model)}_{safe_slug(my_size or 'UNK')}-{count}.pdf"
+        out_name = f"{safe_slug(sku_key)}_{safe_slug(my_size or 'UNK')}-{count}.pdf"
         dest = out_dir / out_name
         merge_group([p for _, p in items_sorted], dest)
 
     # Write manifest
     manifest_csv = out_dir / "manifest.csv"
-    # Aggregate manifest by group
-    by_group: Dict[Tuple[str, str], List[str]] = {}
-    for row in manifest_rows:
-        key = (row["sku_key"], row["my_size"])  # type: ignore[assignment]
-        by_group.setdefault(key, []).append(row["orderid"])  # type: ignore[index]
     with manifest_csv.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=["group_pdf", "count", "sku_key", "my_size", "orderids"],
+            fieldnames=["orderid", "filename", "sku_key", "my_size", "group_pdf", "matched"],
         )
         writer.writeheader()
-        for (sku_key, my_size), orderids in sorted(by_group.items()):
-            count = len(orderids)
-            clean_model = (sku_key or "").split("_", 1)[0]
-            group_pdf = f"{safe_slug(clean_model)}_{safe_slug(my_size or 'UNK')}-{count}.pdf"
+        # matched rows
+        for (sku_key, my_size), items in sorted(groups.items()):
+            count = len(items)
+            group_pdf = f"{safe_slug(sku_key)}_{safe_slug(my_size or 'UNK')}-{count}.pdf"
+            for oid, pdf in items:
+                writer.writerow(
+                    {
+                        "orderid": oid,
+                        "filename": pdf.name,
+                        "sku_key": sku_key,
+                        "my_size": my_size,
+                        "group_pdf": group_pdf,
+                        "matched": True,
+                    }
+                )
+        # unmatched rows
+        for name in sorted(unmatched):
             writer.writerow(
                 {
-                    "group_pdf": group_pdf,
-                    "count": count,
-                    "sku_key": sku_key,
-                    "my_size": my_size,
-                    "orderids": ",".join(sorted(orderids, key=lambda x: int(x) if x.isdigit() else x)),
+                    "orderid": "",
+                    "filename": name,
+                    "sku_key": "",
+                    "my_size": "",
+                    "group_pdf": "",
+                    "matched": False,
                 }
             )
 
