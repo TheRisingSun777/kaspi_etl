@@ -34,6 +34,9 @@ orders-from-xlsx:
 
 join:
 	@echo "join: starting..."
+	@test -f data_crm/orders_api_latest.csv || ( \
+	  echo "ERROR: orders_api_latest.csv missing (run 'make orders' or 'make orders-from-xlsx')."; \
+	  exit 2 )
 	@$(PY) scripts/join_api_orders_to_sales.py
 	@echo "join: ok"
 

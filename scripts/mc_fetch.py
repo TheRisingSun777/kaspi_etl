@@ -12,10 +12,12 @@ from zipfile import ZipFile
 
 from dotenv import load_dotenv
 
-# Ensure repository root is importable for `services.*`
-_REPO_ROOT = Path(__file__).resolve().parents[1]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
+# UNIVERSAL BOOTSTRAP
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+for p in (ROOT, SRC):
+    if str(p) not in sys.path:
+        sys.path.insert(0, str(p))
 
 from services.kaspi_mc_downloader import download_active_orders, download_waybills
 
