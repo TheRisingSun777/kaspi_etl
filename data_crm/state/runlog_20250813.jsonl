@@ -1,0 +1,8 @@
+{"ts": "2025-08-13T07:33:38.598622+00:00", "step": "orders_enrich", "status": "ok", "duration_ms": 1, "rows": 0}
+{"ts": "2025-08-13T07:33:38.603346+00:00", "step": "compute_sku_id", "status": "ok", "duration_ms": 2}
+{"ts": "2025-08-13T07:33:38.603440+00:00", "step": "choose_qty", "status": "ok", "column": "qty"}
+{"ts": "2025-08-13T07:33:38.615797+00:00", "step": "dedupe", "status": "ok", "removed": 34, "output": "/Users/adil/Docs/kaspi_etl/data_crm/reports/duplicates_20250813.csv"}
+{"ts": "2025-08-13T07:33:38.617617+00:00", "step": "enrich_sku_map", "status": "ok", "duration_ms": 1}
+{"ts": "2025-08-13T07:33:38.619846+00:00", "step": "update_stock", "status": "ok", "output_latest": "/Users/adil/Docs/kaspi_etl/data_crm/stock_on_hand_updated.csv", "output_dated": "/Users/adil/Docs/kaspi_etl/data_crm/stock/stock_on_hand_updated_20250813.csv"}
+{"ts": "2025-08-13T07:33:38.622551+00:00", "step": "write_sales", "status": "ok", "output_latest": "/Users/adil/Docs/kaspi_etl/data_crm/processed_sales_latest.csv", "output_dated": "/Users/adil/Docs/kaspi_etl/data_crm/processed/processed_sales_20250813.csv"}
+{"ts": "2025-08-13T07:33:38.636936+00:00", "step": "missing_skus", "status": "ok", "rows": 78}

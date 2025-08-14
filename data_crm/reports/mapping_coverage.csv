@@ -1,2 +1,2 @@
 total_sales_rows,rows_with_valid_sku_id,rows_missing_sku_id,unique_sku_id_in_sales,unique_sku_id_in_map,timestamp
-302,302,0,50,71,2025-08-13T06:44:29.275167+00:00
+268,267,1,50,71,2025-08-13T07:33:38.637577+00:00

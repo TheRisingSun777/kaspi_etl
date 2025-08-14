@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 """
-Group Kaspi label PDFs by (sku_key, my_size, color).
+Group Kaspi label PDFs by (sku_key, my_size, color) with robust matching.
 
 Inputs:
 - data_crm/labels/YYYY-MM-DD/*.zip (Kaspi label ZIPs)
-- data_crm/processed_sales_20250813.csv (to map orderid → sku_key, my_size)
+- data_crm/processed_sales_20250813.csv (to map orderid → sku_key, my_size, ksp_sku_id)
 
 Outputs (per date):
 - data_crm/labels_grouped/YYYY-MM-DD/{sku_key}_{size}_{color}.pdf (merged labels)
-- data_crm/labels_grouped/YYYY-MM-DD/manifest.csv (group → list of orderids)
+- data_crm/labels_grouped/YYYY-MM-DD/manifest.csv (one row per source PDF)
 
-Heuristics:
-- Extract PDFs from ZIPs to a temp work dir.
-- Parse orderid from the PDF filename (digits) or inside PDF text.
-- Resolve sku_key/my_size from processed sales by orderid.
-- Derive color from sku_key using the last color-like token or last token.
+Matching order:
+1) orderid: Extract from filename or PDF text; map via processed sales
+2) join_code: If column exists in CSV, try exact token match from filename/text
+3) ksp_sku_id: Case-insensitive substring match from filename/text; prefer rows with qty == 1
+
+Manifest columns:
+- pdf_file, orderid, sku_key, my_size, ksp_sku_id, match_method
 """
 
 from __future__ import annotations
@@ -85,6 +87,14 @@ def _extract_orderid_from_pdf(path: Path) -> str | None:
         return None
 
 
+def _extract_text_safe(path: Path) -> str:
+    try:
+        reader = PdfReader(str(path))
+        return "\n".join(page.extract_text() or "" for page in reader.pages)
+    except Exception:
+        return ""
+
+
 def _derive_color_from_sku_key(sku_key: str) -> str:
     tokens = [t for t in str(sku_key).split("_") if t]
     for tok in reversed(tokens):
@@ -100,22 +110,62 @@ def _load_processed_sales() -> pd.DataFrame:
         raise FileNotFoundError(f"Missing processed sales CSV: {PROCESSED_CSV}")
     df = pd.read_csv(PROCESSED_CSV, dtype=str)
     df.columns = [c.strip().lower() for c in df.columns]
+    # Ensure expected columns exist
+    for col in ["orderid", "sku_key", "my_size", "ksp_sku_id", "qty", "join_code"]:
+        if col not in df.columns:
+            df[col] = pd.NA
+    # Normalize text fields
+    df["orderid"] = df["orderid"].astype(str).str.strip()
+    df["sku_key"] = df["sku_key"].astype(str).str.strip()
+    df["my_size"] = df["my_size"].astype(str).str.strip()
+    df["ksp_sku_id"] = df["ksp_sku_id"].astype(str).str.strip()
+    df["join_code"] = df["join_code"].astype(str).str.strip()
+    # qty numeric helper
+    try:
+        df["qty_num"] = pd.to_numeric(df["qty"], errors="coerce").fillna(1).astype(int)
+    except Exception:
+        df["qty_num"] = 1
     return df
 
 
-def _build_orderid_map(df: pd.DataFrame) -> dict[str, tuple[str, str]]:
-    mapping: dict[str, tuple[str, str]] = {}
-    if "orderid" not in df.columns:
-        return mapping
+def _build_lookup_structures(df: pd.DataFrame):
+    order_map: dict[str, dict] = {}
+    join_code_map: dict[str, list[dict]] = defaultdict(list)
+    ksp_sku_map: dict[str, list[dict]] = defaultdict(list)
+
     for _, row in df.iterrows():
-        orderid = str(row.get("orderid", "")).strip()
-        if not orderid:
-            continue
-        mapping[orderid] = (
-            str(row.get("sku_key", "")).strip(),
-            str(row.get("my_size", "")).strip(),
-        )
-    return mapping
+        row_dict = {
+            "orderid": str(row.get("orderid", "") or "").strip(),
+            "sku_key": str(row.get("sku_key", "") or "").strip(),
+            "my_size": str(row.get("my_size", "") or "").strip(),
+            "ksp_sku_id": str(row.get("ksp_sku_id", "") or "").strip(),
+            "join_code": str(row.get("join_code", "") or "").strip(),
+            "qty_num": int(row.get("qty_num", 1) or 1),
+        }
+        if row_dict["orderid"]:
+            order_map.setdefault(row_dict["orderid"], row_dict)
+        if row_dict["join_code"]:
+            join_code_map[row_dict["join_code"].lower()].append(row_dict)
+        if row_dict["ksp_sku_id"]:
+            ksp_sku_map[row_dict["ksp_sku_id"].lower()].append(row_dict)
+    return order_map, join_code_map, ksp_sku_map
+
+
+def _tokenize(text: str) -> list[str]:
+    return re.findall(r"[A-Za-z0-9_\-]+", text or "")
+
+
+def _choose_ksp_row(candidates: list[dict]) -> dict | None:
+    if not candidates:
+        return None
+    qty1 = [r for r in candidates if int(r.get("qty_num", 0)) == 1]
+    if len(qty1) == 1:
+        return qty1[0]
+    # prefer unique (sku_key, my_size)
+    by_key = {(r.get("sku_key", ""), r.get("my_size", "")): r for r in candidates}
+    if len(by_key) == 1:
+        return next(iter(by_key.values()))
+    return candidates[0]
 
 
 def _merge_pdfs(sources: list[Path], dest: Path) -> None:
@@ -143,50 +193,106 @@ def group_labels_for_date(date_str: str | None = None) -> tuple[int, Path]:
         return 0, out_dir
 
     processed_df = _load_processed_sales()
-    order_map = _build_orderid_map(processed_df)
+    order_map, join_code_map, ksp_sku_map = _build_lookup_structures(processed_df)
 
-    groups: dict[tuple[str, str, str], list[tuple[str, Path]]] = defaultdict(list)
+    groups: dict[tuple[str, str, str], list[dict]] = defaultdict(list)
 
     for pdf in pdfs:
-        orderid = _extract_orderid_from_filename(pdf)
-        if not orderid:
-            orderid = _extract_orderid_from_pdf(pdf)
-        if not orderid:
-            continue
-        sku_key, size = order_map.get(orderid, ("", ""))
-        if not sku_key:
-            # cannot resolve, skip
-            continue
-        color = _derive_color_from_sku_key(sku_key)
-        groups[(sku_key, size, color)].append((orderid, pdf))
+        matched_row: dict | None = None
+        matched_orderid: str | None = None
+        match_method = ""
 
-    # Write grouped PDFs and manifest
-    manifest_rows: list[dict[str, str]] = []
-    for (sku_key, size, color), items in sorted(groups.items()):
-        items_sorted = sorted(items, key=lambda t: t[0])
-        target_pdf = out_dir / f"{sku_key}_{size}_{color}.pdf"
-        _merge_pdfs([p for _, p in items_sorted], target_pdf)
-        manifest_rows.append(
+        # 1) Strict orderid
+        orderid = _extract_orderid_from_filename(pdf) or _extract_orderid_from_pdf(pdf)
+        if orderid and orderid in order_map:
+            matched_row = order_map[orderid]
+            matched_orderid = orderid
+            match_method = "orderid"
+        else:
+            # Build text and tokens once
+            fname_lc = pdf.name.lower()
+            text = _extract_text_safe(pdf)
+            text_lc = text.lower() if text else ""
+            tokens = set(t.lower() for t in (_tokenize(pdf.name) + _tokenize(text)))
+
+            # 2) join_code exact token match if available
+            if join_code_map:
+                code_hits = [code for code in tokens if code in join_code_map]
+                if len(code_hits) == 1:
+                    chosen = _choose_ksp_row(join_code_map[code_hits[0]])
+                    if chosen:
+                        matched_row = chosen
+                        matched_orderid = chosen.get("orderid", "") or None
+                        match_method = "join_code"
+
+            # 3) ksp_sku_id substring match (filename first, then text)
+            if not matched_row and ksp_sku_map:
+                filename_hits = [k for k in ksp_sku_map.keys() if k and k in fname_lc]
+                search_hits = filename_hits
+                if not search_hits and text_lc:
+                    text_hits = [k for k in ksp_sku_map.keys() if k and k in text_lc]
+                    search_hits = text_hits
+                if len(search_hits) == 1:
+                    chosen = _choose_ksp_row(ksp_sku_map[search_hits[0]])
+                    if chosen:
+                        matched_row = chosen
+                        matched_orderid = chosen.get("orderid", "") or None
+                        match_method = "ksp_sku_id"
+
+        if not matched_row:
+            continue
+
+        sku_key = matched_row.get("sku_key", "")
+        size = matched_row.get("my_size", "")
+        ksp_id = matched_row.get("ksp_sku_id", "")
+        color = _derive_color_from_sku_key(sku_key)
+        groups[(sku_key, size, color)].append(
             {
-                "sku_key": sku_key,
-                "my_size": size,
-                "color": color,
-                "count": str(len(items_sorted)),
-                "group_pdf": str(target_pdf.relative_to(REPO_ROOT)),
-                "orders": ";".join([oid for oid, _ in items_sorted]),
+                "orderid": matched_orderid or "",
+                "pdf": pdf,
+                "ksp_sku_id": ksp_id,
+                "match_method": match_method,
             }
         )
+
+    # Write grouped PDFs and per-file manifest
+    manifest_rows: list[dict[str, str]] = []
+    total_labels = 0
+    for (sku_key, size, color), items in sorted(groups.items()):
+        items_sorted = sorted(items, key=lambda t: t.get("orderid", ""))
+        target_pdf = out_dir / f"{sku_key}_{size}_{color}.pdf"
+        _merge_pdfs([t["pdf"] for t in items_sorted], target_pdf)
+        for it in items_sorted:
+            total_labels += 1
+            pdf_path = it["pdf"]
+            try:
+                rel = str(pdf_path.relative_to(REPO_ROOT))
+            except Exception:
+                rel = str(pdf_path)
+            manifest_rows.append(
+                {
+                    "pdf_file": rel,
+                    "orderid": it.get("orderid", ""),
+                    "sku_key": sku_key,
+                    "my_size": size,
+                    "ksp_sku_id": it.get("ksp_sku_id", ""),
+                    "match_method": it.get("match_method", ""),
+                }
+            )
 
     manifest_path = out_dir / "manifest.csv"
     out_dir.mkdir(parents=True, exist_ok=True)
     with manifest_path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["sku_key", "my_size", "color", "count", "group_pdf", "orders"])
+        writer = csv.DictWriter(
+            f,
+            fieldnames=["pdf_file", "orderid", "sku_key", "my_size", "ksp_sku_id", "match_method"],
+        )
         writer.writeheader()
         for row in manifest_rows:
             writer.writerow(row)
 
-    print(f"Grouped {sum(int(r['count']) for r in manifest_rows)} labels into {len(manifest_rows)} PDFs → {out_dir}")
-    return len(manifest_rows), out_dir
+    print(f"Grouped {total_labels} labels into {len(groups)} PDFs → {out_dir}")
+    return len(groups), out_dir
 
 
 def main() -> int:

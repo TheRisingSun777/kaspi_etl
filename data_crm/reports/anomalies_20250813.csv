@@ -1,0 +1,21 @@
+type,sku_id,detail
+zero_sales_top_sku,"""=XLOOKUP([@[SKU_KEY]];BUSINESS_MODEL.XLSM!TABLE257[SKU_KEY];BUSINESS_MODEL.XLSM!TABLE257[KASPI_NAME_CORE];"""";0;1)""_",today qty=0
+zero_sales_top_sku,CL_NEW_CLO_MEN_T_SHIRT_BLACK_XL,today qty=0
+zero_sales_top_sku,CL_NEW_CLO_MEN_RUSH_PRO_BLACK_L,today qty=0
+zero_sales_top_sku,CL_NEW_CLO_MEN_RUSH_PRO_BLACK_M,today qty=0
+zero_sales_top_sku,CL_NEW_CLO_MEN_RUSH_PRO_BLACK_XL,today qty=0
+zero_sales_top_sku,CL_NEW_CLO_MEN_TAICI_BLACK_2XL,today qty=0
+zero_sales_top_sku,CL_NEW_CLO_MEN_TAICI_BLACK_3XL,today qty=0
+zero_sales_top_sku,CL_NEW_CLO_MEN_TAICI_BLACK_L,today qty=0
+zero_sales_top_sku,CL_NEW_CLO_MEN_TAICI_BLACK_M,today qty=0
+zero_sales_top_sku,CL_NEW_CLO_MEN_TAICI_BLACK_XL,today qty=0
+zero_sales_top_sku,CL_NEW_CLO_MEN_T_SHIRT_BLACK_3XL,today qty=0
+zero_sales_top_sku,CL_NEW_CLO_MEN_T_SHIRT_BLACK_M,today qty=0
+zero_sales_top_sku,CL_OC_MEN_PRINT51_BLACK_2XL,today qty=0
+zero_sales_top_sku,0_,today qty=0
+zero_sales_top_sku,CL_OC_MEN_PRINT51_BLACK_3XL,today qty=0
+zero_sales_top_sku,CL_OC_MEN_PRINT51_BLACK_4XL,today qty=0
+zero_sales_top_sku,CL_OC_MEN_PRINT51_BLACK_L,today qty=0
+zero_sales_top_sku,CL_OC_MEN_PRINT51_BLACK_M,today qty=0
+zero_sales_top_sku,CL_OC_MEN_PRINT51_BLACK_S,today qty=0
+zero_sales_top_sku,CL_OC_MEN_PRINT51_BLACK_XL,today qty=0

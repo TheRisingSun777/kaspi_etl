@@ -1,0 +1,4 @@
+sku_key,qty_on_hand,qty,sold_qty,oversell,rolling_14d_qty,reorder_point,should_reorder
+CL_OC_MEN_PRINT51_BLACK_S,20,0.0,0.0,-0.0,0.0,5.0,True
+CL_OC_MEN_PRINT51_BLACK_M,35,0.0,0.0,-0.0,0.0,5.0,True
+CL_OC_MEN_PRINT51_BLACK_L,18,0.0,0.0,-0.0,0.0,5.0,True
