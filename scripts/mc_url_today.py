@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+from urllib.parse import urlencode
 
-from services.date_window import today_range_ms
+from services.date_window import day_range_ms
 
 
 def strip_quotes(s: str) -> str:
@@ -18,27 +17,34 @@ def strip_quotes(s: str) -> str:
 
 
 def today_orders_url() -> str:
-    base = strip_quotes(os.getenv("KASPI_ACTIVEORDERS_URL", ""))
-    if not base:
-        return ""
-    from_ms, to_ms = today_range_ms("Asia/Almaty")
-    u = urlparse(base)
-    qs = parse_qs(u.query)
-    qs["fromDate"] = [str(from_ms)]
-    qs["toDate"] = [str(to_ms)]
-    new_q = urlencode(qs, doseq=True)
-    return urlunparse((u.scheme or "https", u.netloc, u.path, u.params, new_q, u.fragment))
+    out_date = os.getenv("OUT_DATE")
+    from_ms, to_ms = day_range_ms(out_date)
+    merchant_id = strip_quotes(os.getenv("KASPI_MERCHANT_ID", ""))
+    preset = strip_quotes(os.getenv("KASPI_PRESET_FILTER", "KASPI_DELIVERY_WAIT_FOR_COURIER"))
+    archived = strip_quotes(os.getenv("KASPI_ARCHIVED_STATUSES", "RETURNING,RETURNED"))
+    base = strip_quotes(os.getenv("KASPI_MERCHANT_API_BASE", "https://mc.shop.kaspi.kz"))
+    path = "/order/view/mc/order/export"
+    qs = urlencode(
+        {
+            "presetFilter": preset,
+            "merchantId": merchant_id,
+            "fromDate": str(from_ms),
+            "toDate": str(to_ms),
+            "archivedOrderStatusFilter": archived,
+            "_m": merchant_id,
+        }
+    )
+    return f"{base}{path}?{qs}"
 
 
 def today_waybills_url() -> str:
-    base = strip_quotes(os.getenv("KASPI_WAYBILLS_URL", ""))
-    if not base:
-        return ""
-    # pass-through; vendors sometimes ignore date params for bulk download
-    u = urlparse(base)
-    qs = parse_qs(u.query)
-    new_q = urlencode(qs, doseq=True)
-    return urlunparse((u.scheme or "https", u.netloc, u.path, u.params, new_q, u.fragment))
+    out_date = os.getenv("OUT_DATE")
+    from_ms, to_ms = day_range_ms(out_date)
+    merchant_id = strip_quotes(os.getenv("KASPI_MERCHANT_ID", ""))
+    base = strip_quotes(os.getenv("KASPI_MERCHANT_API_BASE", "https://mc.shop.kaspi.kz"))
+    path = "/merchantcabinet/api/order/downloadWaybills"
+    qs = urlencode({"fromDate": str(from_ms), "toDate": str(to_ms), "_m": merchant_id})
+    return f"{base}{path}?{qs}"
 
 
 def main() -> int:

@@ -1,5 +1,6 @@
-PY?=$(shell [ -x venv/bin/python ] && echo venv/bin/python || which python3)
-export PYTHONPATH := src:$(PYTHONPATH):.
+SHELL := /bin/bash -o pipefail
+export PYTHONPATH := $(CURDIR):$(CURDIR)/src
+PY := ./venv/bin/python
 
 .PHONY: orders fetch-orders fetch-waybills fetch-all orders-from-xlsx join size-recs group-labels outbox wa-send run-all run-from-xlsx
 .PHONY: fetch-orders-today fetch-waybills-today
