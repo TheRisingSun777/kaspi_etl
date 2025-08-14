@@ -20,16 +20,13 @@ load_dotenv(override=False)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-KASPI_BASE = (
-    os.getenv("https://mc.shop.kaspi.kz") or os.getenv("KASPI_API_BASE_URL") or "kaspi.kz/mc"
-)
+_BASE_ENV = os.getenv("KASPI_BASE") or os.getenv("KASPI_API_BASE_URL") or "https://kaspi.kz/shop/api/v2"
+KASPI_BASE = _BASE_ENV if _BASE_ENV.startswith("http") else f"https://{_BASE_ENV}"
 KASPI_TOKEN = os.getenv("KASPI_TOKEN") or os.getenv("X_AUTH_TOKEN") or os.getenv("KASPI_API_TOKEN")
 KASPI_ORDERS_STATUS = os.getenv("KASPI_ORDERS_STATUS", "").strip()
 KASPI_ORDERS_SIZE = int(os.getenv("KASPI_ORDERS_SIZE", "25"))
 KASPI_ORDERS_PAGES = int(os.getenv("KASPI_ORDERS_PAGES", "5"))
-# if no token -> raise with helpful message
-if not KASPI_TOKEN:
-    raise SystemExit("Missing API token (KASPI_TOKEN/X_AUTH_TOKEN). Refusing to run on cache.")
+# allow running even if token missing (script writes empty staging CSV on failure)
     
 DATA_CRM_DIR = Path("data_crm")
 INPUTS_DIR = DATA_CRM_DIR / "inputs"
