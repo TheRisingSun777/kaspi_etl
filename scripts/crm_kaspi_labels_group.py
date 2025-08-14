@@ -32,6 +32,8 @@ from settings.paths import DATA_CRM
 
 
 FILENAME_ORDER_RE = re.compile(r"(\d{9,})")
+# Prefer strictly Kaspi order IDs beginning with 61 followed by at least 7 digits
+KASPI_ORDERID_RE = re.compile(r"\b(61\d{6,})\b")
 
 
 def find_orders_csv() -> Optional[Path]:
@@ -71,14 +73,20 @@ def load_orders_staging() -> pd.DataFrame:
     return df
 
 
+def orderid_from_filename(name: str) -> Optional[str]:
+    # First try strict Kaspi pattern: 61 + 7+ digits
+    m = KASPI_ORDERID_RE.search(name)
+    if m:
+        return m.group(1)
+    # Fallback to any 9+ digit run
+    m2 = FILENAME_ORDER_RE.search(name)
+    if m2:
+        return m2.group(1)
+    return None
+
+
 def extract_orderid_from_filename(pdf_path: Path) -> Optional[str]:
-    name = pdf_path.name
-    matches = FILENAME_ORDER_RE.findall(name)
-    if not matches:
-        return None
-    # Choose the longest; if tie, first occurrence
-    matches.sort(key=lambda s: (-len(s), name.find(s)))
-    return matches[0]
+    return orderid_from_filename(pdf_path.name)
 
 
 def extract_first_page_text(pdf_path: Path) -> str:
@@ -158,6 +166,12 @@ def group_labels(input_path: Path, out_date: Optional[str], verbose: bool = Fals
     unmatched: List[str] = []
     for pdf in pdfs:
         oid = extract_orderid_from_filename(pdf)
+        if not oid:
+            # Fallback: try first-page text
+            text = extract_first_page_text(pdf)
+            m = KASPI_ORDERID_RE.search(text) if text else None
+            if m:
+                oid = m.group(1)
         if not oid or oid not in orders_map:
             unmatched.append(pdf.name)
             continue
