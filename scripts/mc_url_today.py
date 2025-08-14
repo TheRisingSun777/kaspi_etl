@@ -7,7 +7,7 @@ import sys
 from datetime import datetime
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
-import pytz
+from services.date_window import today_range_ms
 
 
 def strip_quotes(s: str) -> str:
@@ -21,15 +21,11 @@ def today_orders_url() -> str:
     base = strip_quotes(os.getenv("KASPI_ACTIVEORDERS_URL", ""))
     if not base:
         return ""
-    tz = pytz.timezone("Asia/Almaty")
-    now = datetime.now(tz)
-    start = tz.localize(datetime(now.year, now.month, now.day, 0, 0, 0))
-    end = tz.localize(datetime(now.year, now.month, now.day, 23, 59, 59))
-    ms = lambda d: int(d.timestamp() * 1000)
+    from_ms, to_ms = today_range_ms("Asia/Almaty")
     u = urlparse(base)
     qs = parse_qs(u.query)
-    qs["fromDate"] = [str(ms(start))]
-    qs["toDate"] = [str(ms(end))]
+    qs["fromDate"] = [str(from_ms)]
+    qs["toDate"] = [str(to_ms)]
     new_q = urlencode(qs, doseq=True)
     return urlunparse((u.scheme or "https", u.netloc, u.path, u.params, new_q, u.fragment))
 
