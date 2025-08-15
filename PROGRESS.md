@@ -130,3 +130,7 @@
 - 2025-08-14 — Merchant downloads path wired.
   - requirements.txt includes requests/browser-cookie3/tqdm/openpyxl/pandas.
   - Make targets: fetch-orders, fetch-waybills, fetch-all, run-from-xlsx; docs updated for “Merchant downloads path”.
+
+- 2025-08-14 — Checkpoint & rotate.
+  - MC downloads hardened (headers/backoff/Playwright), XLSX→CSV path, label grouping by filename orderid; Make targets normalized.
+  - CI guards added (env quotes, time drift, 70% size coverage). Ready for live data run.

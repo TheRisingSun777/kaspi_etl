@@ -23,7 +23,12 @@
     "outbox_pack": "5a9ec47",
     "waba_sender": "d90de23",
     "pipeline_run_all": "3c41d60",
-    "wa_webhook": "191caeb"
+    "wa_webhook": "191caeb",
+    "mc_download_logging": "7a47ae5",
+    "mc_date_window": "158082c",
+    "make_run_from_xlsx_today": "747d3d8",
+    "ci_extra_guards": "6d58698",
+    "labels_id_from_filename": "46126e4"
   },
   "flags": {
     "bundle_ready": true,
@@ -43,7 +48,9 @@
     "zip_ready": true,
     "wa_helper_ready": true,
     "webhook_stub_ready": true,
-    "size_recs_ready": true
+    "size_recs_ready": true,
+    "mc_download_hardened": true,
+    "imports_bootstrapped": true
   },
-  "checkpoint": "2025-08-14T18:12:00Z"
+  "checkpoint": "2025-08-14T18:30:00Z"
 }
