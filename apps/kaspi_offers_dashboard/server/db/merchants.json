@@ -1,0 +1,8 @@
+[
+    {"id": "30141222", "name": "Store A", "cookieFile":"server/db/cookies/30141222.json"},
+    {"id": "30137883", "name": "Store B", "cookieFile":"server/db/cookies/30137883.json"},
+    {"id": "30290083", "name": "Store C", "cookieFile":"server/db/cookies/30290083.json"},
+    {"id": "30362323", "name": "Store D", "cookieFile":"server/db/cookies/30362323.json"},
+    {"id": "30361967", "name": "Store E", "cookieFile":"server/db/cookies/30361967.json"},
+    {"id": "30361967", "name": "Store E", "cookieFile":"server/db/cookies/30361967.json"}
+]

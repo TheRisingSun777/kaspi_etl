@@ -1,0 +1,14 @@
+{
+  "branch": "feat/offers-dashboard",
+  "merchantId": "30141222",
+  "storeId": 30141222,
+  "cityId": 710000000,
+  "flags": {
+    "withOpponentsDefault": false,
+    "playwrightFallback": false
+  },
+  "lastSeen": {
+    "taskId": "CORE-LOOP-003",
+    "idx": 0
+  }
+}
