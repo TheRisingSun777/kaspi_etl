@@ -1,3 +1,6 @@
+# macOS
+.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -215,3 +218,15 @@ apps/kaspi_offers_dashboard/.env*
 apps/kaspi_offers_dashboard/tsconfig.tsbuildinfo
 apps/kaspi_offers_dashboard/playwright-report/
 apps/kaspi_offers_dashboard/data_raw/
+
+# Kaspi docs imports
+docs/ops/kaspi/~$*.xlsx
+docs/ops/kaspi/*.xlsx
+docs/ops/kaspi/**/*.xlsx
+docs/ops/kaspi/*.zip
+docs/ops/kaspi/**/*.zip
+docs/ops/kaspi/Backups/
+docs/ops/kaspi/Kaspi_orders/Archive/
+docs/ops/kaspi/Kaspi_orders/Inbox/
+docs/ops/kaspi/Kaspi_orders/input/
+docs/ops/kaspi/state/
