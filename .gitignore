@@ -230,3 +230,6 @@ docs/ops/kaspi/Kaspi_orders/Archive/
 docs/ops/kaspi/Kaspi_orders/Inbox/
 docs/ops/kaspi/Kaspi_orders/input/
 docs/ops/kaspi/state/
+
+# Analysis bundle output
+kaspi_etl_analysis_bundle.zip
