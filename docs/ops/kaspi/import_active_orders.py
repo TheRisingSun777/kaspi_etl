@@ -46,6 +46,15 @@ from openpyxl import load_workbook
 from openpyxl.utils.cell import coordinate_from_string, column_index_from_string
 
 
+OPS_ROOT = Path(__file__).resolve().parent
+DEFAULT_ACTIVE_ORDERS_DIR = Path(os.environ.get("KASPI_ACTIVE_ORDERS_DIR", OPS_ROOT / "ActiveOrders"))
+DEFAULT_CRM_WORKBOOK = Path(os.environ.get("KASPI_CRM_WORKBOOK", OPS_ROOT / "SALES_KSP_CRM_V3.xlsx"))
+DEFAULT_CRM_SHEET = os.environ.get("KASPI_CRM_SHEET", "SALES_KSP_CRM_1")
+DEFAULT_CRM_TABLE = os.environ.get("KASPI_CRM_TABLE", "CRM")
+DEFAULT_KASPI_STATUS = os.environ.get("KASPI_STATUS", "Ожидает передачи курьеру")
+DEFAULT_KASPI_SIGNATURE = os.environ.get("KASPI_SIGNATURE", "Не требуется")
+
+
 # ---------- Helpers ----------
 
 def norm(s: str) -> str:
@@ -462,17 +471,26 @@ def excel_append(out_wb: Path,
 # ---------- CLI ----------
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--orders-dir", required=True)
-    ap.add_argument("--out-wb", required=True)
-    ap.add_argument("--sheet", default="SALES_KSP_CRM_1")
-    ap.add_argument("--table", default="CRM")
+    ap = argparse.ArgumentParser(description="Append Kaspi ActiveOrders exports into CRM workbook")
+    ap.add_argument(
+        "--orders-dir",
+        default=str(DEFAULT_ACTIVE_ORDERS_DIR),
+        help="Directory containing ActiveOrders*.xlsx exports (default: %(default)s; override with KASPI_ACTIVE_ORDERS_DIR)",
+    )
+    ap.add_argument(
+        "--out-wb",
+        default=str(DEFAULT_CRM_WORKBOOK),
+        help="CRM workbook path (default: %(default)s; override with KASPI_CRM_WORKBOOK)",
+    )
+    ap.add_argument("--sheet", default=DEFAULT_CRM_SHEET, help="CRM sheet name (default: %(default)s; override with KASPI_CRM_SHEET)")
+    ap.add_argument("--table", default=DEFAULT_CRM_TABLE, help="CRM table name (default: %(default)s; override with KASPI_CRM_TABLE)")
     ap.add_argument("--date-end", default="today",
-                    help='Upper bound for "Плановая дата передачи курьеру". '
-                         'Use "today" or YYYY-MM-DD.')
-    ap.add_argument("--status", default="Ожидает передачи курьеру")
-    ap.add_argument("--signature", default="Не требуется")
-    ap.add_argument("--dry-run", action="store_true")
+                    help='Upper bound for "Плановая дата передачи курьеру". Use "today" or YYYY-MM-DD.')
+    ap.add_argument("--status", default=DEFAULT_KASPI_STATUS,
+                    help="Status filter to include (default: %(default)s; override with KASPI_STATUS)")
+    ap.add_argument("--signature", default=DEFAULT_KASPI_SIGNATURE,
+                    help="Signature requirement filter (default: %(default)s; override with KASPI_SIGNATURE)")
+    ap.add_argument("--dry-run", action="store_true", help="Run filters and validation only; skip Excel append")
     args = ap.parse_args()
 
     end_date = today_local() if args.date_end.strip().lower() == "today" else dtp.parse(args.date_end).date()

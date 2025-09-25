@@ -1,6 +1,9 @@
 httpx
-python-dotenv
-tenacity
-streamlit
-pandas
 openpyxl
+pandas
+pypdf<5
+python-dateutil
+python-dotenv
+streamlit
+tenacity
+xlwings

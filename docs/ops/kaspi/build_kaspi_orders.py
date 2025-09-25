@@ -39,6 +39,11 @@ from typing import Dict, List, Tuple
 import pandas as pd
 from dateutil import parser as dateparser
 
+
+OPS_ROOT = Path(__file__).resolve().parent
+DEFAULT_INPUT_DIR = Path(os.environ.get("KASPI_INPUT_DIR", OPS_ROOT / "Kaspi_orders" / "input"))
+DEFAULT_OUTBASE_DIR = Path(os.environ.get("KASPI_OUTBASE_DIR", OPS_ROOT / "Kaspi_orders"))
+
 # PDF merger (pure python)
 try:
     from pypdf import PdfMerger
@@ -205,15 +210,28 @@ def pick_sheet_for_date(xlsx: Path, target_date: datetime) -> str:
 
 def main():
     ap = argparse.ArgumentParser(description="Kaspi order bundler")
-    ap.add_argument("--input", required=True, help="Folder with 1 xlsx + N zip waybills")
-    ap.add_argument("--outbase", required=True, help="Base folder with Today/ and Archive/")
+    ap.add_argument(
+        "--input",
+        default=str(DEFAULT_INPUT_DIR),
+        help="Folder with 1 xlsx + N zip waybills (default: %(default)s; override with KASPI_INPUT_DIR)",
+    )
+    ap.add_argument(
+        "--outbase",
+        default=str(DEFAULT_OUTBASE_DIR),
+        help="Base folder with Today/ and Archive/ (default: %(default)s; override with KASPI_OUTBASE_DIR)",
+    )
     ap.add_argument("--date", default="today", help="Send date: 'today' or 'YYYY-MM-DD' or 'DD.MM.YYYY'")
-    ap.add_argument("--zip-mode", choices=["one","per-store"], default="one", help="One big zip or per-store zips")
-    ap.add_argument("--fail-below-match", type=float, default=0.0, help="Fail if match rate (%) below this threshold")
+    ap.add_argument("--zip-mode", choices=["one", "per-store"], default="one", help="One big zip or per-store zips")
+    ap.add_argument(
+        "--fail-below-match",
+        type=float,
+        default=0.0,
+        help="Fail if match rate (%%) below this threshold",
+    )
     args = ap.parse_args()
 
-    input_dir = Path(args.input)
-    outbase = Path(args.outbase)
+    input_dir = Path(args.input).expanduser()
+    outbase = Path(args.outbase).expanduser()
     target_date = parse_input_date(args.date)
 
     log(f"⏱  Date: {target_date.strftime('%Y-%m-%d')}")
