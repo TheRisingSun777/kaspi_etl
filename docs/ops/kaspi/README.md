@@ -34,8 +34,14 @@ python3 docs/ops/kaspi/build_kaspi_orders.py \
   environment variables and falls back to the co-located `Kaspi_orders`
   structure.
 - `run_import_orders.command` – wraps the import script for a one-command
-  workflow. Also inherits the environment overrides (`KASPI_*`). Use
-  `KASPI_PYTHON_BIN` if you need a specific interpreter (virtual environment).
+  workflow using the default cutoff of “today”.
+- `run_import_orders_all_dates.command` – identical to the above, but it keeps
+  every order regardless of planned courier date (useful when you want to ship
+  tomorrow’s orders early).
+
+All shell helpers automatically prefer the repo’s `venv/bin/python`
+interpreter; set `KASPI_PYTHON_BIN` (or `PYTHON_BIN`) if you want to override
+the interpreter path.
 
 ## Environment configuration
 
@@ -47,6 +53,7 @@ python3 docs/ops/kaspi/build_kaspi_orders.py \
 | `KASPI_CRM_WORKBOOK` | Excel workbook that receives appended rows |
 | `KASPI_CRM_SHEET` / `KASPI_CRM_TABLE` | Target sheet and table names |
 | `KASPI_STATUS` / `KASPI_SIGNATURE` | Filtering criteria for imports |
+| `KASPI_APPEND_DATE` | Date stamped into the CRM `Date` column (default: today) |
 | `KASPI_PYTHON_BIN` | Interpreter to run the automation (defaults to `python3`) |
 | `KASPI_RUN_DATE` / `KASPI_ZIP_MODE` | Optional overrides when bundling |
 

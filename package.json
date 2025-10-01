@@ -1,0 +1,19 @@
+{
+  "name": "kaspi_etl_tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "scrape:perfumes": "tsx scripts/scrape_kaspi_offers.ts --input \"/Users/adil/Documents/Ideas/perfume_analysis_gpt_7.9.25_v1/Perfumes_V11_MC_V2.1_30.9.25.xlsx\" --city 710000000"
+  },
+  "dependencies": {
+    "fs-extra": "^11.2.0",
+    "p-limit": "^5.0.0",
+    "playwright": "^1.54.2",
+    "yargs": "^17.7.2",
+    "xlsx": "0.18.5"
+  },
+  "devDependencies": {
+    "tsx": "4.19.2"
+  }
+}

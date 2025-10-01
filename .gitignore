@@ -218,6 +218,9 @@ apps/kaspi_offers_dashboard/.env*
 apps/kaspi_offers_dashboard/tsconfig.tsbuildinfo
 apps/kaspi_offers_dashboard/playwright-report/
 apps/kaspi_offers_dashboard/data_raw/
+data_raw/perfumes/debug/
+data_raw/perfumes/logs/
+data_raw/perfumes/offers_state.json
 
 # Kaspi docs imports
 docs/ops/kaspi/~$*.xlsx

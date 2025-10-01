@@ -486,6 +486,11 @@ def main():
     ap.add_argument("--table", default=DEFAULT_CRM_TABLE, help="CRM table name (default: %(default)s; override with KASPI_CRM_TABLE)")
     ap.add_argument("--date-end", default="today",
                     help='Upper bound for "Плановая дата передачи курьеру". Use "today" or YYYY-MM-DD.')
+    ap.add_argument(
+        "--append-date",
+        default="today",
+        help='Date to stamp into the CRM "Date" column. Use "today" or YYYY-MM-DD.',
+    )
     ap.add_argument("--status", default=DEFAULT_KASPI_STATUS,
                     help="Status filter to include (default: %(default)s; override with KASPI_STATUS)")
     ap.add_argument("--signature", default=DEFAULT_KASPI_SIGNATURE,
@@ -494,6 +499,7 @@ def main():
     args = ap.parse_args()
 
     end_date = today_local() if args.date_end.strip().lower() == "today" else dtp.parse(args.date_end).date()
+    append_date = today_local() if args.append_date.strip().lower() == "today" else dtp.parse(args.append_date).date()
 
     orders_dir = Path(args.orders_dir).expanduser()
     out_wb = Path(args.out_wb).expanduser()
@@ -524,7 +530,7 @@ def main():
         return
 
     # Append via Excel (invisible)
-    excel_append(out_wb, args.sheet, args.table, date_abs, start_abs, end_abs, stage, end_date, slice_headers)
+    excel_append(out_wb, args.sheet, args.table, date_abs, start_abs, end_abs, stage, append_date, slice_headers)
     archive_path = archive_run(orders_dir, source_files, df_filt)
 
     print("✅ Appended to CRM table (Excel-safe, no UI).")

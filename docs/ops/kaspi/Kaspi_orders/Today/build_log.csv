@@ -1,22 +1,15 @@
-type,store,core,size,count,output,order_id,quantity
-singles_group,11KZ,Принт 5в1 черный,2XL,1.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_11KZ_qnt6/NORMAL_singles/Принт 5в1 черный_2XL-1.pdf,,
-singles_group,11KZ,Принт 5в1 черный,L,1.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_11KZ_qnt6/NORMAL_singles/Принт 5в1 черный_L-1.pdf,,
-singles_group,11KZ,Принт 5в1 черный,S,1.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_11KZ_qnt6/NORMAL_singles/Принт 5в1 черный_S-1.pdf,,
-singles_group,11KZ,Принт 5в1 черный,XL,3.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_11KZ_qnt6/NORMAL_singles/Принт 5в1 черный_XL-3.pdf,,
-singles_group,OnlyFit,Костюм Ромбик ДЕТСКИЙ,28,1.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_OnlyFit_qnt11/NORMAL_singles/Костюм Ромбик ДЕТСКИЙ_28-1.pdf,,
-singles_group,OnlyFit,Принт 5в1 черный,3XL,2.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_OnlyFit_qnt11/NORMAL_singles/Принт 5в1 черный_3XL-2.pdf,,
-singles_group,OnlyFit,Принт 5в1 черный,L,6.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_OnlyFit_qnt11/NORMAL_singles/Принт 5в1 черный_L-6.pdf,,
-singles_group,OnlyFit,Принт 5в1 черный,M,1.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_OnlyFit_qnt11/NORMAL_singles/Принт 5в1 черный_M-1.pdf,,
-singles_group,OnlyFit,Принт 5в1 черный,XL,1.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_OnlyFit_qnt11/NORMAL_singles/Принт 5в1 черный_XL-1.pdf,,
-special_multi_qty,Universal,Nike Футболка черная,L,,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_Universal_qnt27/SPECIAL_multi_qty/Местовая-1_Nike Футболка черная_L-2.pdf,649771113,2.0
-singles_group,Universal,Nike Футболка черная,2XL,1.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_Universal_qnt27/NORMAL_singles/Nike Футболка черная_2XL-1.pdf,,
-singles_group,Universal,Nike Футболка черная,L,3.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_Universal_qnt27/NORMAL_singles/Nike Футболка черная_L-3.pdf,,
-singles_group,Universal,Nike Футболка черная,XL,3.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_Universal_qnt27/NORMAL_singles/Nike Футболка черная_XL-3.pdf,,
-singles_group,Universal,Костюм мужской Ромбик,XL,1.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_Universal_qnt27/NORMAL_singles/Костюм мужской Ромбик_XL-1.pdf,,
-singles_group,Universal,Костюм мужской Хус,L,1.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_Universal_qnt27/NORMAL_singles/Костюм мужской Хус_L-1.pdf,,
-singles_group,Universal,Принт 5в1 черный,2XL,3.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_Universal_qnt27/NORMAL_singles/Принт 5в1 черный_2XL-3.pdf,,
-singles_group,Universal,Принт 5в1 черный,4XL,2.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_Universal_qnt27/NORMAL_singles/Принт 5в1 черный_4XL-2.pdf,,
-singles_group,Universal,Принт 5в1 черный,L,3.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_Universal_qnt27/NORMAL_singles/Принт 5в1 черный_L-3.pdf,,
-singles_group,Universal,Принт 5в1 черный,M,4.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_Universal_qnt27/NORMAL_singles/Принт 5в1 черный_M-4.pdf,,
-singles_group,Universal,Принт 5в1 черный,XL,3.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_Universal_qnt27/NORMAL_singles/Принт 5в1 черный_XL-3.pdf,,
-singles_group,Universal,Трусы белые,M,1.0,/Users/adil/Documents/kaspi/Kaspi_orders/Today/24.9.25_Universal_qnt27/NORMAL_singles/Трусы белые_M-1.pdf,,
+type,store,core,size,count,output
+singles_group,11KZ,Принт 5в1 черный,2XL,2,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/30.9.25_11KZ_qnt12/NORMAL_singles/Принт 5в1 черный_2XL-2.pdf
+singles_group,11KZ,Принт 5в1 черный,3XL,1,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/30.9.25_11KZ_qnt12/NORMAL_singles/Принт 5в1 черный_3XL-1.pdf
+singles_group,11KZ,Принт 5в1 черный,L,3,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/30.9.25_11KZ_qnt12/NORMAL_singles/Принт 5в1 черный_L-3.pdf
+singles_group,11KZ,Принт 5в1 черный,XL,6,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/30.9.25_11KZ_qnt12/NORMAL_singles/Принт 5в1 черный_XL-6.pdf
+singles_group,OnlyFit,Принт 5в1 черный,2XL,2,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/30.9.25_OnlyFit_qnt18/NORMAL_singles/Принт 5в1 черный_2XL-2.pdf
+singles_group,OnlyFit,Принт 5в1 черный,3XL,2,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/30.9.25_OnlyFit_qnt18/NORMAL_singles/Принт 5в1 черный_3XL-2.pdf
+singles_group,OnlyFit,Принт 5в1 черный,L,4,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/30.9.25_OnlyFit_qnt18/NORMAL_singles/Принт 5в1 черный_L-4.pdf
+singles_group,OnlyFit,Принт 5в1 черный,M,1,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/30.9.25_OnlyFit_qnt18/NORMAL_singles/Принт 5в1 черный_M-1.pdf
+singles_group,OnlyFit,Принт 5в1 черный,XL,9,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/30.9.25_OnlyFit_qnt18/NORMAL_singles/Принт 5в1 черный_XL-9.pdf
+singles_group,Universal,Nike Футболка черная,2XL,1,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/30.9.25_Universal_qnt17/NORMAL_singles/Nike Футболка черная_2XL-1.pdf
+singles_group,Universal,Принт 5в1 черный,2XL,3,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/30.9.25_Universal_qnt17/NORMAL_singles/Принт 5в1 черный_2XL-3.pdf
+singles_group,Universal,Принт 5в1 черный,L,4,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/30.9.25_Universal_qnt17/NORMAL_singles/Принт 5в1 черный_L-4.pdf
+singles_group,Universal,Принт 5в1 черный,M,2,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/30.9.25_Universal_qnt17/NORMAL_singles/Принт 5в1 черный_M-2.pdf
+singles_group,Universal,Принт 5в1 черный,XL,7,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/30.9.25_Universal_qnt17/NORMAL_singles/Принт 5в1 черный_XL-7.pdf

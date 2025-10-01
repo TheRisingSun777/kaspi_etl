@@ -1,5 +1,5 @@
 // server/scrape.ts
-import { chromium, type BrowserContext, type Page } from 'playwright';
+import { chromium, type BrowserContext, type Locator, type Page } from 'playwright';
 import fs from 'node:fs/promises';
 import { getCached as getMasterCached, setCached as setMasterCached } from './cache';
 
@@ -13,6 +13,51 @@ const CITY_NAMES: Record<string, string[]> = {
 };
 
 const DEBUG = process.env.DEBUG_SCRAPE === '1';
+
+export type FlatSellerRow = {
+  product_url: string;
+  product_code: string;
+  seller_name: string;
+  price_kzt: number;
+};
+
+function ensureCityParam(url: string, cityId: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set('c', cityId);
+    return parsed.toString();
+  } catch {
+    const normalized = url.startsWith('http') ? url : `https://kaspi.kz${url.startsWith('/') ? '' : '/'}${url}`;
+    return ensureCityParam(normalized, cityId);
+  }
+}
+
+function productCodeFromUrl(url: string): string | null {
+  const match = url.match(/-(\d+)(?:[/?#]|$)/);
+  if (match) return match[1];
+  const fallback = url.match(/\/p\/(\d+)(?:[/?#]|$)/);
+  return fallback ? fallback[1] : null;
+}
+
+function sanitizeSellerName(raw: string): string {
+  return raw
+    .replace(/[",'`’‘“”]/g, ' ')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function sanitizePrice(value: unknown): number {
+  const str = String(value ?? '').replace(/[^\d]/g, '');
+  if (!str) return NaN;
+  const num = Number(str);
+  return Number.isFinite(num) ? Math.round(num) : NaN;
+}
+
+function randomBetween(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
 // Simple 2-minute in-memory cache per (cityId, productId)
 type VariantCacheEntry = { sellers: Seller[]; label?: string; expiresAt: number };
@@ -56,6 +101,53 @@ function blockHeavyButKeepCss(route: any) {
   const t = route.request().resourceType();
   if (t === 'image' || t === 'media' || t === 'font') return route.abort();
   return route.continue();
+}
+
+async function findNextPaginationControl(page: Page): Promise<Locator | null> {
+  const selectors = [
+    'button[aria-label*="следующ" i]',
+    'a[aria-label*="следующ" i]',
+    'button:has-text("Следующая")',
+    'a:has-text("Следующая")',
+    '.pagination__item_next button',
+    '.pagination__item_next a',
+    '.pagination__link_next',
+  ];
+
+  for (const selector of selectors) {
+    const candidate = page.locator(selector).first();
+    if ((await candidate.count()) === 0) continue;
+    const isDisabled = await candidate
+      .evaluate((el) => {
+        const elem = el as HTMLElement;
+        const ariaDisabled = elem.getAttribute('aria-disabled');
+        return (
+          elem.classList.contains('disabled') ||
+          elem.hasAttribute('disabled') ||
+          ariaDisabled === 'true'
+        );
+      })
+      .catch(() => false);
+    if (isDisabled) continue;
+    return candidate;
+  }
+  return null;
+}
+
+async function captureSellerSectionSignature(page: Page): Promise<string> {
+  return page
+    .evaluate(() => {
+      const candidates = [
+        document.querySelector('[data-cy*="seller"]'),
+        document.querySelector('.sellers-table'),
+        document.querySelector('.merchant-list'),
+        document.querySelector('.sellers-list'),
+        document.querySelector('.sellers-table__body'),
+      ];
+      const node = candidates.find(Boolean) as HTMLElement | undefined;
+      return node ? node.innerHTML : '';
+    })
+    .catch(() => '');
 }
 
 async function ensureCity(page: Page, cityId: string) {
@@ -131,6 +223,199 @@ async function openVariantPage(context: BrowserContext, id: string, cityId: stri
   const details = await extractPageDetails(page);
 
   return { page, captured, details };
+}
+
+export async function scrapeSellersFlat(
+  page: Page,
+  productUrl: string,
+  cityId: number
+): Promise<{ rows: FlatSellerRow[]; total: number; product_code: string; pages: Array<{ page: number; got: number }>; dupFiltered: number }> {
+  const city = String(cityId);
+  page.setDefaultNavigationTimeout(60_000);
+  page.setDefaultTimeout(45_000);
+  await setCityCookie(page.context(), city);
+
+  const targetUrl = ensureCityParam(productUrl, city);
+  const urlDerivedCode = productCodeFromUrl(targetUrl) || '';
+
+  await page.route('**/*', blockHeavyButKeepCss);
+
+  let navError: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: DEFAULT_TIMEOUT });
+      navError = null;
+      break;
+    } catch (err) {
+      navError = err;
+      if (attempt === 1) throw err;
+      await sleep(400 + Math.random() * 500);
+    }
+  }
+  if (navError) throw navError;
+
+  await ensureCity(page, city);
+  await page.waitForLoadState('domcontentloaded', { timeout: DEFAULT_TIMEOUT }).catch(() => {});
+  await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
+
+  const tabSelectors = [
+    '[role="tab"]:has-text("Предложения продавцов")',
+    '[role="tab"]:has-text("Продавцы")',
+    'a:has-text("Предложения продавцов")',
+    'a:has-text("Продавцы")',
+    'button:has-text("Предложения продавцов")',
+    'button:has-text("Продавцы")',
+  ];
+  for (const selector of tabSelectors) {
+    const tab = page.locator(selector).first();
+    if ((await tab.count()) === 0) continue;
+    await tab.click({ timeout: 4_000 }).catch(() => {});
+    await page.waitForLoadState('domcontentloaded', { timeout: 15_000 }).catch(() => {});
+    await page
+      .waitForSelector('.sellers-table, .sellers, .sellers-table__body, .merchant-list', { timeout: 15_000 })
+      .catch(() => {});
+    break;
+  }
+
+  const listSel = '.sellers-table__body, .sellers, .merchant-list';
+  const pageNumSel = '.pagination a, .pagination__link, .pager a';
+  const nextSel = 'a:has-text("Следующая"), button:has-text("Следующая")';
+
+  await page.waitForSelector(listSel, { timeout: 15_000 }).catch(() => {});
+
+  const listSignature = async () =>
+    (await page.$eval(listSel, (el) => el.textContent || '').catch(() => ''))
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  let maxPage = 1;
+  try {
+    const nums = await page
+      .$$eval(
+        pageNumSel,
+        (els) =>
+          els
+            .map((el) => parseInt((el.textContent || '').trim(), 10))
+            .filter((n) => !Number.isNaN(n))
+      )
+      .catch(() => [] as number[]);
+    if (nums.length) maxPage = Math.max(1, ...nums);
+  } catch {}
+  const allRows: FlatSellerRow[] = [];
+  const seen = new Set<string>();
+  const pagesMeta: Array<{ page: number; got: number }> = [];
+  let duplicatesFiltered = 0;
+
+  const productCodeFromPage =
+    (await page
+      .evaluate(() => {
+        const meta = document.querySelector(
+          'meta[name="product_id"], meta[property="product:id"], meta[name="product:id"]'
+        ) as HTMLMetaElement | null;
+        if (meta?.content) return meta.content;
+        const dataset = document.querySelector('[data-product-id], [data-productid]') as HTMLElement | null;
+        if (dataset) {
+          const direct =
+            dataset.getAttribute('data-product-id') ||
+            dataset.getAttribute('data-productid') ||
+            (dataset as any).dataset?.productId ||
+            '';
+          if (direct) return direct;
+        }
+        const text = document.body ? document.body.innerText || '' : '';
+        const match = text.match(/Код товара[^\d]*(\d{5,})/i);
+        return match ? match[1] : null;
+      })
+      .catch(() => null)) || '';
+
+  const productCode = productCodeFromPage || urlDerivedCode;
+
+  const useNextFallback = maxPage === 1;
+
+  for (let pageIndex = 1; ; pageIndex++) {
+    if (pageIndex > 1) {
+      const before = await listSignature();
+      let clicked = false;
+      if (!useNextFallback) {
+        const pageLink = page.locator(`${pageNumSel}:has-text("${pageIndex}")`).first();
+        if ((await pageLink.count()) > 0) {
+          await pageLink.click({ timeout: 3_000 }).catch(() => {});
+          clicked = true;
+        }
+      }
+      if (!clicked) {
+        const nextLink = page.locator(nextSel).first();
+        if ((await nextLink.count()) > 0) {
+          await nextLink.click({ timeout: 3_000 }).catch(() => {});
+          clicked = true;
+        }
+      }
+
+      if (!clicked) {
+        break;
+      }
+
+      await Promise.race([
+        page.waitForFunction(
+          (sel, prev) => {
+            const el = document.querySelector(sel);
+            if (!el) return false;
+            const now = (el.textContent || '').replace(/\s+/g, ' ').trim();
+            return now && now !== prev;
+          },
+          { timeout: 12_000 },
+          listSel,
+          before
+        ),
+        page.waitForTimeout(12_000),
+      ]);
+      await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => {});
+    }
+
+    const sellers = await parseSellersFromDom(page).catch(() => []);
+    const pageRows: FlatSellerRow[] = [];
+    for (const seller of sellers) {
+      const cleanName = sanitizeSellerName(seller.name || '');
+      const cleanPrice = sanitizePrice(seller.price);
+      if (!cleanName || !Number.isFinite(cleanPrice) || cleanPrice <= 0) continue;
+      const key = `${cleanName.toLowerCase()}||${cleanPrice}`;
+      if (seen.has(key)) {
+        duplicatesFiltered += 1;
+        continue;
+      }
+      seen.add(key);
+      const row: FlatSellerRow = {
+        product_url: targetUrl,
+        product_code: productCode,
+        seller_name: cleanName,
+        price_kzt: cleanPrice,
+      };
+      allRows.push(row);
+      pageRows.push(row);
+    }
+    pagesMeta.push({ page: pageIndex, got: pageRows.length });
+
+    if (!useNextFallback) {
+      if (pageIndex >= maxPage) break;
+    } else {
+      const nextLink = page.locator(nextSel).first();
+      const hasNext = (await nextLink.count()) > 0;
+      if (!hasNext) break;
+      const ariaDisabled = await nextLink.getAttribute('aria-disabled').catch(() => null);
+      const classAttr = await nextLink.getAttribute('class').catch(() => null);
+      if (ariaDisabled === 'true' || (classAttr || '').toLowerCase().includes('disabled')) break;
+    }
+  }
+
+  await page.unroute('**/*', blockHeavyButKeepCss).catch(() => {});
+
+  return {
+    rows: allRows,
+    total: allRows.length,
+    product_code: productCode,
+    pages: pagesMeta,
+    dupFiltered: duplicatesFiltered,
+  };
 }
 
 async function parseSellersFromDom(page: Page): Promise<Seller[]> {
