@@ -53,6 +53,36 @@ except Exception:
 
 REQUIRED_COLS = {"Date", "STORE_NAME", "OrderID", "Quantity", "Kaspi_name_core", "MY_SIZE"}
 
+# Allow new export column names to be treated as the canonical headers above.
+COLUMN_ALIASES = {
+    "Date": {"Date", "PLANNED_SHIPPING_DATE", "Плановая дата передачи курьеру", "Дата поступления заказа"},
+    "OrderID": {"OrderID", "№ заказа"},
+    "Quantity": {"Quantity", "Количество"},
+    "STORE_NAME": {"STORE_NAME", "Store_name", "Store Name"},
+    "Kaspi_name_core": {"Kaspi_name_core"},
+    "MY_SIZE": {"MY_SIZE"},
+}
+
+
+def ensure_required_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Rename known aliases to canonical headers and assert requirements."""
+    rename_map = {}
+    for canonical, aliases in COLUMN_ALIASES.items():
+        if canonical in df.columns:
+            continue
+        for alias in aliases:
+            if alias == canonical:
+                continue
+            if alias in df.columns:
+                rename_map[alias] = canonical
+                break
+    if rename_map:
+        df = df.rename(columns=rename_map)
+    missing = REQUIRED_COLS - set(df.columns)
+    if missing:
+        raise ValueError(f"Missing required columns: {sorted(missing)}")
+    return df
+
 def log(msg: str) -> None:
     print(msg, flush=True)
 
@@ -129,14 +159,17 @@ def pick_sheet_with_required_cols(xlsx: Path) -> str:
     xl = pd.ExcelFile(xlsx)
     for sh in xl.sheet_names:
         df = pd.read_excel(xlsx, sheet_name=sh, nrows=1)
-        cols = set(c.strip() for c in df.columns if isinstance(c, str))
-        if REQUIRED_COLS.issubset(cols):
+        try:
+            ensure_required_columns(df)
             return sh
+        except ValueError:
+            continue
     raise ValueError(f"No sheet in {xlsx.name} has required columns: {sorted(REQUIRED_COLS)}")
 
 def load_df(xlsx: Path, sheet: str) -> pd.DataFrame:
     df = pd.read_excel(xlsx, sheet_name=sheet)
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    df = ensure_required_columns(df)
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce", dayfirst=True)
     df["OrderID"] = df["OrderID"].astype(str).str.strip()
     df["Kaspi_name_core"] = df["Kaspi_name_core"].astype(str).str.replace(r"\s+", " ", regex=True).str.strip()
     df["MY_SIZE"] = df["MY_SIZE"].astype(str).str.replace(r"\s+", " ", regex=True).str.strip()
@@ -196,12 +229,13 @@ def pick_sheet_for_date(xlsx: Path, target_date: datetime) -> str:
     fallback = None
     for sh in xl.sheet_names:
         df = pd.read_excel(xlsx, sheet_name=sh)
-        cols = set(c.strip() for c in df.columns if isinstance(c, str))
-        if not REQUIRED_COLS.issubset(cols):
+        try:
+            df = ensure_required_columns(df)
+        except ValueError:
             continue
         if fallback is None:
             fallback = sh  # first valid structure
-        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce", dayfirst=True)
         if (df["Date"].dt.date == target_date.date()).any():
             return sh
     if fallback:

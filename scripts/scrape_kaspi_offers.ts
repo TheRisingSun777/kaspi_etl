@@ -39,6 +39,7 @@ type CliArgs = {
   start: number;
   limit?: number;
   stateFile: string;
+  debug: boolean;
 };
 
 type ProductTask = {
@@ -115,7 +116,7 @@ async function main() {
   const outExists = await fs.pathExists(outPath);
   const csvStream = fs.createWriteStream(outPath, { flags: outExists ? 'a' : 'w' });
   if (!outExists) {
-    await writeLine(csvStream, 'product_url,product_code,total_sellers_qnt,seller_name,price_kzt\n');
+    await writeLine(csvStream, 'product_code,seller_name,price_kzt,product_url\n');
   }
 
   const logStream = fs.createWriteStream(path.join(logsDir, `offers_${RUN_TIMESTAMP}.ndjson`), { flags: 'a' });
@@ -195,8 +196,10 @@ async function main() {
     console.log(`State indicates ${completionCount} items already completed; CSV will append new rows only.`);
   }
 
-  const headless = argv.headless !== false;
-  const browser = await chromium.launch({ headless });
+  const debugMode = argv.debug === true;
+  const headless = debugMode ? false : argv.headless !== false;
+  const slowMo = debugMode ? 250 : 0;
+  const browser = await chromium.launch({ headless, slowMo });
   const context = await browser.newContext({
     userAgent:
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
@@ -342,16 +345,6 @@ async function main() {
     markStateDirty();
     persistState();
 
-    // zero-seller streak no longer triggers backoff; useful only for logging/metrics
-    await writeLog({
-      index: result.index,
-      url: result.url,
-      product_code: result.productCode || null,
-      total: result.total,
-      ms: result.durationMs,
-      attempt: result.attempt,
-      concurrency: getCurrentConcurrency(),
-    });
     if (result.pages?.length) {
       for (const meta of result.pages) {
         await writeLog({
@@ -369,6 +362,15 @@ async function main() {
         dupFiltered: result.dupFiltered,
       });
     }
+    await writeLog({
+      index: result.index,
+      url: result.url,
+      product_code: result.productCode || null,
+      total: result.total,
+      ms: result.durationMs,
+      attempt: result.attempt,
+      concurrency: getCurrentConcurrency(),
+    });
     logProgress(result.index, result.productCode, result.total);
   }
 
@@ -503,7 +505,7 @@ async function main() {
       const canonicalUrl = result.rows[0]?.product_url || ensureCityParam(requestUrl, String(cityId));
 
       if (result.rows.length) {
-        const lines = buildCsvLines(result.rows, total);
+        const lines = buildCsvLines(result.rows);
         for (const line of lines) {
           await writeQueue(() => writeLine(csvStream, line));
         }
@@ -562,14 +564,13 @@ async function closeStream(stream: fs.WriteStream) {
   });
 }
 
-function buildCsvLines(rows: FlatSellerRow[], total: number): string[] {
+function buildCsvLines(rows: FlatSellerRow[]): string[] {
   return rows.map((row) =>
     [
-      csvSafe(row.product_url),
       csvSafe(row.product_code),
-      csvSafe(String(total)),
       csvSafe(row.seller_name),
       csvSafe(String(row.price_kzt)),
+      csvSafe(row.product_url),
     ].join(',') + '\n'
   );
 }
@@ -874,6 +875,11 @@ async function parseCli(): Promise<CliArgs> {
       type: 'number',
       describe: 'Optional limit of items to process',
     })
+    .option('debug', {
+      type: 'boolean',
+      describe: 'Run Playwright in headed mode with slowMo for debugging',
+      default: false,
+    })
     .option('state', {
       type: 'string',
       describe: 'Path to resume state JSON file',
@@ -900,6 +906,7 @@ async function parseCli(): Promise<CliArgs> {
     start: Number(pickLast<number | string>(parsed.start)),
     limit: parsed.limit === undefined ? undefined : Number(pickLast<number | string>(parsed.limit)),
     stateFile: pickLast<string>(parsed.state),
+    debug: Boolean(pickLast<boolean>(parsed.debug)),
   };
 }
 
