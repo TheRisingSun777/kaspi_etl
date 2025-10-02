@@ -59,6 +59,14 @@ function randomBetween(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+async function firstLocator(page: Page, selectors: string[]): Promise<Locator | null> {
+  for (const selector of selectors) {
+    const loc = page.locator(selector).first();
+    if ((await loc.count()) > 0) return loc;
+  }
+  return null;
+}
+
 // Simple 2-minute in-memory cache per (cityId, productId)
 type VariantCacheEntry = { sellers: Seller[]; label?: string; expiresAt: number };
 const VARIANT_CACHE_TTL_MS = 2 * 60 * 1000;
@@ -152,22 +160,31 @@ async function captureSellerSectionSignature(page: Page): Promise<string> {
 
 async function ensureCity(page: Page, cityId: string) {
   // Handle the “Выберите ваш город” interstitial if it appears.
-  const dialog = page.getByText(/Выберите ваш город/i);
-  if ((await dialog.count()) > 0) {
-    // Prefer a link that has ?c=<cityId>
-    const byHref = page.locator(`a[href*="c=${cityId}"]`).first();
-    if ((await byHref.count()) > 0) {
-      await Promise.all([page.waitForNavigation({ waitUntil: 'domcontentloaded' }), byHref.click()]);
-      return;
-    }
-    // Fallback: click by visible city name
-    for (const nm of CITY_NAMES[cityId] ?? []) {
-      const link = page.getByRole('link', { name: new RegExp(`^${nm}\\b`, 'i') }).first();
-      if ((await link.count()) > 0) {
-        await Promise.all([page.waitForNavigation({ waitUntil: 'domcontentloaded' }), link.click()]);
-        return;
-      }
-    }
+  const dialog = page.locator('text=/Выберите ваш город/i');
+  if ((await dialog.count()) === 0) return;
+
+  const anchorWithCity = page.locator(`a[href*="c=${cityId}"]`).first();
+  if ((await anchorWithCity.count()) > 0) {
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: DEFAULT_TIMEOUT }).catch(() => {}),
+      anchorWithCity.click({ timeout: 5_000 }).catch(() => {}),
+    ]);
+    await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
+    return;
+  }
+
+  for (const nm of CITY_NAMES[cityId] ?? []) {
+    const candidate = page
+      .locator('a, button')
+      .filter({ hasText: new RegExp(nm, 'i') })
+      .first();
+    if ((await candidate.count()) === 0) continue;
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: DEFAULT_TIMEOUT }).catch(() => {}),
+      candidate.click({ timeout: 5_000 }).catch(() => {}),
+    ]);
+    await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
+    return;
   }
 }
 
@@ -279,7 +296,14 @@ export async function scrapeSellersFlat(
 
   const listSel = '.sellers-table__body, .sellers, .merchant-list';
   const pageNumSel = '.pagination a, .pagination__link, .pager a';
-  const nextSel = 'a:has-text("Следующая"), button:has-text("Следующая")';
+  const nextSel = 'a:has-text("Следующая"), button:has-text("Следующая"), text=Следующая';
+  const showMoreSelectors = [
+    'button:has-text("Показать ещё")',
+    'button:has-text("Показать еще")',
+    'a:has-text("Показать ещё")',
+    'a:has-text("Показать еще")',
+    '[data-cy="offers__showMore"]'
+  ];
 
   await page.waitForSelector(listSel, { timeout: 15_000 }).catch(() => {});
 
@@ -288,7 +312,43 @@ export async function scrapeSellersFlat(
       .replace(/\s+/g, ' ')
       .trim();
 
+  // Some layouts use "Показать ещё" instead of classic pagination.
+  // Click it until exhausted before running numeric/next pagination.
+  for (let i = 0; i < 20; i++) {
+    const showMore = await firstLocator(page, showMoreSelectors);
+    if (!showMore) break;
+    const disabled = await Promise.all([
+      showMore.getAttribute('disabled').catch(() => null),
+      showMore.getAttribute('aria-disabled').catch(() => null),
+      showMore.getAttribute('class').catch(() => null),
+    ]);
+    const isDisabled =
+      disabled[0] !== null ||
+      disabled[1] === 'true' ||
+      ((disabled[2] || '').toLowerCase().includes('disabled'));
+    if (isDisabled) break;
+
+    const before = await listSignature();
+    const clicked = await showMore.click({ timeout: 3_000 }).then(() => true).catch(() => false);
+    if (!clicked) break;
+
+    let changed = false;
+    for (let attempt = 0; attempt < 24; attempt++) {
+      const after = await listSignature();
+      if (after && after !== before) {
+        changed = true;
+        break;
+      }
+      await page.waitForTimeout(500);
+    }
+    if (!changed) {
+      await page.waitForTimeout(1000);
+    }
+    await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => {});
+  }
+
   let maxPage = 1;
+  let numericPagesCount = 0;
   try {
     const nums = await page
       .$$eval(
@@ -299,6 +359,7 @@ export async function scrapeSellersFlat(
             .filter((n) => !Number.isNaN(n))
       )
       .catch(() => [] as number[]);
+    numericPagesCount = nums.length;
     if (nums.length) maxPage = Math.max(1, ...nums);
   } catch {}
   const allRows: FlatSellerRow[] = [];
@@ -330,23 +391,27 @@ export async function scrapeSellersFlat(
 
   const productCode = productCodeFromPage || urlDerivedCode;
 
-  const useNextFallback = maxPage === 1;
+  const useNextFallback = numericPagesCount === 0;
 
   for (let pageIndex = 1; ; pageIndex++) {
     if (pageIndex > 1) {
       const before = await listSignature();
       let clicked = false;
       if (!useNextFallback) {
-        const pageLink = page.locator(`${pageNumSel}:has-text("${pageIndex}")`).first();
+        const pageLink = page.locator(pageNumSel).filter({ hasText: `${pageIndex}` }).first();
         if ((await pageLink.count()) > 0) {
           await pageLink.click({ timeout: 3_000 }).catch(() => {});
           clicked = true;
         }
       }
       if (!clicked) {
-        const nextLink = page.locator(nextSel).first();
-        if ((await nextLink.count()) > 0) {
-          await nextLink.click({ timeout: 3_000 }).catch(() => {});
+        const nextCandidates = await firstLocator(page, [
+          'button:has-text("Следующая")',
+          'a:has-text("Следующая")',
+          'text=Следующая'
+        ]);
+        if (nextCandidates) {
+          await nextCandidates.click({ timeout: 3_000 }).catch(() => {});
           clicked = true;
         }
       }
@@ -355,20 +420,18 @@ export async function scrapeSellersFlat(
         break;
       }
 
-      await Promise.race([
-        page.waitForFunction(
-          (sel, prev) => {
-            const el = document.querySelector(sel);
-            if (!el) return false;
-            const now = (el.textContent || '').replace(/\s+/g, ' ').trim();
-            return now && now !== prev;
-          },
-          { timeout: 12_000 },
-          listSel,
-          before
-        ),
-        page.waitForTimeout(12_000),
-      ]);
+      let changed = false;
+      for (let attempt = 0; attempt < 24; attempt++) {
+        const after = await listSignature();
+        if (after && after !== before) {
+          changed = true;
+          break;
+        }
+        await page.waitForTimeout(500);
+      }
+      if (!changed) {
+        await page.waitForTimeout(1000);
+      }
       await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => {});
     }
 
@@ -398,12 +461,16 @@ export async function scrapeSellersFlat(
     if (!useNextFallback) {
       if (pageIndex >= maxPage) break;
     } else {
-      const nextLink = page.locator(nextSel).first();
-      const hasNext = (await nextLink.count()) > 0;
-      if (!hasNext) break;
-      const ariaDisabled = await nextLink.getAttribute('aria-disabled').catch(() => null);
-      const classAttr = await nextLink.getAttribute('class').catch(() => null);
-      if (ariaDisabled === 'true' || (classAttr || '').toLowerCase().includes('disabled')) break;
+      const nextCandidates = await firstLocator(page, [
+        'button:has-text("Следующая")',
+        'a:has-text("Следующая")',
+        'text=Следующая'
+      ]);
+      if (!nextCandidates) break;
+      const ariaDisabled = await nextCandidates.getAttribute('aria-disabled').catch(() => null);
+      const classAttr = await nextCandidates.getAttribute('class').catch(() => null);
+      const disabledAttr = await nextCandidates.getAttribute('disabled').catch(() => null);
+      if (disabledAttr !== null || ariaDisabled === 'true' || (classAttr || '').toLowerCase().includes('disabled')) break;
     }
   }
 

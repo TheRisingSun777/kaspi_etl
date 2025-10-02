@@ -32,7 +32,7 @@ Key flags:
 The script streams both CSV rows and NDJSON logs to `data_raw/perfumes/`. CSV rows are written as:
 
 ```
-product_url,product_code,total_sellers_qnt,seller_name,price_kzt
+product_code,seller_name,price_kzt,product_url
 ```
 
 Logs can be used to resume or investigate partial runs.
@@ -46,5 +46,6 @@ The CLI maintains `data_raw/perfumes/offers_state.json` so re-running the comman
 ## Troubleshooting
 
 - Rate-limits (429/503) or per-product timeouts trigger a short cooldown and temporary concurrency reduction; this is logged with `[backoff]`.
+- Pass `--debug` to watch a headed browser (slowMo 250 ms) for troubleshooting pagination and city selection.
 - Debug screenshots for zero-seller pages land in `data_raw/perfumes/debug/`.
 - Check `data_raw/perfumes/logs/offers_<ts>.ndjson` for failures and timing data.

@@ -207,10 +207,10 @@ async function main() {
     timezoneId: 'Asia/Almaty',
   });
 
-  const hardCap = Math.min(Math.max(argv.concurrency, 1), 100);
+  const hardCap = Math.min(Math.max(argv.concurrency, 1), 150);
   const stageTargets = [
-    Math.max(1, Math.min(30, hardCap)),
-    Math.max(1, Math.min(60, hardCap)),
+    Math.max(1, Math.min(50, hardCap)),
+    Math.max(1, Math.min(100, hardCap)),
     Math.max(1, hardCap),
   ];
   let rampStage = 0;
@@ -426,7 +426,8 @@ async function main() {
 
   async function triggerBackoff(reason: string) {
     const base = getCurrentConcurrency();
-    const halved = Math.max(1, Math.min(hardCap, Math.max(8, Math.floor(base / 2))));
+    const minBackoff = Math.min(50, hardCap);
+    const halved = Math.max(minBackoff, Math.min(hardCap, Math.floor(base / 2)));
     backoffConcurrency = halved;
     backoffRemaining = Math.max(backoffRemaining, 100);
     backoffDelayUntil = Date.now() + 60_000;
