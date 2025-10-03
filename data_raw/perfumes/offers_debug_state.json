@@ -1,0 +1,29 @@
+{
+  "completed": {
+    "0": {
+      "url": "https://kaspi.kz/shop/p/givenchy-dahlia-divin-parfjumernaja-voda-edp-100-ml-dlja-zhenschin-117026200/?c=710000000",
+      "productCode": "117026200",
+      "total": 7,
+      "ts": "2025-10-03T12:36:25.910Z"
+    },
+    "1": {
+      "url": "https://kaspi.kz/shop/p/gucci-flora-gorgeous-magnolia-parfjumernaja-voda-edp-30-ml-dlja-zhenschin-113588758/?c=710000000",
+      "productCode": "113588758",
+      "total": 13,
+      "ts": "2025-10-03T12:36:26.482Z"
+    },
+    "2": {
+      "url": "https://kaspi.kz/shop/p/lancome-la-vie-est-belle-l-elixir-zhenskii-parfjumernyi-eliksir-30-ml-131643542/?c=710000000",
+      "productCode": "131643542",
+      "total": 7,
+      "ts": "2025-10-03T12:36:26.235Z"
+    },
+    "3": {
+      "url": "https://kaspi.kz/shop/p/giorgio-armani-stronger-with-you-intensely-parfjumernaja-voda-edp-100-ml-dlja-muzhchin-100014430/?c=710000000",
+      "productCode": "100014430",
+      "total": 34,
+      "ts": "2025-10-03T12:36:28.917Z"
+    }
+  },
+  "failures": {}
+}
