@@ -32,6 +32,7 @@ const { scrapeSellersFlat } = scrapeModule as {
 type CliArgs = {
   input: string;
   inCol?: string;
+  urlsFile?: string;
   city: number;
   concurrency: number;
   headless: boolean;
@@ -78,7 +79,9 @@ const RUN_TIMESTAMP = formatTimestamp(new Date());
 
 async function main() {
   const argv = await parseCli();
-  const inputUrls = await loadProductUrls(argv.input, argv.inCol);
+  const inputUrls = argv.urlsFile
+    ? await loadUrlsFromPlainFile(argv.urlsFile)
+    : await loadProductUrls(argv.input, argv.inCol);
   if (!inputUrls.length) {
     console.error('No product URLs detected in input file.');
     process.exit(1);
@@ -116,7 +119,7 @@ async function main() {
   const outExists = await fs.pathExists(outPath);
   const csvStream = fs.createWriteStream(outPath, { flags: outExists ? 'a' : 'w' });
   if (!outExists) {
-    await writeLine(csvStream, 'product_code,seller_name,price_kzt,product_url\n');
+    await writeLine(csvStream, 'product_url,product_code,total_sellers_qnt,seller_name,price_kzt\n');
   }
 
   const logStream = fs.createWriteStream(path.join(logsDir, `offers_${RUN_TIMESTAMP}.ndjson`), { flags: 'a' });
@@ -208,11 +211,10 @@ async function main() {
   });
 
   const hardCap = Math.min(Math.max(argv.concurrency, 1), 150);
-  const stageTargets = [
-    Math.max(1, Math.min(50, hardCap)),
-    Math.max(1, Math.min(100, hardCap)),
-    Math.max(1, hardCap),
-  ];
+  const stageTargets: number[] = [];
+  stageTargets[0] = Math.max(1, Math.min(50, hardCap));
+  stageTargets[1] = Math.max(stageTargets[0], Math.max(1, Math.min(100, hardCap)));
+  stageTargets[2] = Math.max(stageTargets[1], Math.max(1, hardCap));
   let rampStage = 0;
   let backoffConcurrency: number | null = null;
   let backoffRemaining = 0;
@@ -234,9 +236,13 @@ async function main() {
   const persistState = () => {
     if (!stateDirty) return statePersist;
     stateDirty = false;
-    statePersist = saveResumeState(statePath, resumeState).catch((err) => {
-      console.error('Failed to persist state:', err);
-    });
+    statePersist = statePersist
+      .catch(() => {})
+      .then(() => saveResumeState(statePath, resumeState))
+      .catch((err) => {
+        console.error('Failed to persist state:', err);
+        throw err;
+      });
     return statePersist;
   };
 
@@ -345,23 +351,6 @@ async function main() {
     markStateDirty();
     persistState();
 
-    if (result.pages?.length) {
-      for (const meta of result.pages) {
-        await writeLog({
-          url: result.url,
-          product_code: result.productCode,
-          page: meta.page,
-          got: meta.got,
-        });
-      }
-    }
-    if (result.dupFiltered) {
-      await writeLog({
-        url: result.url,
-        product_code: result.productCode,
-        dupFiltered: result.dupFiltered,
-      });
-    }
     await writeLog({
       index: result.index,
       url: result.url,
@@ -370,6 +359,9 @@ async function main() {
       ms: result.durationMs,
       attempt: result.attempt,
       concurrency: getCurrentConcurrency(),
+      pagesMeta: result.pages,
+      dupFiltered: result.dupFiltered,
+      zeroSellers: result.zeroSellers || undefined,
     });
     logProgress(result.index, result.productCode, result.total);
   }
@@ -378,8 +370,7 @@ async function main() {
     processedAttempts += 1;
     failureCount += 1;
     zeroSellerStreak = 0;
-    const isNavTimeout = /Timeout .*exceeded/i.test(err.message || '');
-    const rateLimited = !!err.isRateLimit || isNavTimeout;
+    const rateLimited = !!err.isRateLimit;
     recordOutcome(false, rateLimited);
     await writeLog({
       index: task.index,
@@ -426,15 +417,16 @@ async function main() {
 
   async function triggerBackoff(reason: string) {
     const base = getCurrentConcurrency();
-    const minBackoff = Math.min(50, hardCap);
-    const halved = Math.max(minBackoff, Math.min(hardCap, Math.floor(base / 2)));
-    backoffConcurrency = halved;
+    const halved = Math.floor(base * 0.5) || base;
+    const lowered = Math.max(50, halved);
+    const target = Math.min(hardCap, Math.max(1, lowered));
+    backoffConcurrency = target;
     backoffRemaining = Math.max(backoffRemaining, 100);
     backoffDelayUntil = Date.now() + 60_000;
     console.warn(
-      `[backoff] ${reason}. Reducing concurrency to ${halved} for the next ${backoffRemaining} items and pausing scheduling for 60s.`
+      `[backoff] ${reason}. Reducing concurrency to ${target} for the next ${backoffRemaining} items and pausing scheduling for 60s.`
     );
-    await writeLog({ event: 'backoff', reason, concurrency: halved, stage: rampStage });
+    await writeLog({ event: 'backoff', reason, concurrency: target, stage: rampStage });
     maybeLogConcurrencyChange();
   }
 
@@ -506,7 +498,7 @@ async function main() {
       const canonicalUrl = result.rows[0]?.product_url || ensureCityParam(requestUrl, String(cityId));
 
       if (result.rows.length) {
-        const lines = buildCsvLines(result.rows);
+        const lines = buildCsvLines(result.rows, total);
         for (const line of lines) {
           await writeQueue(() => writeLine(csvStream, line));
         }
@@ -565,13 +557,14 @@ async function closeStream(stream: fs.WriteStream) {
   });
 }
 
-function buildCsvLines(rows: FlatSellerRow[]): string[] {
+function buildCsvLines(rows: FlatSellerRow[], totalForProduct: number): string[] {
   return rows.map((row) =>
     [
+      csvSafe(row.product_url),
       csvSafe(row.product_code),
+      csvSafe(String(totalForProduct)),
       csvSafe(row.seller_name),
       csvSafe(String(row.price_kzt)),
-      csvSafe(row.product_url),
     ].join(',') + '\n'
   );
 }
@@ -583,6 +576,32 @@ function csvSafe(value: string): string {
     return `"${text.replace(/"/g, '""')}"`;
   }
   return text;
+}
+
+function splitCsvLine(line: string): string[] {
+  const cols: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if (ch === ',' && !inQuotes) {
+      cols.push(current);
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  cols.push(current);
+  return cols;
 }
 
 function ensureCityParam(url: string, cityId: string): string {
@@ -633,6 +652,10 @@ type ResumeState = {
 
 async function loadResumeState(file: string): Promise<ResumeState> {
   try {
+    const tmpPath = `${file}.tmp`;
+    if (await fs.pathExists(tmpPath)) {
+      await fs.remove(tmpPath).catch(() => {});
+    }
     if (!(await fs.pathExists(file))) {
       return { completed: {}, failures: {} };
     }
@@ -648,7 +671,9 @@ async function loadResumeState(file: string): Promise<ResumeState> {
 }
 
 async function saveResumeState(file: string, state: ResumeState): Promise<void> {
-  await fs.writeJson(file, state, { spaces: 2 });
+  const tmpPath = `${file}.tmp`;
+  await fs.writeJson(tmpPath, state, { spaces: 2 });
+  await fs.move(tmpPath, file, { overwrite: true });
 }
 
 function markCompleted(state: ResumeState, index: number, payload: { url: string; productCode?: string; total: number }): void {
@@ -696,11 +721,11 @@ async function hydrateStateFromArtifacts(args: HydrateArgs): Promise<Set<number>
         lines.shift();
       }
       for (const line of lines) {
-        const parts = line.split(',', 3);
-        if (parts.length < 2) continue;
-        const productUrl = parts[0];
-        const productCode = parts[1];
-        const totalStr = parts[2] ?? '0';
+        const parts = splitCsvLine(line);
+        if (parts.length < 3) continue;
+        const productUrl = (parts[0] ?? '').trim();
+        const productCode = (parts[1] ?? '').trim();
+        const totalStr = (parts[2] ?? '0').trim();
         const idx = codeToIndex.get(productCode);
         if (idx === undefined) continue;
         csvCovered.add(idx);
@@ -854,8 +879,12 @@ async function parseCli(): Promise<CliArgs> {
     })
     .option('concurrency', {
       type: 'number',
-      describe: 'Maximum concurrent pages to run (capped at 100)',
-      default: 100,
+      describe: 'Maximum concurrent pages to run (capped at 150)',
+      default: 150,
+    })
+    .option('urls-file', {
+      type: 'string',
+      describe: 'Optional newline-delimited list of product URLs (skips XLSX parsing)',
     })
     .option('out', {
       type: 'string',
@@ -900,6 +929,7 @@ async function parseCli(): Promise<CliArgs> {
   return {
     input: pickLast<string>(parsed.input),
     inCol: pickLast<string | undefined>(parsed['in-col']),
+    urlsFile: pickLast<string | undefined>(parsed['urls-file']),
     city: Number(pickLast<number | string>(parsed.city)),
     concurrency: Number(pickLast<number | string>(parsed.concurrency)),
     headless: pickLast<boolean>(parsed.headless),
@@ -923,6 +953,19 @@ async function loadProductUrls(filePath: string, requestedColumn?: string): Prom
   return rows
     .map((row) => normalizeProductUrl(row[columnName]))
     .filter((value): value is string => typeof value === 'string' && value.length > 0);
+}
+
+async function loadUrlsFromPlainFile(filePath: string): Promise<string[]> {
+  try {
+    const content = await fs.readFile(filePath, 'utf8');
+    return content
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.startsWith('#'));
+  } catch (err) {
+    console.error(`Failed to read URLs from ${filePath}:`, err);
+    return [];
+  }
 }
 
 function resolveColumnName(rows: Record<string, unknown>[], requested?: string): string {

@@ -9,10 +9,9 @@ CONF_FILE="docs/ops/kaspi/perfume_input_path.txt"   # 1-line text file with full
 DEFAULT_INPUT="/Users/adil/Documents/Ideas/perfume_analysis_gpt_7.9.25_v1/Perfumes_V11_MC_V2.1_30.9.25.xlsx"
 
 CITY="${CITY:-710000000}"
-CONCURRENCY="${CONCURRENCY:-100}"
+CONCURRENCY="${CONCURRENCY:-120}"
 
-STAMP="$(date +%Y%m%d_%H%M)"
-OUT="data_raw/perfumes/offers_${STAMP}.csv"
+OUT="data_raw/perfumes/offers_$(date +%Y%m%d_%H%M).csv"
 # ---------------------------------------------------------------------------
 
 # Resolve input path

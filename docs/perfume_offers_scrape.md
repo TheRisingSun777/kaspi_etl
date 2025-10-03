@@ -41,11 +41,13 @@ The CLI maintains `data_raw/perfumes/offers_state.json` so re-running the comman
 
 ## Known Gotchas
 
-- Kaspi paginates sellers (~5 per page). The scraper now clicks through every page and unions sellers per product. If you notice totals that seem capped at one page (≤9 sellers) but the product shows additional page numbers in the UI, lower concurrency (e.g. `--concurrency 40`) and re-run that slice to avoid rate limits.
+- Sellers are paginated in 5-row pages; the scraper now drains both “Показать ещё” buttons and numeric pagination using DOM change-detection polling.
+- The city modal can re-appear mid-pagination; the run enforces cookie + localStorage and clicks “Астана” whenever the chooser resurfaces.
 
 ## Troubleshooting
 
-- Rate-limits (429/503) or per-product timeouts trigger a short cooldown and temporary concurrency reduction; this is logged with `[backoff]`.
+- Backoff only triggers on HTTP 429/503 or the per-product 120 s timeout, and the concurrency floor stays at 50 so we no longer stall at single digits.
+- Resume state writes are atomic; if a run is interrupted, delete the state file to restart from scratch.
 - Pass `--debug` to watch a headed browser (slowMo 250 ms) for troubleshooting pagination and city selection.
 - Debug screenshots for zero-seller pages land in `data_raw/perfumes/debug/`.
-- Check `data_raw/perfumes/logs/offers_<ts>.ndjson` for failures and timing data.
+- Check `data_raw/perfumes/logs/offers_<ts>.ndjson` for per-product metrics (includes `pagesMeta` and `dupFiltered`).

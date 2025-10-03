@@ -14,6 +14,17 @@ const CITY_NAMES: Record<string, string[]> = {
 
 const DEBUG = process.env.DEBUG_SCRAPE === '1';
 
+const SELLERS_CONTAINER_SEL = '.sellers-table__body, .sellers-table, .sellers, .merchant-list';
+const SELLER_ROWS_SEL = '.sellers-table__row, .sellers-list__item, [data-cy*="seller"], .sellers-table tr';
+const SELLERS_TAB_SELS = [
+  '[role="tab"]:has-text("Предложения продавцов")',
+  '[role="tab"]:has-text("Продавцы")',
+  'a:has-text("Предложения продавцов")',
+  'a:has-text("Продавцы")',
+  'button:has-text("Предложения продавцов")',
+  'button:has-text("Продавцы")',
+];
+
 export type FlatSellerRow = {
   product_url: string;
   product_code: string;
@@ -109,6 +120,54 @@ function blockHeavyButKeepCss(route: any) {
   const t = route.request().resourceType();
   if (t === 'image' || t === 'media' || t === 'font') return route.abort();
   return route.continue();
+}
+
+async function ensureCityEverywhere(page: Page, cityId: string) {
+  await page
+    .context()
+    .addCookies([{ name: 'kaspi_city_id', value: cityId, domain: '.kaspi.kz', path: '/' }])
+    .catch(() => {});
+
+  await page.addInitScript((cid: string) => {
+    try {
+      globalThis.localStorage?.setItem('kaspi_city_id', cid);
+    } catch {
+      /* ignore */
+    }
+  }, cityId);
+
+  const modal = page.locator('text=Выберите ваш город').first();
+  if (await modal.count()) {
+    const astana = page.locator('a:has-text("Астана")').first();
+    await astana.click({ timeout: 5_000 }).catch(() => {});
+    await modal.waitFor({ state: 'detached', timeout: 10_000 }).catch(() => {});
+  }
+}
+
+async function waitListChanged(page: Page, prev: string, timeoutMs = 12_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const now = (
+      await page
+        .$eval(SELLERS_CONTAINER_SEL, (el) => (el.textContent || '') as string)
+        .catch(() => '')
+    )
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (now && now !== prev) return true;
+    await page.waitForTimeout(500);
+  }
+  return false;
+}
+
+async function listSignature(page: Page) {
+  return (
+    await page
+      .$eval(SELLERS_CONTAINER_SEL, (el) => (el.textContent || '') as string)
+      .catch(() => '')
+  )
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 async function findNextPaginationControl(page: Page): Promise<Locator | null> {
@@ -250,11 +309,12 @@ export async function scrapeSellersFlat(
   const city = String(cityId);
   page.setDefaultNavigationTimeout(60_000);
   page.setDefaultTimeout(45_000);
-  await setCityCookie(page.context(), city);
 
   const targetUrl = ensureCityParam(productUrl, city);
   const urlDerivedCode = productCodeFromUrl(targetUrl) || '';
 
+  await setCityCookie(page.context(), city);
+  await ensureCityEverywhere(page, city);
   await page.route('**/*', blockHeavyButKeepCss);
 
   let navError: unknown;
@@ -271,182 +331,162 @@ export async function scrapeSellersFlat(
   }
   if (navError) throw navError;
 
-  await ensureCity(page, city);
+  await ensureCityEverywhere(page, city);
   await page.waitForLoadState('domcontentloaded', { timeout: DEFAULT_TIMEOUT }).catch(() => {});
   await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
 
-  const tabSelectors = [
-    '[role="tab"]:has-text("Предложения продавцов")',
-    '[role="tab"]:has-text("Продавцы")',
-    'a:has-text("Предложения продавцов")',
-    'a:has-text("Продавцы")',
-    'button:has-text("Предложения продавцов")',
-    'button:has-text("Продавцы")',
-  ];
-  for (const selector of tabSelectors) {
+  for (const selector of SELLERS_TAB_SELS) {
     const tab = page.locator(selector).first();
     if ((await tab.count()) === 0) continue;
     await tab.click({ timeout: 4_000 }).catch(() => {});
-    await page.waitForLoadState('domcontentloaded', { timeout: 15_000 }).catch(() => {});
-    await page
-      .waitForSelector('.sellers-table, .sellers, .sellers-table__body, .merchant-list', { timeout: 15_000 })
-      .catch(() => {});
     break;
   }
 
-  const listSel = '.sellers-table__body, .sellers, .merchant-list';
-  const pageNumSel = '.pagination a, .pagination__link, .pager a';
-  const nextSel = 'a:has-text("Следующая"), button:has-text("Следующая"), text=Следующая';
+  await page.waitForSelector(SELLERS_CONTAINER_SEL, { state: 'attached', timeout: 20_000 });
+  await ensureCityEverywhere(page, city);
+  const initialSignature = await listSignature(page);
+  if (!initialSignature) {
+    await waitListChanged(page, initialSignature, 12_000);
+  }
+  await page.waitForSelector(SELLER_ROWS_SEL, { state: 'attached', timeout: 20_000 }).catch(() => {});
+
   const showMoreSelectors = [
     'button:has-text("Показать ещё")',
     'button:has-text("Показать еще")',
     'a:has-text("Показать ещё")',
     'a:has-text("Показать еще")',
-    '[data-cy="offers__showMore"]'
+    '[data-cy="offers__showMore"]',
+  ];
+  const paginationSelectors = '.pagination a, .pagination__link, .pager a';
+  const nextSelectors = [
+    'button:has-text("Следующая")',
+    'a:has-text("Следующая")',
+    'text=Следующая',
   ];
 
-  await page.waitForSelector(listSel, { timeout: 15_000 }).catch(() => {});
-
-  const listSignature = async () =>
-    (await page.$eval(listSel, (el) => el.textContent || '').catch(() => ''))
-      .replace(/\s+/g, ' ')
-      .trim();
-
-  // Some layouts use "Показать ещё" instead of classic pagination.
-  // Click it until exhausted before running numeric/next pagination.
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 30; i++) {
     const showMore = await firstLocator(page, showMoreSelectors);
     if (!showMore) break;
-    const disabled = await Promise.all([
+    const visible = await showMore.isVisible().catch(() => false);
+    if (!visible) break;
+    const attrs = await Promise.all([
       showMore.getAttribute('disabled').catch(() => null),
       showMore.getAttribute('aria-disabled').catch(() => null),
       showMore.getAttribute('class').catch(() => null),
     ]);
-    const isDisabled =
-      disabled[0] !== null ||
-      disabled[1] === 'true' ||
-      ((disabled[2] || '').toLowerCase().includes('disabled'));
-    if (isDisabled) break;
+    const disabled = attrs[0] !== null || attrs[1] === 'true' || (attrs[2] || '').toLowerCase().includes('disabled');
+    if (disabled) break;
 
-    const before = await listSignature();
+    const before = await listSignature(page);
     const clicked = await showMore.click({ timeout: 3_000 }).then(() => true).catch(() => false);
     if (!clicked) break;
 
-    let changed = false;
-    for (let attempt = 0; attempt < 24; attempt++) {
-      const after = await listSignature();
-      if (after && after !== before) {
-        changed = true;
-        break;
-      }
-      await page.waitForTimeout(500);
-    }
-    if (!changed) {
-      await page.waitForTimeout(1000);
-    }
+    const changed = await waitListChanged(page, before);
+    if (!changed) await page.waitForTimeout(1_000);
     await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => {});
+    await page.waitForSelector(SELLER_ROWS_SEL, { state: 'attached', timeout: 15_000 }).catch(() => {});
+    await ensureCityEverywhere(page, city);
   }
 
-  let maxPage = 1;
   let numericPagesCount = 0;
+  let maxPage = 1;
   try {
-    const nums = await page
-      .$$eval(
-        pageNumSel,
-        (els) =>
-          els
-            .map((el) => parseInt((el.textContent || '').trim(), 10))
-            .filter((n) => !Number.isNaN(n))
-      )
-      .catch(() => [] as number[]);
+    const nums = await page.$$eval(paginationSelectors, (els) =>
+      els
+        .map((el) => parseInt((el.textContent || '').trim(), 10))
+        .filter((n) => !Number.isNaN(n))
+    );
     numericPagesCount = nums.length;
     if (nums.length) maxPage = Math.max(1, ...nums);
-  } catch {}
+  } catch {
+    numericPagesCount = 0;
+    maxPage = 1;
+  }
+  const useNextFallback = numericPagesCount === 0;
+
+  const productCodeFromPage = await page
+    .evaluate(() => {
+      const meta = document.querySelector(
+        'meta[name="product_id"], meta[property="product:id"], meta[name="product:id"]'
+      ) as HTMLMetaElement | null;
+      if (meta?.content) return meta.content.trim();
+      const dataset = document.querySelector('[data-product-id], [data-productid]') as HTMLElement | null;
+      if (dataset) {
+        const direct =
+          dataset.getAttribute('data-product-id') ||
+          dataset.getAttribute('data-productid') ||
+          (dataset as any).dataset?.productId ||
+          '';
+        if (direct) return String(direct).trim();
+      }
+      const text = document.body ? document.body.innerText || '' : '';
+      const match = text.match(/Код товара[^\d]*(\d{5,})/i);
+      return match ? match[1] : null;
+    })
+    .catch(() => null);
+
+  const productCode = (productCodeFromPage || urlDerivedCode || '').trim();
+
   const allRows: FlatSellerRow[] = [];
   const seen = new Set<string>();
   const pagesMeta: Array<{ page: number; got: number }> = [];
   let duplicatesFiltered = 0;
 
-  const productCodeFromPage =
-    (await page
-      .evaluate(() => {
-        const meta = document.querySelector(
-          'meta[name="product_id"], meta[property="product:id"], meta[name="product:id"]'
-        ) as HTMLMetaElement | null;
-        if (meta?.content) return meta.content;
-        const dataset = document.querySelector('[data-product-id], [data-productid]') as HTMLElement | null;
-        if (dataset) {
-          const direct =
-            dataset.getAttribute('data-product-id') ||
-            dataset.getAttribute('data-productid') ||
-            (dataset as any).dataset?.productId ||
-            '';
-          if (direct) return direct;
-        }
-        const text = document.body ? document.body.innerText || '' : '';
-        const match = text.match(/Код товара[^\d]*(\d{5,})/i);
-        return match ? match[1] : null;
-      })
-      .catch(() => null)) || '';
-
-  const productCode = productCodeFromPage || urlDerivedCode;
-
-  const useNextFallback = numericPagesCount === 0;
-
   for (let pageIndex = 1; ; pageIndex++) {
     if (pageIndex > 1) {
-      const before = await listSignature();
+      const before = await listSignature(page);
       let clicked = false;
+
       if (!useNextFallback) {
-        const pageLink = page.locator(pageNumSel).filter({ hasText: `${pageIndex}` }).first();
+        const pageLink = page.locator(paginationSelectors).filter({ hasText: `${pageIndex}` }).first();
         if ((await pageLink.count()) > 0) {
           await pageLink.click({ timeout: 3_000 }).catch(() => {});
           clicked = true;
         }
       }
+
       if (!clicked) {
-        const nextCandidates = await firstLocator(page, [
-          'button:has-text("Следующая")',
-          'a:has-text("Следующая")',
-          'text=Следующая'
-        ]);
-        if (nextCandidates) {
-          await nextCandidates.click({ timeout: 3_000 }).catch(() => {});
-          clicked = true;
+        const nextCandidate = await firstLocator(page, nextSelectors);
+        if (nextCandidate) {
+          const visible = await nextCandidate.isVisible().catch(() => false);
+          if (visible) {
+            const attrs = await Promise.all([
+              nextCandidate.getAttribute('disabled').catch(() => null),
+              nextCandidate.getAttribute('aria-disabled').catch(() => null),
+              nextCandidate.getAttribute('class').catch(() => null),
+            ]);
+            const disabled =
+              attrs[0] !== null || attrs[1] === 'true' || (attrs[2] || '').toLowerCase().includes('disabled');
+            if (!disabled) {
+              await nextCandidate.click({ timeout: 3_000 }).catch(() => {});
+              clicked = true;
+            }
+          }
         }
       }
 
-      if (!clicked) {
-        break;
-      }
+      if (!clicked) break;
 
-      let changed = false;
-      for (let attempt = 0; attempt < 24; attempt++) {
-        const after = await listSignature();
-        if (after && after !== before) {
-          changed = true;
-          break;
-        }
-        await page.waitForTimeout(500);
-      }
-      if (!changed) {
-        await page.waitForTimeout(1000);
-      }
+      const changed = await waitListChanged(page, before);
+      if (!changed) await page.waitForTimeout(1_000);
       await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => {});
+      await page.waitForSelector(SELLER_ROWS_SEL, { state: 'attached', timeout: 15_000 }).catch(() => {});
+      await ensureCityEverywhere(page, city);
     }
 
     const sellers = await parseSellersFromDom(page).catch(() => []);
     const pageRows: FlatSellerRow[] = [];
+
     for (const seller of sellers) {
       const cleanName = sanitizeSellerName(seller.name || '');
       const cleanPrice = sanitizePrice(seller.price);
       if (!cleanName || !Number.isFinite(cleanPrice) || cleanPrice <= 0) continue;
-      const key = `${cleanName.toLowerCase()}||${cleanPrice}`;
-      if (seen.has(key)) {
+      const dedupKey = `${cleanName.toLowerCase()}||${cleanPrice}`;
+      if (seen.has(dedupKey)) {
         duplicatesFiltered += 1;
         continue;
       }
-      seen.add(key);
+      seen.add(dedupKey);
       const row: FlatSellerRow = {
         product_url: targetUrl,
         product_code: productCode,
@@ -456,21 +496,23 @@ export async function scrapeSellersFlat(
       allRows.push(row);
       pageRows.push(row);
     }
+
     pagesMeta.push({ page: pageIndex, got: pageRows.length });
 
     if (!useNextFallback) {
       if (pageIndex >= maxPage) break;
     } else {
-      const nextCandidates = await firstLocator(page, [
-        'button:has-text("Следующая")',
-        'a:has-text("Следующая")',
-        'text=Следующая'
+      const nextCandidate = await firstLocator(page, nextSelectors);
+      if (!nextCandidate) break;
+      const visible = await nextCandidate.isVisible().catch(() => false);
+      if (!visible) break;
+      const attrs = await Promise.all([
+        nextCandidate.getAttribute('disabled').catch(() => null),
+        nextCandidate.getAttribute('aria-disabled').catch(() => null),
+        nextCandidate.getAttribute('class').catch(() => null),
       ]);
-      if (!nextCandidates) break;
-      const ariaDisabled = await nextCandidates.getAttribute('aria-disabled').catch(() => null);
-      const classAttr = await nextCandidates.getAttribute('class').catch(() => null);
-      const disabledAttr = await nextCandidates.getAttribute('disabled').catch(() => null);
-      if (disabledAttr !== null || ariaDisabled === 'true' || (classAttr || '').toLowerCase().includes('disabled')) break;
+      const disabled = attrs[0] !== null || attrs[1] === 'true' || (attrs[2] || '').toLowerCase().includes('disabled');
+      if (disabled) break;
     }
   }
 
@@ -487,11 +529,13 @@ export async function scrapeSellersFlat(
 
 async function parseSellersFromDom(page: Page): Promise<Seller[]> {
   const selectors = [
+    '.sellers-table__row',
+    '.sellers-list__item',
+    '[data-cy*="seller"]',
     '[data-cy*="sellers"] li',
     '.sellers-list li',
     '.merchant-list li',
     '.merchant__root, .merchant-list__item, .sellers-list__item',
-    '.sellers-table__row',
     '.sellers-table tr',
   ];
 
@@ -517,7 +561,8 @@ async function parseSellersFromDom(page: Page): Promise<Seller[]> {
             (root.querySelector('[class*="price"]') as HTMLElement)?.textContent ||
             text;
 
-          const num = (priceTxt.match(/[\d\s]+/g)?.join('') || '').replace(/\s/g, '');
+          const digitsMatch = (priceTxt || '').match(/[\d\u00a0\s]+/);
+          const num = digitsMatch ? digitsMatch[0].replace(/[^0-9]/g, '') : '';
           const price = Number(num);
 
           const delA = (root.querySelector('.sellers-table__delivery, .sellers-table__delivery-text') as HTMLElement)?.textContent?.trim() || ''
