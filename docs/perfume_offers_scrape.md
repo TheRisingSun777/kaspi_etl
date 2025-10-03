@@ -32,7 +32,7 @@ Key flags:
 The script streams both CSV rows and NDJSON logs to `data_raw/perfumes/`. CSV rows are written as:
 
 ```
-product_code,seller_name,price_kzt,product_url
+product_url,product_code,total_sellers_qnt,seller_name,price_kzt,ratings_qnt
 ```
 
 Logs can be used to resume or investigate partial runs.
@@ -50,4 +50,5 @@ The CLI maintains `data_raw/perfumes/offers_state.json` so re-running the comman
 - Resume state writes are atomic; if a run is interrupted, delete the state file to restart from scratch.
 - Pass `--debug` to watch a headed browser (slowMo 250 ms) for troubleshooting pagination and city selection.
 - Debug screenshots for zero-seller pages land in `data_raw/perfumes/debug/`.
-- Check `data_raw/perfumes/logs/offers_<ts>.ndjson` for per-product metrics (includes `pagesMeta` and `dupFiltered`).
+- Check `data_raw/perfumes/logs/offers_<ts>.ndjson` for per-product metrics (includes `pagesMeta`, `dupFiltered`, and `reviewsQnt`).
+- `ratings_qnt` is sourced from the “Отзывы (N)” tab (falls back to meta or text parsing) and defaults to 0 if no reviews count is published.

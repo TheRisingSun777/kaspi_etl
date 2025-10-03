@@ -26,7 +26,14 @@ const { scrapeSellersFlat } = scrapeModule as {
     page: Page,
     productUrl: string,
     cityId: number
-  ) => Promise<{ rows: FlatSellerRow[]; total: number; product_code: string }>;
+  ) => Promise<{
+    rows: FlatSellerRow[];
+    total: number;
+    product_code: string;
+    pages?: Array<{ page: number; got: number }>;
+    dupFiltered?: number;
+    reviewsQnt?: number;
+  }>;
 };
 
 type CliArgs = {
@@ -61,6 +68,7 @@ type TaskResult = {
   attempt: number;
   pages: Array<{ page: number; got: number }>;
   dupFiltered: number;
+  reviewsQnt: number;
 };
 
 type TaskError = Error & {
@@ -119,7 +127,10 @@ async function main() {
   const outExists = await fs.pathExists(outPath);
   const csvStream = fs.createWriteStream(outPath, { flags: outExists ? 'a' : 'w' });
   if (!outExists) {
-    await writeLine(csvStream, 'product_url,product_code,total_sellers_qnt,seller_name,price_kzt\n');
+    await writeLine(
+      csvStream,
+      'product_url,product_code,total_sellers_qnt,seller_name,price_kzt,ratings_qnt\n'
+    );
   }
 
   const logStream = fs.createWriteStream(path.join(logsDir, `offers_${RUN_TIMESTAMP}.ndjson`), { flags: 'a' });
@@ -362,6 +373,7 @@ async function main() {
       pagesMeta: result.pages,
       dupFiltered: result.dupFiltered,
       zeroSellers: result.zeroSellers || undefined,
+      reviewsQnt: result.reviewsQnt ?? 0,
     });
     logProgress(result.index, result.productCode, result.total);
   }
@@ -498,7 +510,7 @@ async function main() {
       const canonicalUrl = result.rows[0]?.product_url || ensureCityParam(requestUrl, String(cityId));
 
       if (result.rows.length) {
-        const lines = buildCsvLines(result.rows, total);
+        const lines = buildCsvLines(result.rows, total, result.reviewsQnt ?? 0);
         for (const line of lines) {
           await writeQueue(() => writeLine(csvStream, line));
         }
@@ -518,6 +530,7 @@ async function main() {
         attempt: task.attempt,
         pages: result.pages,
         dupFiltered: result.dupFiltered,
+        reviewsQnt: result.reviewsQnt ?? 0,
       };
     } catch (error) {
       const err = error as TaskError;
@@ -557,7 +570,7 @@ async function closeStream(stream: fs.WriteStream) {
   });
 }
 
-function buildCsvLines(rows: FlatSellerRow[], totalForProduct: number): string[] {
+function buildCsvLines(rows: FlatSellerRow[], totalForProduct: number, ratingsQnt: number): string[] {
   return rows.map((row) =>
     [
       csvSafe(row.product_url),
@@ -565,6 +578,7 @@ function buildCsvLines(rows: FlatSellerRow[], totalForProduct: number): string[]
       csvSafe(String(totalForProduct)),
       csvSafe(row.seller_name),
       csvSafe(String(row.price_kzt)),
+      csvSafe(String(ratingsQnt)),
     ].join(',') + '\n'
   );
 }

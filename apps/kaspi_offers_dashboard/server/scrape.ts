@@ -24,6 +24,11 @@ const SELLERS_TAB_SELS = [
   'button:has-text("Предложения продавцов")',
   'button:has-text("Продавцы")',
 ];
+const REVIEWS_TAB_SELS = [
+  '[role="tab"]:has-text("Отзывы")',
+  'a:has-text("Отзывы")',
+  'button:has-text("Отзывы")',
+];
 
 export type FlatSellerRow = {
   product_url: string;
@@ -168,6 +173,54 @@ async function listSignature(page: Page) {
   )
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+async function extractReviewsCount(page: Page): Promise<number> {
+  try {
+    const metaValues = await page.evaluate(() => {
+      const picks = [
+        'meta[itemprop="reviewCount"]',
+        '[itemprop="reviewCount"]',
+        'meta[name="reviewCount"]',
+        'meta[property="og:rating:count"]',
+      ];
+      const out: number[] = [];
+      for (const sel of picks) {
+        const el = document.querySelector(sel) as HTMLElement | HTMLMetaElement | null;
+        const raw = (el?.getAttribute('content') || (el as any)?.textContent || '').trim();
+        if (!raw) continue;
+        const n = Number((raw || '').replace(/[^\d]/g, ''));
+        if (!Number.isNaN(n) && n >= 0) out.push(n);
+      }
+      return out;
+    });
+    const positiveMeta = (metaValues || []).find((n) => n > 0);
+    const metaFallback = (metaValues || []).find((n) => n === 0);
+    if (typeof positiveMeta === 'number') return positiveMeta;
+
+    for (const sel of REVIEWS_TAB_SELS) {
+      const loc = page.locator(sel).first();
+      if (await loc.count()) {
+        const txt = (await loc.textContent())?.trim() || '';
+        const m1 = txt.match(/\((\d+)\)/);
+        if (m1) return Number(m1[1]);
+        const m2 = txt.match(/(\d+)\s*отзыв(ов|а)?/i);
+        if (m2) return Number(m2[1]);
+      }
+    }
+
+    const bodyTxt = (await page.evaluate(() => document.body?.innerText || '')).trim();
+    const fallback = bodyTxt.match(/Отзывы\s*\((\d+)\)/i) || bodyTxt.match(/(\d+)\s*отзыв(ов|а)?/i);
+    if (fallback) {
+      const val = Number(fallback[1] || fallback[0]?.replace(/[^\d]/g, '') || 0);
+      if (!Number.isNaN(val)) return val;
+    }
+
+    if (typeof metaFallback === 'number') return metaFallback;
+    return 0;
+  } catch {
+    return 0;
+  }
 }
 
 async function findNextPaginationControl(page: Page): Promise<Locator | null> {
@@ -516,6 +569,12 @@ export async function scrapeSellersFlat(
     }
   }
 
+  let reviewsQnt = await extractReviewsCount(page).catch(() => 0);
+  if (!reviewsQnt) {
+    await page.waitForTimeout(1_000).catch(() => {});
+    reviewsQnt = await extractReviewsCount(page).catch(() => 0);
+  }
+
   await page.unroute('**/*', blockHeavyButKeepCss).catch(() => {});
 
   return {
@@ -524,6 +583,7 @@ export async function scrapeSellersFlat(
     product_code: productCode,
     pages: pagesMeta,
     dupFiltered: duplicatesFiltered,
+    reviewsQnt,
   };
 }
 
