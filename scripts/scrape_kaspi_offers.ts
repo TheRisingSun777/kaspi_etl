@@ -33,6 +33,8 @@ const { scrapeSellersFlat } = scrapeModule as {
     pages?: Array<{ page: number; got: number }>;
     dupFiltered?: number;
     reviewsQnt?: number;
+    reviewDateOldest?: string;
+    reviewDateLatest?: string;
   }>;
 };
 
@@ -69,6 +71,8 @@ type TaskResult = {
   pages: Array<{ page: number; got: number }>;
   dupFiltered: number;
   reviewsQnt: number;
+  reviewDateOldest: string;
+  reviewDateLatest: string;
 };
 
 type TaskError = Error & {
@@ -129,7 +133,7 @@ async function main() {
   if (!outExists) {
     await writeLine(
       csvStream,
-      'product_url,product_code,total_sellers_qnt,seller_name,price_kzt,ratings_qnt\n'
+      'product_url,product_code,total_sellers_qnt,seller_name,price_kzt,ratings_qnt,review_date_oldest,review_date_latest\n'
     );
   }
 
@@ -374,6 +378,8 @@ async function main() {
       dupFiltered: result.dupFiltered,
       zeroSellers: result.zeroSellers || undefined,
       reviewsQnt: result.reviewsQnt ?? 0,
+      reviewDateOldest: result.reviewDateOldest || undefined,
+      reviewDateLatest: result.reviewDateLatest || undefined,
     });
     logProgress(result.index, result.productCode, result.total);
   }
@@ -510,7 +516,13 @@ async function main() {
       const canonicalUrl = result.rows[0]?.product_url || ensureCityParam(requestUrl, String(cityId));
 
       if (result.rows.length) {
-        const lines = buildCsvLines(result.rows, total, result.reviewsQnt ?? 0);
+        const lines = buildCsvLines(
+          result.rows,
+          total,
+          result.reviewsQnt ?? 0,
+          result.reviewDateOldest || '',
+          result.reviewDateLatest || ''
+        );
         for (const line of lines) {
           await writeQueue(() => writeLine(csvStream, line));
         }
@@ -531,6 +543,8 @@ async function main() {
         pages: result.pages,
         dupFiltered: result.dupFiltered,
         reviewsQnt: result.reviewsQnt ?? 0,
+        reviewDateOldest: result.reviewDateOldest || '',
+        reviewDateLatest: result.reviewDateLatest || '',
       };
     } catch (error) {
       const err = error as TaskError;
@@ -570,7 +584,13 @@ async function closeStream(stream: fs.WriteStream) {
   });
 }
 
-function buildCsvLines(rows: FlatSellerRow[], totalForProduct: number, ratingsQnt: number): string[] {
+function buildCsvLines(
+  rows: FlatSellerRow[],
+  totalForProduct: number,
+  ratingsQnt: number,
+  reviewDateOldest: string,
+  reviewDateLatest: string
+): string[] {
   return rows.map((row) =>
     [
       csvSafe(row.product_url),
@@ -579,6 +599,8 @@ function buildCsvLines(rows: FlatSellerRow[], totalForProduct: number, ratingsQn
       csvSafe(row.seller_name),
       csvSafe(String(row.price_kzt)),
       csvSafe(String(ratingsQnt)),
+      csvSafe(reviewDateOldest),
+      csvSafe(reviewDateLatest),
     ].join(',') + '\n'
   );
 }

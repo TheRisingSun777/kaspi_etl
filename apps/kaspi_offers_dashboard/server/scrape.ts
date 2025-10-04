@@ -25,9 +25,10 @@ const SELLERS_TAB_SELS = [
   'button:has-text("Продавцы")',
 ];
 const REVIEWS_TAB_SELS = [
-  '[role="tab"]:has-text("Отзывы")',
-  'a:has-text("Отзывы")',
-  'button:has-text("Отзывы")',
+  '[data-tab="reviews"]',
+  '.tabs-content__tab[data-tab="reviews"]',
+  'li[data-tab="reviews"]',
+  '.tab-item[data-tab="reviews"]',
 ];
 
 export type FlatSellerRow = {
@@ -84,7 +85,15 @@ async function firstLocator(page: Page, selectors: string[]): Promise<Locator | 
 }
 
 // Simple 2-minute in-memory cache per (cityId, productId)
-type VariantCacheEntry = { sellers: Seller[]; label?: string; expiresAt: number };
+type VariantCacheEntry = {
+  sellers: Seller[];
+  label?: string;
+  productUrl?: string;
+  reviewsCount?: number;
+  reviewDateOldest?: string;
+  reviewDateLatest?: string;
+  expiresAt: number;
+};
 const VARIANT_CACHE_TTL_MS = 2 * 60 * 1000;
 const variantCache = new Map<string, VariantCacheEntry>();
 function cacheKey(cityId: string, productId: string) {
@@ -96,9 +105,9 @@ function getCached(cityId: string, productId: string): VariantCacheEntry | undef
   if (!entry || entry.expiresAt <= Date.now()) return undefined;
   return entry;
 }
-function setCached(cityId: string, productId: string, sellers: Seller[], label?: string) {
+function setCached(cityId: string, productId: string, entry: Omit<VariantCacheEntry, 'expiresAt'>) {
   const k = cacheKey(cityId, productId);
-  variantCache.set(k, { sellers, label, expiresAt: Date.now() + VARIANT_CACHE_TTL_MS });
+  variantCache.set(k, { ...entry, expiresAt: Date.now() + VARIANT_CACHE_TTL_MS });
 }
 
 function sleep(ms: number) {
@@ -175,52 +184,135 @@ async function listSignature(page: Page) {
     .trim();
 }
 
-async function extractReviewsCount(page: Page): Promise<number> {
+async function extractCanonicalUrl(page: Page, fallbackUrl: string): Promise<string> {
   try {
-    const metaValues = await page.evaluate(() => {
-      const picks = [
-        'meta[itemprop="reviewCount"]',
-        '[itemprop="reviewCount"]',
-        'meta[name="reviewCount"]',
-        'meta[property="og:rating:count"]',
-      ];
-      const out: number[] = [];
-      for (const sel of picks) {
-        const el = document.querySelector(sel) as HTMLElement | HTMLMetaElement | null;
-        const raw = (el?.getAttribute('content') || (el as any)?.textContent || '').trim();
-        if (!raw) continue;
-        const n = Number((raw || '').replace(/[^\d]/g, ''));
-        if (!Number.isNaN(n) && n >= 0) out.push(n);
-      }
-      return out;
+    const canonical = await page.evaluate(() => {
+      const link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+      if (link?.href) return link.href;
+      const og = document.querySelector('meta[property="og:url"], meta[name="og:url"]') as HTMLMetaElement | null;
+      return og?.content || '';
     });
-    const positiveMeta = (metaValues || []).find((n) => n > 0);
-    const metaFallback = (metaValues || []).find((n) => n === 0);
-    if (typeof positiveMeta === 'number') return positiveMeta;
+    if (canonical) return canonical;
+  } catch {}
+  return fallbackUrl;
+}
 
-    for (const sel of REVIEWS_TAB_SELS) {
-      const loc = page.locator(sel).first();
-      if (await loc.count()) {
-        const txt = (await loc.textContent())?.trim() || '';
-        const m1 = txt.match(/\((\d+)\)/);
-        if (m1) return Number(m1[1]);
-        const m2 = txt.match(/(\d+)\s*отзыв(ов|а)?/i);
-        if (m2) return Number(m2[1]);
+async function extractReviewsCount(page: Page, productCode?: string): Promise<number> {
+  try {
+    await page.waitForSelector('[data-tab="reviews"], .tabs-content__tab', { timeout: 3000 }).catch(() => {});
+    const tabCount = await page.evaluate((selectors) => {
+      const fromTabs = selectors
+        .map((sel) => document.querySelector(sel) as HTMLElement | null)
+        .filter((el) => el && (el.textContent || '').trim().length) as HTMLElement[];
+      for (const el of fromTabs) {
+        const txt = (el.textContent || '').trim();
+        const m = txt.match(/Отзывы\s*\((\d+)\)/i);
+        if (m) return Number(m[1]);
+      }
+      const bodyMatch = (document.body?.innerText || '').match(/Отзывы\s*\((\d+)\)/i);
+      if (bodyMatch) return Number(bodyMatch[1]);
+      const meta = document.querySelector('meta[itemprop="reviewCount"], [itemprop="reviewCount"], meta[property="og:rating:count"], meta[name="reviewCount"]') as HTMLElement | HTMLMetaElement | null;
+      if (meta) {
+        const raw = (meta.getAttribute('content') || (meta as any)?.textContent || '').trim();
+        if (raw) {
+          const n = Number(raw.replace(/[^\d]/g, ''));
+          if (!Number.isNaN(n)) return n;
+        }
+      }
+      return null;
+    }, REVIEWS_TAB_SELS);
+    if (typeof tabCount === 'number' && tabCount >= 0) return tabCount;
+
+    if (productCode) {
+      const aggregated = await page.evaluate(async (code) => {
+        try {
+          const url = `https://kaspi.kz/yml/review-view/api/v1/reviews/product/${code}?filter=COMMENT&sort=POPULARITY&limit=1&withAgg=true`;
+          const res = await fetch(url, { credentials: 'include' });
+          if (!res.ok) return null;
+          return await res.json();
+        } catch {
+          return null;
+        }
+      }, productCode);
+
+      if (aggregated?.summary?.statistic) {
+        const total = aggregated.summary.statistic.reduce((sum: number, item: any) => {
+          const cnt = Number(item?.count ?? 0);
+          return sum + (Number.isFinite(cnt) ? cnt : 0);
+        }, 0);
+        if (Number.isFinite(total) && total >= 0) return total;
       }
     }
 
-    const bodyTxt = (await page.evaluate(() => document.body?.innerText || '')).trim();
-    const fallback = bodyTxt.match(/Отзывы\s*\((\d+)\)/i) || bodyTxt.match(/(\d+)\s*отзыв(ов|а)?/i);
-    if (fallback) {
-      const val = Number(fallback[1] || fallback[0]?.replace(/[^\d]/g, '') || 0);
-      if (!Number.isNaN(val)) return val;
-    }
-
-    if (typeof metaFallback === 'number') return metaFallback;
     return 0;
   } catch {
     return 0;
   }
+}
+
+function parseDdMmYyyy(value: string): Date | null {
+  const parts = value.trim().match(/^(\d{1,2})[.](\d{1,2})[.](\d{4})$/);
+  if (!parts) return null;
+  const day = Number(parts[1]);
+  const month = Number(parts[2]) - 1;
+  const year = Number(parts[3]);
+  const date = new Date(Date.UTC(year, month, day));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDateHyphen(value: string): string {
+  const parts = value.trim().match(/^(\d{1,2})[.](\d{1,2})[.](\d{4})$/);
+  if (!parts) return '';
+  const [ , d, m, y ] = parts;
+  const pad = (n: string) => n.padStart(2, '0');
+  return `${pad(d)}-${pad(m)}-${y}`;
+}
+
+async function extractReviewTimeline(page: Page, productCode: string, reviewsQnt: number): Promise<{ oldest: string; latest: string }> {
+  if (!productCode || reviewsQnt <= 0) {
+    return { oldest: '', latest: '' };
+  }
+  const limit = Math.min(Math.max(reviewsQnt, 50), 999);
+  const baseUrl = `https://kaspi.kz/yml/review-view/api/v1/reviews/product/${productCode}?filter=COMMENT&sort=DATE&limit=${limit}&withAgg=true`;
+  const payload = await page.evaluate(async (url) => {
+    try {
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }, baseUrl);
+  const entries: string[] = Array.isArray(payload?.data)
+    ? payload.data.map((item: any) => (typeof item?.date === 'string' ? item.date.trim() : '')).filter(Boolean)
+    : [];
+
+  if (!entries.length) {
+    return { oldest: '', latest: '' };
+  }
+
+  let oldestDate = entries[0];
+  let latestDate = entries[0];
+  let oldest = parseDdMmYyyy(oldestDate);
+  let latest = oldest;
+
+  for (const current of entries.slice(1)) {
+    const parsed = parseDdMmYyyy(current);
+    if (!parsed) continue;
+    if (!oldest || parsed < oldest) {
+      oldest = parsed;
+      oldestDate = current;
+    }
+    if (!latest || parsed > latest) {
+      latest = parsed;
+      latestDate = current;
+    }
+  }
+
+  return {
+    oldest: formatDateHyphen(oldestDate),
+    latest: formatDateHyphen(latestDate),
+  };
 }
 
 async function findNextPaginationControl(page: Page): Promise<Locator | null> {
@@ -388,6 +480,9 @@ export async function scrapeSellersFlat(
   await page.waitForLoadState('domcontentloaded', { timeout: DEFAULT_TIMEOUT }).catch(() => {});
   await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
 
+  const canonicalUrl = await extractCanonicalUrl(page, targetUrl);
+  let reviewsQnt = await extractReviewsCount(page, urlDerivedCode).catch(() => 0);
+
   for (const selector of SELLERS_TAB_SELS) {
     const tab = page.locator(selector).first();
     if ((await tab.count()) === 0) continue;
@@ -541,7 +636,7 @@ export async function scrapeSellersFlat(
       }
       seen.add(dedupKey);
       const row: FlatSellerRow = {
-        product_url: targetUrl,
+        product_url: canonicalUrl,
         product_code: productCode,
         seller_name: cleanName,
         price_kzt: cleanPrice,
@@ -569,11 +664,12 @@ export async function scrapeSellersFlat(
     }
   }
 
-  let reviewsQnt = await extractReviewsCount(page).catch(() => 0);
   if (!reviewsQnt) {
     await page.waitForTimeout(1_000).catch(() => {});
-    reviewsQnt = await extractReviewsCount(page).catch(() => 0);
+    reviewsQnt = await extractReviewsCount(page, productCode).catch(() => 0);
   }
+
+  const { oldest: reviewDateOldest, latest: reviewDateLatest } = await extractReviewTimeline(page, productCode, reviewsQnt);
 
   await page.unroute('**/*', blockHeavyButKeepCss).catch(() => {});
 
@@ -584,6 +680,8 @@ export async function scrapeSellersFlat(
     pages: pagesMeta,
     dupFiltered: duplicatesFiltered,
     reviewsQnt,
+    reviewDateOldest,
+    reviewDateLatest,
   };
 }
 
@@ -1073,7 +1171,16 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
     // Cache check
     const cached = getCached(cityId, id);
     if (cached) {
-      variants.push({ productId: id, label: cached.label || `Variant ${id}`, sellersCount: cached.sellers.length, sellers: cached.sellers });
+      variants.push({
+        productId: id,
+        label: cached.label || `Variant ${id}`,
+        productUrl: cached.productUrl,
+        reviewsCount: cached.reviewsCount,
+        reviewDateOldest: cached.reviewDateOldest,
+        reviewDateLatest: cached.reviewDateLatest,
+        sellersCount: cached.sellers.length,
+        sellers: cached.sellers,
+      });
       // Backoff between pages even when cached
       await sleep(250 + Math.floor(Math.random() * 250));
       continue;
@@ -1210,6 +1317,18 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
           stabilityScore = Math.round((1 - ratio) * 100)
         }
 
+        const variantCanonicalUrl = await extractCanonicalUrl(vPage, vPage.url());
+        let variantReviewsCount = await extractReviewsCount(vPage, id).catch(() => 0);
+        if (!variantReviewsCount) {
+          await vPage.waitForTimeout(1_000).catch(() => {});
+          variantReviewsCount = await extractReviewsCount(vPage, id).catch(() => 0);
+        }
+        const { oldest: variantReviewOldest, latest: variantReviewLatest } = await extractReviewTimeline(
+          vPage,
+          id,
+          variantReviewsCount
+        );
+
         if (DEBUG) {
           try {
             await fs.mkdir('data_raw/debug', { recursive: true });
@@ -1232,13 +1351,24 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
         if (details?.colorsAll?.length) entryDetails.colorsAll = Array.from(new Set([...(entryDetails.colorsAll || []), ...details.colorsAll]));
         if (!entryDetails.imageUrl && details?.imageUrl) entryDetails.imageUrl = details.imageUrl;
 
-        setCached(cityId, id, sellers, label);
+        setCached(cityId, id, {
+          sellers,
+          label,
+          productUrl: variantCanonicalUrl,
+          reviewsCount: variantReviewsCount,
+          reviewDateOldest: variantReviewOldest,
+          reviewDateLatest: variantReviewLatest,
+        });
         variants.push({
           productId: id,
           label: title || label,
           variantColor: meta.color || (entryDetails.colorsAll?.[0]?.toLowerCase()),
           variantSize: meta.size || variantMap[id],
           rating: meta.rating,
+          reviewsCount: variantReviewsCount,
+          reviewDateOldest: variantReviewOldest,
+          reviewDateLatest: variantReviewLatest,
+          productUrl: variantCanonicalUrl,
           sellersCount: sellers.length,
           sellers,
           stats: { min, median, max, spread, stddev, stabilityScore, predictedMin24h, predictedMin7d }
@@ -1253,7 +1383,7 @@ export async function scrapeAnalyze(masterProductId: string, cityId: string): Pr
     }
     // After retries, if still not pushed, record empty variant
     if (!variants.find((v) => v.productId === id)) {
-      setCached(cityId, id, [], `Variant ${id}`);
+      setCached(cityId, id, { sellers: [], label: `Variant ${id}` });
       variants.push({ productId: id, label: `Variant ${id}`, sellersCount: 0, sellers: [] });
     }
 

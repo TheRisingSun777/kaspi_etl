@@ -60,6 +60,8 @@ async function tick(ids: string[], city: string) {
             price: s.price,
             deliveryDate: s.deliveryDate,
             isPriceBot,
+            reviewDateOldest: v.reviewDateOldest || null,
+            reviewDateLatest: v.reviewDateLatest || null,
           })
         }
       }
@@ -84,5 +86,4 @@ async function main() {
 }
 
 main()
-
 
