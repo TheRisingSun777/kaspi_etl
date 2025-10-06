@@ -1,13 +1,4 @@
 type,store,core,size,count,output
-singles_group,11KZ,Принт 5в1 черный,2XL,1,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/5.10.25_11KZ_qnt1/NORMAL_singles/Принт 5в1 черный_2XL-1.pdf
-singles_group,OnlyFit,Berserk футболка черная,2XL,2,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/5.10.25_OnlyFit_qnt24/NORMAL_singles/Berserk футболка черная_2XL-2.pdf
-singles_group,OnlyFit,Nike Футболка черная,L,1,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/5.10.25_OnlyFit_qnt24/NORMAL_singles/Nike Футболка черная_L-1.pdf
-singles_group,OnlyFit,Принт 5в1 черный,2XL,5,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/5.10.25_OnlyFit_qnt24/NORMAL_singles/Принт 5в1 черный_2XL-5.pdf
-singles_group,OnlyFit,Принт 5в1 черный,3XL,3,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/5.10.25_OnlyFit_qnt24/NORMAL_singles/Принт 5в1 черный_3XL-3.pdf
-singles_group,OnlyFit,Принт 5в1 черный,4XL,1,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/5.10.25_OnlyFit_qnt24/NORMAL_singles/Принт 5в1 черный_4XL-1.pdf
-singles_group,OnlyFit,Принт 5в1 черный,L,4,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/5.10.25_OnlyFit_qnt24/NORMAL_singles/Принт 5в1 черный_L-4.pdf
-singles_group,OnlyFit,Принт 5в1 черный,M,2,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/5.10.25_OnlyFit_qnt24/NORMAL_singles/Принт 5в1 черный_M-2.pdf
-singles_group,OnlyFit,Принт 5в1 черный,XL,6,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/5.10.25_OnlyFit_qnt24/NORMAL_singles/Принт 5в1 черный_XL-6.pdf
 singles_group,Universal,Nike Футболка черная,2XL,1,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/5.10.25_Universal_qnt20/NORMAL_singles/Nike Футболка черная_2XL-1.pdf
 singles_group,Universal,Костюм мужской Ромбик,XL,2,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/5.10.25_Universal_qnt20/NORMAL_singles/Костюм мужской Ромбик_XL-2.pdf
 singles_group,Universal,Принт 5в1 черный,2XL,2,/Users/adil/Docs/kaspi_etl/docs/ops/kaspi/Kaspi_orders/Today/5.10.25_Universal_qnt20/NORMAL_singles/Принт 5в1 черный_2XL-2.pdf
