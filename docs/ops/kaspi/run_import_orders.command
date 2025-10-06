@@ -4,20 +4,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 OPS_ROOT="${SCRIPT_DIR}"
 REPO_ROOT="$(cd "${OPS_ROOT}/../../.." && pwd)"
-VENV_PYTHON="${REPO_ROOT}/venv/bin/python"
+source "${OPS_ROOT}/python_env_bootstrap.zsh"
 
-if [ -x "${VENV_PYTHON}" ]; then
-  DEFAULT_PYTHON="${VENV_PYTHON}"
-else
-  DEFAULT_PYTHON="$(command -v python3 || true)"
-fi
-
-if [ -z "${DEFAULT_PYTHON}" ]; then
-  echo "Unable to locate a python interpreter. Set KASPI_PYTHON_BIN to a valid executable." >&2
+REQUIREMENTS_FILE="${REPO_ROOT}/requirements.txt"
+PYTHON_BIN="$(kaspi_select_python "${REQUIREMENTS_FILE}")"
+if [ -z "${PYTHON_BIN}" ]; then
+  echo "Unable to initialise Python environment" >&2
   exit 1
 fi
-
-PYTHON_BIN="${KASPI_PYTHON_BIN:-${PYTHON_BIN:-${DEFAULT_PYTHON}}}"
 
 ORDERS="${KASPI_ACTIVE_ORDERS_DIR:-${ORDERS:-${OPS_ROOT}/ActiveOrders}}"
 WB="${KASPI_CRM_WORKBOOK:-${WB:-${OPS_ROOT}/SALES_KSP_CRM_V3.xlsx}}"

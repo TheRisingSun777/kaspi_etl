@@ -63,7 +63,9 @@ folder when overrides are not provided.
 ## Dependencies
 
 Kaspi tooling relies on pandas, openpyxl, xlwings, and pypdf. They are listed in
-the project-level `requirements.txt`. Install (or update) them with:
+the project-level `requirements.txt`. The `.command` launchers now bootstrap a
+repo-local virtualenv (`venv/`) and install any missing dependencies before
+running. You can also install (or update) them manually with:
 
 ```bash
 python3 -m pip install -r requirements.txt
