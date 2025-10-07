@@ -1,0 +1,204 @@
+# TASKS.yaml — Phased plan with owner, deps, DoD
+# status: todo | in_progress | blocked | review | done
+# owner: manual | codex
+
+meta:
+  last_updated: "YYYY-MM-DD HH:MM"
+  actor: "owner"
+
+phases:
+  - id: P0
+    name: Repo Hygiene & Protocol Setup
+    tasks:
+      - id: P0.1
+        title: Create protocol files (this commit)
+        owner: manual
+        status: done
+        dod: "Files exist under docs/protocol; committed on branch inventory_foundation_v1"
+      - id: P0.2
+        title: Audit legacy inventory code & files
+        owner: codex
+        status: todo
+        deps: [P0.1]
+        notes: "Search for stock_on_hand.csv, ActiveOrders, dashboard.py, streamlit, etl_* in repo; list conflicts"
+        dod: "ISSUES.md lists conflicts; DECISIONS.md lists what to archive/migrate"
+
+  - id: P1
+    name: Data Foundation (DB + Config)
+    tasks:
+      - id: P1.1
+        title: Define DB schema models & migrations
+        owner: codex
+        status: todo
+        deps: [P0.2]
+        dod: "products, offer_to_sku_key, stock_snapshots, sales_daily, orders, size_mix, demand_forecasts, diagnostics, inventory_policy, po_plan created; migration committed"
+      - id: P1.2
+        title: Create CONFIG.example.yaml & .env.example
+        owner: codex
+        status: todo
+        deps: [P1.1]
+        dod: "docs/protocol/CONFIG.example.yaml filled; .env.example at repo root"
+      - id: P1.3
+        title: Load baseline dims from XLSX (Sku_Map, size mix, delivery bands)
+        owner: codex
+        status: todo
+        deps: [P1.1]
+        dod: "Loader scripts populate products, size_mix, delivery_bands; logs in PROGRESS.md"
+
+  - id: P2
+    name: Inventory Sync (Flow B + /inventory/update)
+    tasks:
+      - id: P2.1
+        title: Implement /inventory/update endpoint
+        owner: codex
+        status: todo
+        deps: [P1.1]
+        dod: "POST accepts list of {offer_id, account_id, qty}; writes stock_snapshots; returns enable/disable list"
+      - id: P2.2
+        title: Aggregator logic per sku_key
+        owner: codex
+        status: todo
+        deps: [P2.1]
+        dod: "SQL/logic sums latest snapshot; accurate on test data; unit tests included"
+      - id: P2.3
+        title: n8n Flow B blueprint
+        owner: codex
+        status: todo
+        deps: [P2.1]
+        dod: "N8N_FLOWS.md section added; flow JSON exported or steps documented"
+      - id: P2.4
+        title: Offer allocation strategy (simple split)
+        owner: codex
+        status: todo
+        deps: [P2.2]
+        dod: "desired_allocations table or rule; documented in RULES.md"
+
+  - id: P3
+    name: Sales & Demand
+    tasks:
+      - id: P3.1
+        title: Orders ingest (API or CSV fallback) → orders table
+        owner: codex
+        status: todo
+        deps: [P1.1]
+        dod: "Importer handles API and XLSX; idempotent upsert"
+      - id: P3.2
+        title: sales_daily aggregator
+        owner: codex
+        status: todo
+        deps: [P3.1]
+        dod: "Daily rollup job writes sales_daily; tested on sample"
+      - id: P3.3
+        title: Denoising & diagnostics (sigma, good_days, data_rating)
+        owner: codex
+        status: todo
+        deps: [P3.2]
+        dod: "diagnostics table populated; spike-day list honored; unit tests"
+      - id: P3.4
+        title: demand_forecasts: D_current (working), scenarios
+        owner: codex
+        status: todo
+        deps: [P3.3]
+        dod: "D_current set; optional scenarios stored; report endpoint shows summary"
+
+  - id: P4
+    name: Policy Compute (SS/ROP/T_post)
+    tasks:
+      - id: P4.1
+        title: Implement SS/ROP compute job
+        owner: codex
+        status: todo
+        deps: [P3.4]
+        dod: "SS components + ROP stored per sku_key; JSON trace for decision_reason"
+      - id: P4.2
+        title: Governance checks & flags
+        owner: codex
+        status: todo
+        deps: [P4.1]
+        dod: "Invalid size sets, share sum, data_rating gates; warnings logged"
+
+  - id: P5
+    name: PO Planner (Per-size Allocation)
+    tasks:
+      - id: P5.1
+        title: plan_reorder() core (T_post target)
+        owner: codex
+        status: todo
+        deps: [P4.2]
+        dod: "Returns alloc per size; writes po_plan; unit tests for allocator math"
+      - id: P5.2
+        title: Export PO report (CSV/PDF/MD)
+        owner: codex
+        status: todo
+        deps: [P5.1]
+        dod: "Report in outbox/ with run timestamp; fields include D, SS_total, T_post, Alloc_i"
+
+  - id: P6
+    name: Orders + WhatsApp (Flow A) & Size Engine
+    tasks:
+      - id: P6.1
+        title: size_engine (deterministic rules)
+        owner: codex
+        status: todo
+        deps: [P3.4]
+        dod: "Function returns final_size + boundary_flag + reason"
+      - id: P6.2
+        title: /wa/parse webhook (text → height/weight/pref)
+        owner: codex
+        status: todo
+        deps: [P6.1]
+        dod: "Robust parser for RU variants; unit tests"
+      - id: P6.3
+        title: /decide endpoint (joins order+WA+offer)
+        owner: codex
+        status: todo
+        deps: [P6.2]
+        dod: "Implements 15:00 fallback; updates order + adjusts stock"
+      - id: P6.4
+        title: n8n Flow A blueprint
+        owner: codex
+        status: todo
+        deps: [P6.3]
+        dod: "N8N_FLOWS.md section added; flow steps documented"
+
+  - id: P7
+    name: Labels & Fulfillment
+    tasks:
+      - id: P7.1
+        title: /labels/build (upload ZIP or list → grouped PDF)
+        owner: codex
+        status: todo
+        deps: [P6.3]
+        dod: "Groups by model/color; saved in outbox/; tested with sample"
+      - id: P7.2
+        title: WhatsApp media to self (optional)
+        owner: codex
+        status: todo
+        deps: [P7.1]
+        dod: "If provider allows media URL; otherwise UI download"
+
+  - id: P8
+    name: Analytics & Finance
+    tasks:
+      - id: P8.1
+        title: Unit econ + ROIC compute
+        owner: codex
+        status: todo
+        deps: [P3.4]
+        dod: "COGS, Delivery (bands), NetRev, UnitProfit; ROIC monthly; report endpoint"
+
+  - id: P9
+    name: Docs, Cleanup, Hardening
+    tasks:
+      - id: P9.1
+        title: Deprecate legacy scripts & docs
+        owner: codex
+        status: todo
+        deps: [P2.2, P3.1]
+        dod: "Archive/rename conflicts; update DATA_FILES_GUIDE"
+      - id: P9.2
+        title: Tests & backup scripts
+        owner: codex
+        status: todo
+        deps: [P5.2]
+        dod: "Key unit tests green; weekly DB dump job"
