@@ -58,3 +58,5 @@
 - Summary: Added protected-path guard with pre-commit hook template and installer documentation.
 - Artifacts: tools/protected_paths_guard.py; hooks/pre-commit; scripts/install_hooks.sh; docs/protocol/OPERATING.md
 - Commit: protocol: add protected-paths guard (pre-commit) + installer (codex)
+- 2025-10-09 — actor: codex — Task(s): P2.2
+- Summary: P2.2 — unified delivery aliases & coercion; loaders accept zero fees; platform fee default 0.12; env/protocol path override; added scripts/print_delivery_debug.py.

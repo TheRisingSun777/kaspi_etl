@@ -182,6 +182,36 @@ phases:
             actor: codex
         deps: [P1.3e]
         dod: "Inspectors + loaders handle percent workbooks and Store_name mappings"
+      - id: P1.3g
+        title: Fix delivery band ingestion to accept zeros & default PlatformFeePct=0.12
+        owner: codex
+        status: done
+        status_log:
+          - status: done
+            at: "2025-10-09 20:55"
+            actor: codex
+        deps: [P1.3f]
+        dod: "Delivery loader accepts zero-value fees, defaults PlatformFeePct to 0.12 when blank, and logs canonical field names."
+      - id: P1.3h
+        title: Unify alias map across inspector and loader
+        owner: codex
+        status: done
+        status_log:
+          - status: done
+            at: "2025-10-09 20:55"
+            actor: codex
+        deps: [P1.3g]
+        dod: "Inspector and loader share DELIVERY_HEADER_MAP plus coercion helpers; headers resolve deterministically."
+      - id: P1.3i
+        title: Add delivery debug CLI
+        owner: codex
+        status: done
+        status_log:
+          - status: done
+            at: "2025-10-09 20:55"
+            actor: codex
+        deps: [P1.3h]
+        dod: "scripts/print_delivery_debug.py prints canonical delivery columns using shared alias/coercion logic."
 
   - id: P2
     name: Inventory Sync (Flow B + /inventory/update)
