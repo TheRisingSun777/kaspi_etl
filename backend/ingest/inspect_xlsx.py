@@ -63,6 +63,14 @@ def inspect_file(path: Path, sheet: str | None, mode: str) -> None:
         print(f"  Raw headers: {list(df.columns)}")
         print(f"  Normalized headers: {list(column_lookup.keys())}")
         print(f"  Canonical matches: {matches}")
+        resolved_aliases: Dict[str, str] = {}
+        for canonical, aliases in mapping.items():
+            for alias in aliases:
+                key = alias.strip().lower()
+                if key in column_lookup:
+                    resolved_aliases[canonical] = alias
+                    break
+        print(f"  Alias hits: {resolved_aliases}")
         if mode == "offers":
             store_match = matches.get("store_cell")
             print(f"  Store column matched: {store_match if store_match else 'None'}")
@@ -87,15 +95,6 @@ def inspect_file(path: Path, sheet: str | None, mode: str) -> None:
                         break
                 if bad:
                     print(f"  Unmapped store samples: {bad}")
-        else:
-            resolved_aliases = {}
-            for canonical, aliases in mapping.items():
-                for alias in aliases:
-                    key = alias.strip().lower()
-                    if key in column_lookup:
-                        resolved_aliases[canonical] = alias
-                        break
-            print(f"  Alias hits: {resolved_aliases}")
 
 
 def main(argv: list[str] | None = None) -> int:
