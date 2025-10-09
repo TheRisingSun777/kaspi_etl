@@ -17,6 +17,7 @@ import yaml
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = ROOT_DIR / "docs/protocol/CONFIG.yaml"
+PATHS_OVERRIDE_PATH = ROOT_DIR / "docs/protocol/paths.yaml"
 
 
 def _expand_env(value: Any) -> Any:
@@ -155,4 +156,60 @@ __all__ = [
     "PolicySettings",
     "WhatsAppSettings",
     "load_config",
+    "get_delivery_xlsx_path",
+    "get_offers_xlsx_path",
 ]
+def _normalize_path(path_value: str) -> str:
+    expanded = os.path.expandvars(path_value)
+    return str(Path(expanded).expanduser())
+
+
+@lru_cache(maxsize=1)
+def _load_paths_override() -> Dict[str, Any]:
+    if not PATHS_OVERRIDE_PATH.exists():
+        return {}
+    with PATHS_OVERRIDE_PATH.open("r", encoding="utf-8") as fh:
+        return yaml.safe_load(fh) or {}
+
+
+def _get_override_path(key: str) -> Optional[str]:
+    overrides = _load_paths_override()
+    xlsx_section = overrides.get("xlsx") if isinstance(overrides, dict) else None
+    if not isinstance(xlsx_section, dict):
+        return None
+    raw_value = xlsx_section.get(key)
+    if isinstance(raw_value, str) and raw_value.strip():
+        return _normalize_path(raw_value)
+    return None
+
+
+def get_delivery_xlsx_path(config: Optional["AppConfig"] = None) -> Optional[str]:
+    """
+    Resolve the delivery XLSX path with precedence: env → protocol overrides → CONFIG.yaml.
+    """
+    env_path = os.environ.get("DELIVERY_XLSX")
+    if env_path:
+        return _normalize_path(env_path)
+    override = _get_override_path("delivery_rates")
+    if override:
+        return override
+    cfg = config or load_config()
+    if hasattr(cfg, "paths") and getattr(cfg.paths, "xlsx_delivery_bands", None):
+        return _normalize_path(cfg.paths.xlsx_delivery_bands)
+    return None
+
+
+def get_offers_xlsx_path(config: Optional["AppConfig"] = None) -> Optional[str]:
+    """
+    Resolve the offers XLSX path with precedence: env → protocol overrides → CONFIG.yaml.
+    """
+    env_path = os.environ.get("OFFERS_XLSX")
+    if env_path:
+        return _normalize_path(env_path)
+    override = _get_override_path("offers")
+    if override:
+        return override
+    cfg = config or load_config()
+    if hasattr(cfg, "paths") and getattr(cfg.paths, "xlsx_catalog", None):
+        return _normalize_path(cfg.paths.xlsx_catalog)
+    return None

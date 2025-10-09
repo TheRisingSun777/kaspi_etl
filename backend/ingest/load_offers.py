@@ -15,7 +15,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from backend.db.session import get_session  # noqa: E402
 from backend.ingest.xlsx_offers_loader import load_offers_to_db  # noqa: E402
-from backend.utils.config import load_config  # noqa: E402
+from backend.utils.config import get_offers_xlsx_path, load_config  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -27,10 +27,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    config = load_config(args.config) if args.config else load_config()
-    offers_path = Path(config.paths.xlsx_catalog)
-
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    config = load_config(args.config) if args.config else load_config()
+    offers_path_str = get_offers_xlsx_path(config)
+    if not offers_path_str:
+        logging.error(
+            "Unable to resolve offers catalog path. Set OFFERS_XLSX, update docs/protocol/paths.yaml, or CONFIG.yaml."
+        )
+        return 1
+    offers_path = Path(offers_path_str)
     if not offers_path.exists():
         logging.error("Offers catalog not found at %s", offers_path)
         return 1

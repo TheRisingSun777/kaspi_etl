@@ -20,7 +20,7 @@ from backend.ingest.xlsx_loaders import (
     load_size_mix_to_db,
     load_sku_map_to_db,
 )
-from backend.utils.config import load_config
+from backend.utils.config import get_delivery_xlsx_path, load_config
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ def _validate_paths(paths: Dict[str, str]) -> Dict[str, Path]:
     resolved: Dict[str, Path] = {}
     missing = []
     for key, value in paths.items():
-        file_path = Path(value)
+        file_path = Path(value).expanduser()
         if not file_path.exists():
             missing.append((key, file_path))
         resolved[key] = file_path
@@ -52,12 +52,19 @@ def main(argv: list[str] | None = None) -> int:
     config = load_config(args.config) if args.config else load_config()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
+    delivery_path = get_delivery_xlsx_path(config)
+    if not delivery_path:
+        logger.error(
+            "Unable to resolve delivery bands path. Set DELIVERY_XLSX, update docs/protocol/paths.yaml, or CONFIG.yaml."
+        )
+        return 1
+
     try:
         paths = _validate_paths(
             {
                 "sku_map": config.paths.xlsx_sku_map,
                 "size_mix": config.paths.xlsx_demand,
-                "delivery_bands": config.paths.xlsx_delivery_bands,
+                "delivery_bands": delivery_path,
             }
         )
     except FileNotFoundError as exc:
