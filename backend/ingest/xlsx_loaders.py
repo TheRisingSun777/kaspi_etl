@@ -90,104 +90,25 @@ SIZE_SYNONYMS = {
     "6XL": "6XL",
 }
 
-DELIVERY_HEADER_MAP = {
-    "price_min": [
-        "Item_Price_min",
-        "price_min",
-        "price-min",
-        "price min",
-        "цена_мин",
-        "цена мин",
-        "цена от",
-        "min price",
-        "min_price",
-        "price from",
-        "from_price",
-    ],
-    "price_max": [
-        "Item_Price_max",
-        "price_max",
-        "price-max",
-        "price max",
-        "цена_макс",
-        "цена макс",
-        "цена до",
-        "max price",
-        "max_price",
-        "price to",
-        "to_price",
-    ],
-    "weight_min_kg": [
-        "Item_weight_kg_min",
-        "weight_min_kg",
-        "weight_min",
-        "weight min",
-        "вес_мин",
-        "вес мин",
-        "вес от",
-        "min weight",
-        "min_weight",
-        "weight from",
-        "from_weight",
-        "вес, кг от",
-    ],
-    "weight_max_kg": [
-        "Item_weight_kg_max",
-        "weight_max_kg",
-        "weight_max",
-        "weight max",
-        "вес_макс",
-        "вес макс",
-        "вес до",
-        "max weight",
-        "max_weight",
-        "weight to",
-        "to_weight",
-        "вес, кг до",
-    ],
-    "fee_city_pct": [
-        "PlatformDLVPct_innercity",
-        "inner_city_pct",
-        "innercity_pct",
-        "город %",
-        "внутригород %",
-    ],
-    "fee_country_pct": [
-        "PlatformDLVPct_Country",
-        "country_pct",
-        "страна %",
-        "межгород %",
-    ],
-    "fee_city_kzt": [
-        "City_Fee_KZT",
-        "city_fee_kzt",
-        "city_kzt",
-        "inner_city",
-        "city_fee",
-        "город",
-        "внутригород",
-        "город (kzt)",
-        "city",
-        "item_inner_city",
-    ],
-    "fee_country_kzt": [
-        "Country_Fee_KZT",
-        "country_fee_kzt",
-        "country_kzt",
-        "country",
-        "country_fee",
-        "страна",
-        "межгород",
-        "country (kzt)",
-        "item_country",
-    ],
+DELIVERY_HEADER_MAP: Dict[str, Sequence[str]] = {
+    "price_min": ["Item_Price_min"],
+    "price_max": ["Item_Price_max"],
+    "weight_min_kg": ["Item_weight_kg_min"],
+    "weight_max_kg": ["Item_weight_kg_max"],
+    "fee_city_pct": ["PlatformDLVPct_innercity", "inner_city_pct", "innercity_pct"],
+    "fee_country_pct": ["PlatformDLVPct_Country", "country_pct"],
+    "fee_city_kzt": ["City_Fee_KZT", "city_fee_kzt", "city_kzt"],
+    "fee_country_kzt": ["Country_Fee_KZT", "country_fee_kzt", "country_kzt"],
     "platform_fee_pct": ["PlatformFeePct", "platform_fee_pct"],
-    "fx_rate_kzt": ["FX_Rate_KZT", "fx_rate_kzt", "fx_rate", "fx", "fx kzt"],
-    "vat_rate": ["VAT_Rate", "vat_rate", "vat", "nds", "vat pct", "vat%"],
-    "channel_id": ["ChannelID", "channelid", "channel_id", "channel"],
-    "channel_name": ["ChannelName", "channelname", "channel_name", "channel name", "канал"],
-    "currency_code": ["currency_code", "currency", "валюта"],
+    "fx_rate_kzt": ["FX_Rate_KZT"],
+    "vat_rate": ["VAT_Rate"],
+    "channel_id": ["ChannelID"],
+    "channel_name": ["ChannelName"],
+    "currency_code": ["CurrencyCode", "currency_code"],
 }
+
+DELIVERY_REQUIRED_KEYS = {"price_min", "price_max", "weight_min_kg", "weight_max_kg"}
+DELIVERY_FEE_KEYS = {"fee_city_kzt", "fee_country_kzt", "fee_city_pct", "fee_country_pct"}
 
 
 def _normalize_header(header: str) -> NormalizedName:
@@ -204,11 +125,13 @@ def _find_column(columns: Mapping[NormalizedName, str], candidates: Iterable[str
 
 def _coerce_float(value) -> Optional[float]:
     """
-    Convert arbitrary scalar input into a float using pandas' coercion so 0 stays valid.
+    Convert arbitrary scalar input into a float using pandas' coercion.
     """
+    if value is None:
+        return None
     if isinstance(value, str):
         cleaned = value.strip()
-        if not cleaned:
+        if cleaned == "":
             return None
         value = cleaned.replace(" ", "").replace(",", ".")
     result = pd.to_numeric([value], errors="coerce")[0]
@@ -466,12 +389,7 @@ def _preferred_alias(key: str) -> str:
     aliases = DELIVERY_HEADER_MAP.get(key)
     if not aliases:
         return key
-    if isinstance(aliases, (list, tuple)):
-        return aliases[0]
-    try:
-        return sorted(aliases)[0]
-    except Exception:  # pragma: no cover - defensive fallback
-        return str(next(iter(aliases)))
+    return aliases[0]
 
 
 def _validate_delivery_row(row: Mapping[str, float], original_index: int) -> Optional[Dict[str, Optional[float]]]:
@@ -562,6 +480,38 @@ def _validate_delivery_row(row: Mapping[str, float], original_index: int) -> Opt
     }
 
 
+def resolve_delivery_sheet(sheets: Mapping[str, pd.DataFrame]) -> Tuple[pd.DataFrame, Dict[str, Optional[str]]]:
+    resolved_columns: Dict[str, Optional[str]] = {}
+    df = None
+    best_rows = -1
+    for sheet_name, sheet_df in sheets.items():
+        column_lookup = {_normalize_header(col): col for col in sheet_df.columns}
+        candidate: Dict[str, Optional[str]] = {key: None for key in DELIVERY_HEADER_MAP}
+        missing_required = False
+        for canonical, aliases in DELIVERY_HEADER_MAP.items():
+            column = _find_column(column_lookup, aliases)
+            if canonical in DELIVERY_REQUIRED_KEYS and column is None:
+                missing_required = True
+                break
+            candidate[canonical] = column
+        if missing_required:
+            continue
+        if not any(candidate.get(key) for key in DELIVERY_FEE_KEYS):
+            continue
+        required_columns = [candidate[k] for k in DELIVERY_REQUIRED_KEYS if candidate[k]]
+        filtered = sheet_df.dropna(subset=required_columns) if required_columns else sheet_df
+        row_count = len(filtered)
+        if row_count > best_rows:
+            resolved_columns = candidate
+            df = sheet_df
+            best_rows = row_count
+
+    if df is None or not resolved_columns:
+        raise ValueError("Could not locate delivery bands sheet with required columns.")
+
+    return df, resolved_columns
+
+
 def load_delivery_bands_to_db(path: Union[str, Path], session: Session) -> int:
     """
     Load delivery bands workbook into the database.
@@ -572,35 +522,7 @@ def load_delivery_bands_to_db(path: Union[str, Path], session: Session) -> int:
 
     sheets = pd.read_excel(file_path, engine="openpyxl", sheet_name=None)
 
-    required_keys = {"price_min", "price_max", "weight_min_kg", "weight_max_kg"}
-    fee_keys = {"fee_city_kzt", "fee_country_kzt", "fee_city_pct", "fee_country_pct"}
-
-    resolved_columns: Dict[str, Optional[str]] = {}
-    df = None
-    best_rows = -1
-    for sheet_name, sheet_df in sheets.items():
-        column_lookup = {_normalize_header(col): col for col in sheet_df.columns}
-        candidate: Dict[str, Optional[str]] = {key: None for key in DELIVERY_HEADER_MAP}
-        missing_required = False
-        for canonical, aliases in DELIVERY_HEADER_MAP.items():
-            column = _find_column(column_lookup, aliases)
-            if canonical in required_keys and column is None:
-                missing_required = True
-                break
-            candidate[canonical] = column
-        if missing_required:
-            continue
-        if not any(candidate.get(key) for key in fee_keys):
-            continue
-        filtered = sheet_df.dropna(subset=[candidate[k] for k in required_keys if candidate[k]])
-        row_count = len(filtered)
-        if row_count > best_rows:
-            resolved_columns = candidate
-            df = sheet_df
-            best_rows = row_count
-
-    if df is None or not resolved_columns:
-        raise ValueError("Could not locate delivery bands sheet with required columns.")
+    df, resolved_columns = resolve_delivery_sheet(sheets)
 
     processed = 0
     skipped = 0
