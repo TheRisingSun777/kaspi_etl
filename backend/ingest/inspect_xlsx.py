@@ -6,7 +6,7 @@ import argparse
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, Mapping
+from typing import Dict, Mapping, Sequence
 
 import pandas as pd
 
@@ -14,33 +14,38 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from backend.ingest.xlsx_loaders import DELIVERY_HEADER_MAP, _normalize_header  # noqa: E402
-from backend.ingest.xlsx_offers_loader import (  # noqa: E402
-    COLOR_HEADERS,
-    canonicalize_account_id,
-    KASPI_CODE_HEADERS,
-    SIZE_HEADERS,
-    SKU_KEY_HEADERS,
-    load_store_name_to_id_map,
-    STORE_HEADERS,
-    TITLE_HEADERS,
-)
+from backend.ingest.xlsx_loaders import _normalize_header  # noqa: E402
+from backend.ingest.xlsx_offers_loader import canonicalize_account_id, load_store_name_to_id_map  # noqa: E402
 from backend.utils.config import load_config  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
 
-OFFERS_HEADER_MAP = {
-    "sku_key": SKU_KEY_HEADERS,
-    "store_cell": STORE_HEADERS,
-    "kaspi_product_code": KASPI_CODE_HEADERS,
-    "size_label": SIZE_HEADERS,
-    "color": COLOR_HEADERS,
-    "title_core": TITLE_HEADERS,
+DELIVERY_ALIAS_MAP: Dict[str, Sequence[str]] = {
+    "price_min": ["Item_Price_min"],
+    "price_max": ["Item_Price_max"],
+    "weight_min_kg": ["Item_weight_kg_min"],
+    "weight_max_kg": ["Item_weight_kg_max"],
+    "fee_city_pct": ["PlatformDLVPct_innercity"],
+    "fee_country_pct": ["PlatformDLVPct_Country"],
+    "platform_fee_pct": ["PlatformFeePct"],
+    "fx_rate_kzt": ["FX_Rate_KZT"],
+    "vat_rate": ["VAT_Rate"],
+    "channel_id": ["ChannelID"],
+    "channel_name": ["ChannelName"],
+}
+
+OFFERS_HEADER_MAP: Dict[str, Sequence[str]] = {
+    "sku_key": ["SKU_ID_KSP", "SKU_Key", "SKU_key"],
+    "store_cell": ["Store_name"],
+    "kaspi_product_code": ["Kaspi_art_1"],
+    "size_label": ["Size_kaspi"],
+    "color": ["Color"],
+    "title_core": ["Model", "Kaspi_name_core"],
 }
 
 
-def _detect_columns(columns: Mapping[str, str], mapping: Mapping[str, set[str]]) -> Dict[str, str]:
+def _detect_columns(columns: Mapping[str, str], mapping: Mapping[str, Sequence[str]]) -> Dict[str, str]:
     matches: Dict[str, str] = {}
     for canonical, aliases in mapping.items():
         for alias in aliases:
@@ -66,7 +71,7 @@ def inspect_file(path: Path, sheet: str | None, mode: str) -> None:
     print(f"Sheets in {path}:")
     for name, df in items:
         column_lookup = {_normalize_header(col): col for col in df.columns}
-        mapping = DELIVERY_HEADER_MAP if mode == "delivery" else OFFERS_HEADER_MAP
+        mapping = DELIVERY_ALIAS_MAP if mode == "delivery" else OFFERS_HEADER_MAP
         matches = _detect_columns(column_lookup, mapping)
         print(f"- {name}")
         print(f"  Raw headers: {list(df.columns)}")

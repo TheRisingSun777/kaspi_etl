@@ -31,7 +31,7 @@ KASPI_CODE_HEADERS = {
 SIZE_HEADERS = {"size_kaspi", "размер", "size"}
 COLOR_HEADERS = {"color", "цвет", "цвет (основной)"}
 TITLE_HEADERS = {"kaspi_name_core", "model", "название (короткое)", "title"}
-STORE_HEADERS = {"склад передачи кд", "store", "warehouse", "store_name", "store name", "магазин"}
+STORE_HEADERS = {"склад передачи кд", "store", "warehouse", "store_name"}
 NAME_SOURCE_HEADERS = {"kaspi_name_source", "название в системе продавца"}
 
 SIZE_SYNONYMS = {
