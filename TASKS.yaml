@@ -1,0 +1,9 @@
+tasks:
+  - task: Harden pre-commit guard path resolution
+    status: completed
+  - task: Fix delivery band ingestion to accept zeros & default PlatformFeePct=0.12
+    status: completed
+  - task: Stabilize Excel alias maps in inspect_xlsx.py
+    status: completed
+  - task: Implement size-mix ingestion
+    status: pending

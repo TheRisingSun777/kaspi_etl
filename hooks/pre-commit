@@ -1,30 +1,27 @@
-#!/bin/sh
-# Pre-commit hook wrapper for protected paths guard.
-
-set -eu
-
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || printf '')"
-if [ -z "$REPO_ROOT" ]; then
-  REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd -P)"
+# 1) Repo root via git; fallback relative to versioned hooks dir
+REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "${REPO_ROOT:-}" ]; then
+  REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd -P)"
 fi
 if [ ! -d "$REPO_ROOT" ]; then
   echo "[protected-paths] unable to determine repo root" >&2
   exit 1
 fi
-GUARD="$REPO_ROOT/tools/protected_paths_guard.py"
-
+# 2) Prefer tools under repo root; fallback for .git/hooks runtime
+if [ -d "$REPO_ROOT/tools" ]; then
+  GUARD_DIR="$REPO_ROOT/tools"
+elif [ -d "$SCRIPT_DIR/../../tools" ]; then
+  GUARD_DIR="$(cd "$SCRIPT_DIR/../../tools" && pwd -P)"
+else
+  echo "[protected-paths] guard directory not found" >&2
+  exit 1
+fi
+GUARD="$GUARD_DIR/protected_paths_guard.py"
 if [ ! -f "$GUARD" ]; then
   echo "[protected-paths] guard script not found at $GUARD" >&2
   exit 1
 fi
-
-if command -v python3 >/dev/null 2>&1; then
-  PYTHON_BIN="python3"
-elif command -v python >/dev/null 2>&1; then
-  PYTHON_BIN="python"
-else
-  echo "[protected-paths] python interpreter not found in PATH" >&2
-  exit 1
-fi
-
-"$PYTHON_BIN" "$GUARD"
+exec python3 "$GUARD"
