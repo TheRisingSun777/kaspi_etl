@@ -92,7 +92,8 @@ SIZE_SYNONYMS = {
 }
 
 DELIVERY_HEADER_MAP = {
-    "price_min": {
+    "price_min": [
+        "Item_Price_min",
         "price_min",
         "price-min",
         "price min",
@@ -103,9 +104,9 @@ DELIVERY_HEADER_MAP = {
         "min_price",
         "price from",
         "from_price",
-        "item_price_min",
-    },
-    "price_max": {
+    ],
+    "price_max": [
+        "Item_Price_max",
         "price_max",
         "price-max",
         "price max",
@@ -116,9 +117,9 @@ DELIVERY_HEADER_MAP = {
         "max_price",
         "price to",
         "to_price",
-        "item_price_max",
-    },
-    "weight_min_kg": {
+    ],
+    "weight_min_kg": [
+        "Item_weight_kg_min",
         "weight_min_kg",
         "weight_min",
         "weight min",
@@ -130,9 +131,9 @@ DELIVERY_HEADER_MAP = {
         "weight from",
         "from_weight",
         "вес, кг от",
-        "item_weight_kg_min",
-    },
-    "weight_max_kg": {
+    ],
+    "weight_max_kg": [
+        "Item_weight_kg_max",
         "weight_max_kg",
         "weight_max",
         "weight max",
@@ -144,47 +145,49 @@ DELIVERY_HEADER_MAP = {
         "weight to",
         "to_weight",
         "вес, кг до",
-        "item_weight_kg_max",
-    },
-    "fee_city_kzt": {
+    ],
+    "fee_city_pct": [
+        "PlatformDLVPct_innercity",
+        "inner_city_pct",
+        "innercity_pct",
+        "город %",
+        "внутригород %",
+    ],
+    "fee_country_pct": [
+        "PlatformDLVPct_Country",
+        "country_pct",
+        "страна %",
+        "межгород %",
+    ],
+    "fee_city_kzt": [
+        "City_Fee_KZT",
+        "city_fee_kzt",
+        "city_kzt",
         "inner_city",
         "city_fee",
         "город",
         "внутригород",
         "город (kzt)",
         "city",
-        "city_kzt",
         "item_inner_city",
-    },
-    "fee_country_kzt": {
+    ],
+    "fee_country_kzt": [
+        "Country_Fee_KZT",
+        "country_fee_kzt",
+        "country_kzt",
         "country",
         "country_fee",
         "страна",
         "межгород",
         "country (kzt)",
-        "country_kzt",
         "item_country",
-    },
-    "fee_city_pct": {
-        "platformdlvpct_innercity",
-        "innercity_pct",
-        "город %",
-        "внутригород %",
-        "inner_city_pct",
-    },
-    "fee_country_pct": {
-        "platformdlvpct_country",
-        "country_pct",
-        "страна %",
-        "межгород %",
-        "country_pct",
-    },
-    "platform_fee_pct": {"platformfeepct", "platform_fee_pct"},
-    "currency_code": {"currency_code", "currency", "валюта"},
-    "fx_rate_kzt": {"fx_rate_kzt", "fx_rate", "fx", "fx kzt"},
-    "vat_rate": {"vat_rate", "vat", "nds", "vat pct", "vat%"},
-    "channel_id": {"channelid", "channel_id", "channel"},
-    "channel_name": {"channelname", "channel_name", "channel name", "канал"},
+    ],
+    "platform_fee_pct": ["PlatformFeePct", "platform_fee_pct"],
+    "fx_rate_kzt": ["FX_Rate_KZT", "fx_rate_kzt", "fx_rate", "fx", "fx kzt"],
+    "vat_rate": ["VAT_Rate", "vat_rate", "vat", "nds", "vat pct", "vat%"],
+    "channel_id": ["ChannelID", "channelid", "channel_id", "channel"],
+    "channel_name": ["ChannelName", "channelname", "channel_name", "channel name", "канал"],
+    "currency_code": ["currency_code", "currency", "валюта"],
 }
 
 
