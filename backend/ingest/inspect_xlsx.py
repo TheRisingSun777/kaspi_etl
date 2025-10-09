@@ -14,26 +14,12 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from backend.ingest.xlsx_loaders import _normalize_header  # noqa: E402
+from backend.ingest.xlsx_loaders import DELIVERY_HEADER_MAP, _normalize_header  # noqa: E402
 from backend.ingest.xlsx_offers_loader import canonicalize_account_id, load_store_name_to_id_map  # noqa: E402
 from backend.utils.config import load_config  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
-
-DELIVERY_ALIAS_MAP: Dict[str, Sequence[str]] = {
-    "price_min": ["Item_Price_min"],
-    "price_max": ["Item_Price_max"],
-    "weight_min_kg": ["Item_weight_kg_min"],
-    "weight_max_kg": ["Item_weight_kg_max"],
-    "fee_city_pct": ["PlatformDLVPct_innercity"],
-    "fee_country_pct": ["PlatformDLVPct_Country"],
-    "platform_fee_pct": ["PlatformFeePct"],
-    "fx_rate_kzt": ["FX_Rate_KZT"],
-    "vat_rate": ["VAT_Rate"],
-    "channel_id": ["ChannelID"],
-    "channel_name": ["ChannelName"],
-}
 
 OFFERS_HEADER_MAP: Dict[str, Sequence[str]] = {
     "sku_key": ["SKU_ID_KSP", "SKU_Key", "SKU_key"],
@@ -71,7 +57,7 @@ def inspect_file(path: Path, sheet: str | None, mode: str) -> None:
     print(f"Sheets in {path}:")
     for name, df in items:
         column_lookup = {_normalize_header(col): col for col in df.columns}
-        mapping = DELIVERY_ALIAS_MAP if mode == "delivery" else OFFERS_HEADER_MAP
+        mapping = DELIVERY_HEADER_MAP if mode == "delivery" else OFFERS_HEADER_MAP
         matches = _detect_columns(column_lookup, mapping)
         print(f"- {name}")
         print(f"  Raw headers: {list(df.columns)}")
