@@ -464,6 +464,18 @@ def _coerce_pct(value: Optional[float]) -> Optional[float]:
     return pct
 
 
+def _preferred_alias(key: str) -> str:
+    aliases = DELIVERY_HEADER_MAP.get(key)
+    if not aliases:
+        return key
+    if isinstance(aliases, (list, tuple)):
+        return aliases[0]
+    try:
+        return sorted(aliases)[0]
+    except Exception:  # pragma: no cover - defensive fallback
+        return str(next(iter(aliases)))
+
+
 def _validate_delivery_row(row: Mapping[str, float], original_index: int) -> Optional[Dict[str, Optional[float]]]:
     price_min = _coerce_float(row.get("price_min"))
     price_max = _coerce_float(row.get("price_max"))
@@ -480,11 +492,37 @@ def _validate_delivery_row(row: Mapping[str, float], original_index: int) -> Opt
     channel_id = row.get("channel_id")
     channel_name = row.get("channel_name")
 
-    if None in {price_min, price_max, weight_min, weight_max}:
-        logger.warning("Skipping delivery band row %s due to missing price/weight values.", original_index)
+    required_values = {
+        "price_min": price_min,
+        "price_max": price_max,
+        "weight_min_kg": weight_min,
+        "weight_max_kg": weight_max,
+    }
+    missing_required = [
+        _preferred_alias(field)
+        for field, value in required_values.items()
+        if value is None
+    ]
+    if missing_required:
+        logger.warning(
+            "Skipping delivery band row %s due to missing: %s",
+            original_index,
+            ", ".join(missing_required),
+        )
         return None
-    if city_fee is None and country_fee is None and city_pct is None and country_pct is None:
-        logger.warning("Skipping delivery band row %s due to missing fee values.", original_index)
+
+    fee_fields = {
+        "fee_city_kzt": city_fee,
+        "fee_country_kzt": country_fee,
+        "fee_city_pct": city_pct,
+        "fee_country_pct": country_pct,
+    }
+    if all(value is None for value in fee_fields.values()):
+        logger.warning(
+            "Skipping delivery band row %s due to missing: %s",
+            original_index,
+            ", ".join(_preferred_alias(field) for field in fee_fields.keys()),
+        )
         return None
     if price_max < price_min or weight_max < weight_min:
         logger.warning("Skipping delivery band row %s due to invalid ranges.", original_index)
@@ -504,6 +542,9 @@ def _validate_delivery_row(row: Mapping[str, float], original_index: int) -> Opt
         if isinstance(channel_name, str) and str(channel_name).strip()
         else None
     )
+
+    if platform_pct is None:
+        platform_pct = 0.12
 
     return {
         "price_min": price_min,
