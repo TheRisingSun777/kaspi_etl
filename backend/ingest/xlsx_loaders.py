@@ -4,7 +4,6 @@ XLSX ingestion utilities for baseline dimensions.
 from __future__ import annotations
 
 import logging
-import math
 import re
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
@@ -204,22 +203,18 @@ def _find_column(columns: Mapping[NormalizedName, str], candidates: Iterable[str
 
 
 def _coerce_float(value) -> Optional[float]:
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        if isinstance(value, float) and math.isnan(value):
-            return None
-        return float(value)
+    """
+    Convert arbitrary scalar input into a float using pandas' coercion so 0 stays valid.
+    """
     if isinstance(value, str):
         cleaned = value.strip()
         if not cleaned:
             return None
-        cleaned = cleaned.replace(" ", "").replace(",", ".")
-        try:
-            return float(cleaned)
-        except ValueError:
-            return None
-    return None
+        value = cleaned.replace(" ", "").replace(",", ".")
+    result = pd.to_numeric([value], errors="coerce")[0]
+    if pd.isna(result):
+        return None
+    return float(result)
 
 
 def _normalize_size_label(label: str) -> Optional[str]:
@@ -508,7 +503,7 @@ def _validate_delivery_row(row: Mapping[str, float], original_index: int) -> Opt
     ]
     if missing_required:
         logger.warning(
-            "Skipping delivery band row %s due to missing: %s",
+            "Skipping delivery band row %s due to missing required fields: %s",
             original_index,
             ", ".join(missing_required),
         )
@@ -522,7 +517,7 @@ def _validate_delivery_row(row: Mapping[str, float], original_index: int) -> Opt
     }
     if all(value is None for value in fee_fields.values()):
         logger.warning(
-            "Skipping delivery band row %s due to missing: %s",
+            "Skipping delivery band row %s due to missing fee columns: %s",
             original_index,
             ", ".join(_preferred_alias(field) for field in fee_fields.keys()),
         )
