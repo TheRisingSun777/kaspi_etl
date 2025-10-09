@@ -1,0 +1,30 @@
+#!/bin/sh
+# Pre-commit hook wrapper for protected paths guard.
+
+set -eu
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || printf '')"
+if [ -z "$REPO_ROOT" ]; then
+  REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+fi
+if [ ! -d "$REPO_ROOT" ]; then
+  echo "[protected-paths] unable to determine repo root" >&2
+  exit 1
+fi
+GUARD="$REPO_ROOT/tools/protected_paths_guard.py"
+
+if [ ! -f "$GUARD" ]; then
+  echo "[protected-paths] guard script not found at $GUARD" >&2
+  exit 1
+fi
+
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON_BIN="python3"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON_BIN="python"
+else
+  echo "[protected-paths] python interpreter not found in PATH" >&2
+  exit 1
+fi
+
+"$PYTHON_BIN" "$GUARD"

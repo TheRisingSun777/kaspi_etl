@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 # --- ETL FOR KASPI CATALOG API (v2025‑08‑05) --------------------------------
-import pandas as pd
-import sqlite3
-import pathlib
-import httpx
-import os
-from dotenv import load_dotenv
-from tenacity import retry, stop_after_attempt, wait_exponential
+import asyncio
 import json
+import os
+import pathlib
+import sqlite3
 from typing import Dict, List, Optional
+
+import httpx
 import logging
+import pandas as pd
+from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
@@ -27,6 +28,7 @@ KASPI_TOKEN = os.getenv("KASPI_TOKEN")
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+
 class KaspiAPI:
     def __init__(self, token: str, base_url: str = BASE_URL):
         self.token = token
@@ -35,35 +37,49 @@ class KaspiAPI:
             "X-Auth-Token": token,
             "Content-Type": "application/json"
         }
-    
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+
+    async def _request_with_retry(self, method: str, endpoint: str, **kwargs) -> Dict:
+        """Simple retry helper replacing tenacity dependency."""
+        last_exc: Optional[Exception] = None
+        for attempt in range(3):
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.request(
+                        method,
+                        f"{self.base_url}/{endpoint}",
+                        headers=self.headers,
+                        timeout=30.0,
+                        **kwargs,
+                    )
+                response.raise_for_status()
+                return response.json()
+            except Exception as exc:  # broad to match previous retry behaviour
+                last_exc = exc
+                sleep_seconds = min(10, 4 * (2 ** attempt))
+                await asyncio.sleep(sleep_seconds)
+        if last_exc:
+            raise last_exc
+        return {}
+
     async def get_products(self) -> List[Dict]:
         """GET /shop/api/v2/products to verify token and get existing products"""
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{self.base_url}/products",
-                headers=self.headers,
-                timeout=30.0
-            )
-            response.raise_for_status()
-            data = response.json()
-            logger.info(f"✅ Retrieved {len(data.get('data', []))} products from Kaspi API")
-            return data.get('data', [])
-    
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+        data = await self._request_with_retry("GET", "products")
+        logger.info(f"✅ Retrieved {len(data.get('data', []))} products from Kaspi API")
+        return data.get("data", [])
+
     async def create_product(self, product_data: Dict) -> Dict:
         """POST /shop/api/v2/products/create for new/changed SKUs"""
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/products/create",
-                headers=self.headers,
-                json=product_data,
-                timeout=30.0
-            )
-            response.raise_for_status()
-            data = response.json()
-            logger.info(f"✅ Created product: {product_data.get('name', 'Unknown')}")
-            return data
+        data = await self._request_with_retry(
+            "POST",
+            "products/create",
+            json=product_data,
+        )
+        logger.info(f"✅ Created product: {product_data.get('name', 'Unknown')}")
+        return data
+
+
+if __name__ == "__main__":  # pragma: no cover - manual smoke entry
+    print("ok: etl_catalog_api")
 
 def load_catalog_csv() -> pd.DataFrame:
     """Load and parse the M02_SKU_CATALOG CSV file"""

@@ -11,3 +11,5 @@
 - Decision: Apply defaults globally with per-SKU overrides later.
 - Consequences: Immediate SS/ROP viability; easy tuning via policy table.
 - Approved: APPPROVED BY OWNER — YYYY-MM-DD HH:MM <signature>
+
+APPROVED BY OWNER — 2025-10-08T21:45 adil

@@ -1,0 +1,18 @@
+# PROTECTED_PATHS.yaml — repo-level guardrails for critical automations
+
+globs:
+  - "docs/ops/**"
+  - "docs/perfume_offers_scrape.md"
+  - "scripts/scrape_kaspi_offers.ts"
+  - "docs/ops/kaspi/scraper/scrape.command"
+  - "docs/ops/kaspi/run_today_and_archive_input.command"
+  - "docs/ops/kaspi/run_import_orders_all_dates.command"
+  - "docs/ops/kaspi/run_import_orders.command"
+  - "run_perfume_scrape.command"
+  - "docs/ops/kaspi/SALES_KSP_CRM_V3.xlsx"
+
+policy:
+  on_modify: "block"     # block commits that modify or delete these files
+  on_delete: "block"
+  on_rename: "warn"      # warn on renames (block is also acceptable)
+  override_requires_owner_stamp: true

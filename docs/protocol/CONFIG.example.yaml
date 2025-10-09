@@ -40,6 +40,7 @@ paths:
   xlsx_sales: "data_raw/SALES_KSP_CRM_GPT_15.9.25.xlsx"
   xlsx_demand: "data_raw/New_D_2X_size_wide_4.10.25.xlsx"
   xlsx_delivery_bands: "data_raw/KSP_Delivery_rates_V5.xlsx"
+  xlsx_catalog: "data_raw/Business_model_V3.xlsx"
 
 feature_flags:
   enable_flow_A_orders_whatsapp: false

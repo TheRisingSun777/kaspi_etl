@@ -1,0 +1,56 @@
+# CONFIG.example.yaml — copy to CONFIG.yaml and edit (never commit secrets)
+
+app:
+  timezone: "Asia/Almaty"
+  outbox_dir: "outbox"
+  backups_dir: "backups"
+
+db:
+  driver: "sqlite"
+  uri: "sqlite:///erp.db"  # later: postgres://user:pass@host/db
+
+kaspi:
+  poll_interval_min: 15
+  accounts:
+    - name: "UNIVERSAL"
+      account_id: "30141222"
+      auth: "${KASPI_TOKEN_UNIVERSAL}"
+    - name: "ONLYFIT"
+      account_id: "30137883"
+      auth: "${KASPI_TOKEN_ONLYFIT}"
+    - name: "11KZ"
+      account_id: "30290083"
+      auth: "${KASPI_TOKEN_11KZ}"
+    - name: "MELVIS"
+      account_id: "30362323"
+      auth: "${KASPI_TOKEN_MELVIS}"
+    - name: "M-GROUP"
+      account_id: "30361967"
+      auth: "${KASPI_TOKEN_MGROUP}"
+
+whatsapp:
+  provider: "algatop"  # later: cloud/twilio
+  from_number: "+70000000000"
+  webhook_secret: "${WA_WEBHOOK_SECRET}"
+
+policy:
+  L_days: 16
+  R_days: 7
+  B_days: 14
+  z_service: 1.65
+  tv_floor: 0.23
+  vat_pct: 0.03
+  platform_pct: 0.12
+  delivery_blend_city: 0.35
+  delivery_blend_country: 0.65
+
+paths:
+  xlsx_sku_map: "/Users/adil/Documents/useful tables/Main crm spreadsheets/main tables/Sku_Map_CRM_3.xlsx"
+  xlsx_sales: "/Users/adil/Documents/useful tables/Main crm spreadsheets/main tables/SALES_KSP_CRM_GPT_15.9.25.xlsx"
+  xlsx_demand: "/Users/adil/Documents/useful tables/GPT/gpt files/Inventory_mahangement/branch_V2.3/4.10.25 PO's/New_D_2X_size_wide_4.10.25.xlsx"
+  xlsx_delivery_bands: "/Users/adil/Documents/useful tables/GPT/gpt files/Inventory_mahangement/branch_V2.3/4.10.25 PO's/secondary files/KSP_Delivery_rates_V5.xlsx"
+  xlsx_catalog: "/Users/adil/Documents/useful tables/Main crm spreadsheets/main tables/Business_model_V3.xlsx"
+
+feature_flags:
+  enable_flow_A_orders_whatsapp: false
+  enable_flow_B_inventory_oos: true

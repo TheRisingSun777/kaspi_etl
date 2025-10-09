@@ -236,3 +236,19 @@ docs/ops/kaspi/state/
 
 # Analysis bundle output
 kaspi_etl_analysis_bundle.zip
+
+# Local DB & env
+erp.db
+*.db
+.env
+.env.*
+__pycache__/
+.pytest_cache/
+
+# OS & tools
+.DS_Store
+
+# Repo specifics
+.db
+.env.
+pycache/

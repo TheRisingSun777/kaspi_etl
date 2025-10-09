@@ -1,0 +1,15 @@
+```mermaid
+erDiagram
+  products ||--o{ offers : maps
+  offers ||--o{ stock_snapshots : captures
+  products ||--o{ sales_daily : aggregates
+  products ||--o{ size_mix : distributes
+  products ||--o{ demand_forecasts : forecasts
+  products ||--o{ diagnostics : monitors
+  products ||--o{ desired_allocations : targets
+  products ||--o{ po_plan : plans
+  offers ||--o{ orders : fulfills
+  products ||--o{ orders : references
+  inventory_policy ||--|| products : governs
+  delivery_bands ||--|| inventory_policy : informs
+```

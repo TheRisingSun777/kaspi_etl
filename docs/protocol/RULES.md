@@ -7,6 +7,22 @@
 - **Idempotency**: Any job may safely re-run without double-applying effects.
 - **Explainability**: Every automated decision must be logged with `decision_reason`.
 
+## Protected Paths (DO NOT TOUCH)
+These automations are business‑critical and must not be modified, moved, or deleted by assistants or refactors. Any change requires explicit Owner approval (PR review) and an ADR with Owner stamp.
+
+**Patterns (repo‑relative):**
+- docs/ops/**              # all operational scripts & runbooks (keep working automations)
+- docs/perfume_offers_scrape.md
+- scripts/scrape_kaspi_offers.ts
+- docs/ops/kaspi/scraper/scrape.command
+- docs/ops/kaspi/run_today_and_archive_input.command
+- docs/ops/kaspi/run_import_orders_all_dates.command
+- docs/ops/kaspi/run_import_orders.command
+- run_perfume_scrape.command
+- docs/ops/kaspi/SALES_KSP_CRM_V3.xlsx
+
+**Assistant rule:** Assistants MUST NOT modify these paths. Any attempt must be blocked by repo guardrails and rejected in code review.
+
 ## Inventory Policy (defaults)
 - Lead time (L): **16** days
 - Review cadence (R): **7** days

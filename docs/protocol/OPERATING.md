@@ -32,3 +32,14 @@
 
 ## Secrets
 - Never commit tokens. Use `.env` or `config.local.yaml` (git‑ignored).
+
+## Install Repo Hooks
+- Run `./scripts/install_hooks.sh` once per clone to enable protected path guards.
+
+## Setup (once per machine)
+1. `python3 -m venv .venv && source .venv/bin/activate`
+2. `python3 -m pip install -r requirements.txt`
+3. `cp docs/protocol/CONFIG.example.yaml docs/protocol/CONFIG.yaml` (skip if it already exists)
+4. `cp .env.example .env` and populate secrets
+5. `python3 backend/db/migrate.py` → expect "Migration complete..."
+   - If schema drifts during development, use `python3 backend/db/migrate.py --reset` (SQLite only; wipes empty dev DB).

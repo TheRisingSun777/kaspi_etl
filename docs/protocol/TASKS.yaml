@@ -3,8 +3,8 @@
 # owner: manual | codex
 
 meta:
-  last_updated: "YYYY-MM-DD HH:MM"
-  actor: "owner"
+  last_updated: "2025-10-08 21:34"
+  actor: "codex"
 
 phases:
   - id: P0
@@ -18,10 +18,33 @@ phases:
       - id: P0.2
         title: Audit legacy inventory code & files
         owner: codex
-        status: todo
+        status: done
+        status_log:
+          - status: in_progress
+            at: "2025-10-07 13:09"
+            actor: codex
+          - status: review
+            at: "2025-10-07 13:10"
+            actor: codex
+          - status: done
+            at: "2025-10-07 13:11"
+            actor: codex
         deps: [P0.1]
         notes: "Search for stock_on_hand.csv, ActiveOrders, dashboard.py, streamlit, etl_* in repo; list conflicts"
         dod: "ISSUES.md lists conflicts; DECISIONS.md lists what to archive/migrate"
+      - id: P0.3
+        title: Protected paths guardrails
+        owner: codex
+        status: done
+        status_log:
+          - status: in_progress
+            at: "2025-10-07 14:40"
+            actor: codex
+          - status: done
+            at: "2025-10-07 14:40"
+            actor: codex
+        deps: [P0.2]
+        dod: "Pre-commit guard + installer enforce protected paths; OPERATING.md documents setup"
 
   - id: P1
     name: Data Foundation (DB + Config)
@@ -29,21 +52,136 @@ phases:
       - id: P1.1
         title: Define DB schema models & migrations
         owner: codex
-        status: todo
+        status: done
+        status_log:
+          - status: in_progress
+            at: "2025-10-07 13:31"
+            actor: codex
+          - status: review
+            at: "2025-10-07 13:38"
+            actor: codex
+          - status: done
+            at: "2025-10-07 13:39"
+            actor: codex
         deps: [P0.2]
         dod: "products, offer_to_sku_key, stock_snapshots, sales_daily, orders, size_mix, demand_forecasts, diagnostics, inventory_policy, po_plan created; migration committed"
       - id: P1.2
         title: Create CONFIG.example.yaml & .env.example
         owner: codex
-        status: todo
+        status: done
+        status_log:
+          - status: in_progress
+            at: "2025-10-07 14:56"
+            actor: codex
+          - status: done
+            at: "2025-10-07 14:56"
+            actor: codex
         deps: [P1.1]
         dod: "docs/protocol/CONFIG.example.yaml filled; .env.example at repo root"
+      - id: P1.2a
+        title: Stabilize config & clean ETL API
+        owner: codex
+        status: done
+        status_log:
+          - status: in_progress
+            at: "2025-10-07 17:23"
+            actor: codex
+          - status: done
+            at: "2025-10-07 17:23"
+            actor: codex
+        deps: [P1.2]
+        dod: "EtL API retries consolidated; config deps aligned with trimmed requirements"
       - id: P1.3
         title: Load baseline dims from XLSX (Sku_Map, size mix, delivery bands)
         owner: codex
-        status: todo
+        status: done
+        status_log:
+          - status: in_progress
+            at: "2025-10-07 19:32"
+            actor: codex
+          - status: done
+            at: "2025-10-07 19:32"
+            actor: codex
         deps: [P1.1]
         dod: "Loader scripts populate products, size_mix, delivery_bands; logs in PROGRESS.md"
+      - id: P1.4
+        title: Offers ingest (Business_model → offers)
+        owner: codex
+        status: done
+        status_log:
+          - status: in_progress
+            at: "2025-10-08 17:22"
+            actor: codex
+          - status: done
+            at: "2025-10-08 17:22"
+            actor: codex
+        deps: [P1.3]
+        dod: "Offers table hydrated from Business_model with account-specific IDs"
+      - id: P1.3b
+        title: Harden baseline XLSX loaders & inspector
+        owner: codex
+        status: done
+        status_log:
+          - status: in_progress
+            at: "2025-10-08 17:46"
+            actor: codex
+          - status: done
+            at: "2025-10-08 17:46"
+            actor: codex
+        deps: [P1.3]
+        dod: "Delivery header synonyms expanded; strict size tokens; inspect CLI added"
+      - id: P1.3c
+        title: Align delivery workbook and offers sheet detection
+        owner: codex
+        status: done
+        status_log:
+          - status: in_progress
+            at: "2025-10-08 19:17"
+            actor: codex
+          - status: done
+            at: "2025-10-08 19:17"
+            actor: codex
+        deps: [P1.3b]
+        dod: "Percent-based delivery bands and autodetected offers sheets handled"
+      - id: P1.3d
+        title: Harden delivery pct + offers store mapping
+        owner: codex
+        status: done
+        status_log:
+          - status: in_progress
+            at: "2025-10-08 19:39"
+            actor: codex
+          - status: done
+            at: "2025-10-08 19:39"
+            actor: codex
+        deps: [P1.3c]
+        dod: "Loaders pass with percent delivery workbook and store-name accounts"
+      - id: P1.3e
+        title: Delivery bands auto-upgrade & ingest guards
+        owner: codex
+        status: done
+        status_log:
+          - status: in_progress
+            at: "2025-10-08 20:40"
+            actor: codex
+          - status: done
+            at: "2025-10-08 20:40"
+            actor: codex
+        deps: [P1.3d]
+        dod: "SQLite reset flag + header tests keep baseline/offer ingest aligned"
+      - id: P1.3f
+        title: Finalize baseline ingest (percent bands + offers map)
+        owner: codex
+        status: done
+        status_log:
+          - status: in_progress
+            at: "2025-10-08 21:34"
+            actor: codex
+          - status: done
+            at: "2025-10-08 21:34"
+            actor: codex
+        deps: [P1.3e]
+        dod: "Inspectors + loaders handle percent workbooks and Store_name mappings"
 
   - id: P2
     name: Inventory Sync (Flow B + /inventory/update)
